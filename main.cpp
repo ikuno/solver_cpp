@@ -7,5 +7,7 @@ int main(int argc, char* argv[])
   col.readCMD(argc, argv);
   col.checkCMD();
   col.showCMD();
+
+
   return 0;
 }

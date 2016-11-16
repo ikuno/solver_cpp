@@ -199,7 +199,6 @@ void collection::checkCMD(){
     do{
       entry = readdir(dp);
       if(entry!=NULL){
-        // std::cout << this->CRS_Path << entry->d_name << std::endl;
         if(this->L1_Dir_Name == entry->d_name){
           std::cout << "Get 1L Dir -> " << this->L1_Dir_Name << std::endl;
           getDir = entry->d_name;
@@ -259,8 +258,6 @@ void collection::checkCMD(){
     fullDir += "/";
     fullDir += getDir;
     this->fullPath = fullDir;
-
-    // std::cout << "ALLPATH = " << this->fullPath << std::endl;
 
     dp = opendir(fullDir.c_str());
     do{
@@ -359,8 +356,6 @@ void collection::checkCMD(){
     this->fullPath = fullDir;
     dp = opendir(fullDir.c_str());
 
-    // std::cout << "ALLPATH = " << this->fullPath << std::endl;
-
     do{
       entry = readdir(dp);
       if(entry!=NULL){
@@ -416,4 +411,8 @@ void collection::showCMD(){
   std::cout << "InnerKskip : " << this->innerKskip << std::endl;
   std::cout << "InnerFix : " << this->innerFix << std::endl;
   std::cout << "=========================================================" << std::endl;
+}
+
+void collection::CRSMalloc(){
+
 }

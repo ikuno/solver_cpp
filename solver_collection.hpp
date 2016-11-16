@@ -60,6 +60,11 @@ class collection {
     long int NNZ;
     int inputSource; //1->CRS, 2->MM
 
+//pointer
+    double* val;
+    int *col;
+    int *ptr;
+
   public:
     collection();
     void readCMD(int argc, char* argv[]);
@@ -68,6 +73,8 @@ class collection {
 
     std::string enum2string(SOLVERS_NAME id);
     SOLVERS_NAME string2enum(std::string str);
+
+    void CRSMalloc();
 
 };
 
