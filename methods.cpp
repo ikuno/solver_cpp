@@ -8,7 +8,7 @@ methods::methods(collection *coll){
 void methods::outerSelect(SOLVERS_NAME solver){
   int result;
   if(solver == CG){
-    cg solver(coll);
+    cg solver(coll, coll->bvec, coll->xvec);
     result = solver.solve();
   }
   if(result == 0){

@@ -1,6 +1,6 @@
 #include "cg.hpp"
 
-cg::cg(collection *coll){
+cg::cg(collection *coll, double *bvec, double *xvec){
   this->coll = coll;
   bs = new blas(this->coll);
 
@@ -10,8 +10,8 @@ cg::cg(collection *coll){
   mv = new double [N];
   x_0 = new double [N];
 
-  xvec = this->coll->xvec;
-  bvec = this->coll->bvec;
+  this->xvec = xvec;
+  this->bvec = bvec;
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -33,6 +33,19 @@ cg::cg(collection *coll){
     mv[i] = 0.0;
     xvec[i] = 0.0;
   }
+  
+  f_his.open("CG_his.txt");
+  if(!f_his.is_open()){
+    std::cerr << "File open error" << std::endl;
+    exit(-1);
+  }
+
+  f_x.open("CG_xvec.txt");
+  if(!f_x.is_open()){
+    std::cerr << "File open error" << std::endl;
+    exit(-1);
+  }
+
 }
 
 cg::~cg(){
@@ -41,6 +54,8 @@ cg::~cg(){
   delete[] pvec;
   delete[] mv;
   delete[] x_0;
+  f_his.close();
+  f_x.close();
 }
 
 int cg::solve(){
@@ -49,7 +64,6 @@ int cg::solve(){
 
   //b 2norm
   bnorm = bs->norm_2<double>(bvec, N);
-
 
   //mv = Ax
   if(isCUDA){
@@ -80,6 +94,9 @@ int cg::solve(){
         std::cout << loop+1 << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
       }
     }
+
+    f_his << loop+1 << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
+
     if(error <= eps){
       exit_flag = 0;
       break;
@@ -124,6 +141,10 @@ int cg::solve(){
     test_error = bs->Check_error(xvec, x_0, N);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop+1 << std::endl;
+
+    for(long int i=0; i<N; i++){
+      f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
+    }
   }else{
 
   }

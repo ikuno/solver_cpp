@@ -13,11 +13,9 @@ int main(int argc, char* argv[])
   col.CRSAlloc();
   col.readMatrix();
 
-
   col.showCMD();
-
   method.outerSelect(col.outerSolver);
-
+  col.showCMD();
 
 
   return 0;

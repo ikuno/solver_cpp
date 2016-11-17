@@ -2,6 +2,7 @@
 #define CG_HPP_INCLUDED__
 
 #include <iomanip>
+#include <fstream>
 #include "solver_collection.hpp"
 #include "blas.hpp"
 
@@ -25,8 +26,11 @@ class cg {
 
     int N;
 
+    std::ofstream f_his;
+    std::ofstream f_x;
+
   public:
-    cg(collection *coll);
+    cg(collection *coll, double *bvec, double *xvec);
     ~cg();
     int solve();
 };

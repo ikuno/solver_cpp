@@ -9,6 +9,9 @@ class blas {
     coll = col;
   }
 
+std::ofstream *output(std::string name);
+std::string get_date_time();
+
   template <typename T1>
     T1 norm_1(T1 *v, const long int N){
       T1 tmp = 0.0;
