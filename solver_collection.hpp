@@ -23,11 +23,13 @@ enum SOLVERS_NAME {
   };
 
 class collection {
-  private:
+  // private:
+  public:
     bool isVP;
     bool isCUDA;
     bool isOpenMP;
     bool isVerbose;
+    bool isInner;
     int OMPThread;
 
     std::string L1_Dir_Name;
@@ -60,13 +62,9 @@ class collection {
     long int NNZ;
     int inputSource; //1->CRS, 2->MM
 
-//pointer
-    double* val;
-    int *col;
-    int *ptr;
 
-  public:
     collection();
+    ~collection();
     void readCMD(int argc, char* argv[]);
     void checkCMD();
     void showCMD();
@@ -74,7 +72,17 @@ class collection {
     std::string enum2string(SOLVERS_NAME id);
     SOLVERS_NAME string2enum(std::string str);
 
-    void CRSMalloc();
+    void checkMatrix();
+    void readMatrix();
+    void CRSAlloc();
+
+//pointer
+    double* val;
+    int *col;
+    int *ptr;
+    double *bvec;
+    double *xvec;
+
 
 };
 

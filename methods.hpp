@@ -2,12 +2,13 @@
 #define METHODS_HPP_INCLUDED__
 
 #include "solver_collection.hpp"
+#include "cg.hpp"
 
 class methods {
   private:
-    collection *col;
+    collection *coll;
   public:
-    methods(collection *col);
-    void outerSelect(SOLVERS_NAME solver, collection *col);
+    methods(collection *coll);
+    void outerSelect(SOLVERS_NAME solver);
 };
 #endif //METHODS_HPP_INCLUDED__
