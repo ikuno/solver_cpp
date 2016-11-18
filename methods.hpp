@@ -3,6 +3,8 @@
 
 #include "solver_collection.hpp"
 #include "cg.hpp"
+#include "cr.hpp"
+// #include "gcr.hpp"
 
 template <typename T>
 class methods {
@@ -20,10 +22,16 @@ methods<T>::methods(collection<T> *coll){
 
 template <typename T>
 void methods<T>::outerSelect(SOLVERS_NAME solver){
-  int result;
+  int result = 1;
   if(solver == CG){
     cg<T> solver(coll, coll->bvec, coll->xvec);
     result = solver.solve();
+  }else if(solver == CR){
+    cr<T> solver(coll, coll->bvec, coll->xvec);
+    result = solver.solve();
+  }else if(solver == GCR){
+    // gcr<T> solver(coll, coll->bvec, coll->xvec);
+    // result = solver.solve();
   }
   if(result == 0){
     std::cout << BOLDGREEN << "converge" << RESET << std::endl;

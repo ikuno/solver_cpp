@@ -1,5 +1,5 @@
-#ifndef CG_HPP_INCLUDED__
-#define CG_HPP_INCLUDED__
+#ifndef CR_HPP_INCLUDED__
+#define CR_HPP_INCLUDED__
 
 #include <iomanip>
 #include <fstream>
@@ -7,16 +7,16 @@
 #include "blas.hpp"
 
 template <typename T>
-class cg {
+class cr {
   private:
     collection<T> *coll;
     blas<T> *bs;
     
     long int loop;
     T *xvec, *bvec;
-    T *rvec, *pvec, *mv, *x_0, dot, error;
+    T *rvec, *pvec, *qvec, *svec, *x_0, dot, error;
     T alpha, beta, bnorm, rnorm;
-    T rr, rr2;
+    T rs, rs2;
 
     int maxloop;
     double eps;
@@ -31,20 +31,21 @@ class cg {
     std::ofstream f_x;
 
   public:
-    cg(collection<T> *coll, T *bvec, T *xvec);
-    ~cg();
+    cr(collection<T> *coll, T *bvec, T *xvec);
+    ~cr();
     int solve();
 };
 
 template <typename T>
-cg<T>::cg(collection<T> *coll, T *bvec, T *xvec){
+cr<T>::cr(collection<T> *coll, T *bvec, T *xvec){
   this->coll = coll;
   bs = new blas<T>(this->coll);
 
   N = this->coll->N;
   rvec = new T [N];
   pvec = new T [N];
-  mv = new T [N];
+  qvec = new T [N];
+  svec = new T [N];
   x_0 = new T [N];
 
   this->xvec = xvec;
@@ -67,17 +68,18 @@ cg<T>::cg(collection<T> *coll, T *bvec, T *xvec){
   for(long int i=0; i<N; i++){
     rvec[i] = 0.0;
     pvec[i] = 0.0;
-    mv[i] = 0.0;
+    qvec[i] = 0.0;
+    svec[i] = 0.0;
     xvec[i] = 0.0;
   }
   
-  f_his.open("./output/CG_his.txt");
+  f_his.open("./output/CR_his.txt");
   if(!f_his.is_open()){
     std::cerr << "File open error" << std::endl;
     exit(-1);
   }
 
-  f_x.open("./output/CG_xvec.txt");
+  f_x.open("./output/CR_xvec.txt");
   if(!f_x.is_open()){
     std::cerr << "File open error" << std::endl;
     exit(-1);
@@ -86,43 +88,54 @@ cg<T>::cg(collection<T> *coll, T *bvec, T *xvec){
 }
 
 template <typename T>
-cg<T>::~cg(){
+cr<T>::~cr(){
   delete this->bs;
   delete[] rvec;
   delete[] pvec;
-  delete[] mv;
+  delete[] qvec;
+  delete[] svec;
   delete[] x_0;
   f_his.close();
   f_x.close();
 }
 
 template <typename T>
-int cg<T>::solve(){
+int cr<T>::solve(){
   //x_0 = x
   bs->Vec_copy(xvec, x_0, N);
 
   //b 2norm
   bnorm = bs->norm_2(bvec, N);
 
-  //mv = Ax
+  //qvec = Ax
   if(isCUDA){
 
   }else{
-    bs->MtxVec_mult(xvec, mv, N);
+    bs->MtxVec_mult(xvec, qvec, N);
   }
 
-  //r = b - Ax
-  bs->Vec_sub(bvec, mv, rvec, N);
+  //r = b - Ax(qvec)
+  bs->Vec_sub(bvec, qvec, rvec, N);
 
 
   //p = r
   bs->Vec_copy(rvec, pvec, N);
 
-  //r dot
+  //qvec = Ap
   if(isCUDA){
 
   }else{
-    rr = bs->dot(rvec, rvec, N);
+    bs->MtxVec_mult(pvec, qvec, N);
+  }
+
+  //s = q
+  bs->Vec_copy(qvec, svec, N);
+
+  //(r, s)
+  if(isCUDA){
+
+  }else{
+    rs = bs->dot(rvec, svec, N);
   }
 
   for(loop=0; loop<maxloop; loop++){
@@ -141,39 +154,43 @@ int cg<T>::solve(){
       break;
     }
 
-    //mv = Ap
-    if(isCUDA){
-
-    }else{
-      bs->MtxVec_mult(pvec, mv, N);
-    }
-
-    //alpha = (r,r) / (p,ap)
+    //alpha = (r,s) / (q,q)
     if(isCUDA){
     }else{
-      dot = bs->dot(rvec, mv, N);
+      dot = bs->dot(qvec, qvec, N);
     }
-    alpha = rr / dot;
+    alpha = rs / dot;
 
     //x = alpha * pvec + x
     bs->Scalar_axy(alpha, pvec, xvec, xvec, N);
 
-    //r = -alpha * AP(mv) + r
-    bs->Scalar_axy(-alpha, mv, rvec, rvec, N);
+    //r = -alpha * qvec + r
+    bs->Scalar_axy(-alpha, qvec, rvec, rvec, N);
 
-    //rr2 dot
+    //s=Ar
     if(isCUDA){
 
     }else{
-      rr2 = bs->dot(rvec, rvec, N);
+      bs->MtxVec_mult(rvec, svec, N);
     }
 
-    beta = rr2/rr;
+    //r2=(r, s)
+    if(isCUDA){
 
-    rr = rr2;
+    }else{
+      rs2 = bs->dot(rvec, svec, N);
+    }
+
+    //beta=(r_new, s_new)/(r, s)
+    beta = rs2/rs;
+
+    rs = rs2;
 
     //p = beta * p + r
     bs->Scalar_axy(beta, pvec, rvec, pvec, N);
+
+    //q = beta * q + s
+    bs->Scalar_axy(beta, qvec, svec, qvec, N);
   }
 
   if(!isInner){
@@ -190,5 +207,5 @@ int cg<T>::solve(){
 
   return exit_flag;
 }
-#endif //CG_HPP_INCLUDED__
+#endif //CR_HPP_INCLUDED__
 
