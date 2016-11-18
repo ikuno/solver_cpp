@@ -1,14 +1,51 @@
-#include "cg.hpp"
+#ifndef CG_HPP_INCLUDED__
+#define CG_HPP_INCLUDED__
 
-cg::cg(collection *coll, double *bvec, double *xvec){
+#include <iomanip>
+#include <fstream>
+#include "solver_collection.hpp"
+#include "blas.hpp"
+
+template <typename T>
+class cg {
+  private:
+    collection<T> *coll;
+    blas<T> *bs;
+    
+    long int loop;
+    T *xvec, *bvec;
+    T *rvec, *pvec, *mv, *x_0, dot, error;
+    T alpha, beta, bnorm, rnorm;
+    T rr, rr2;
+
+    int maxloop;
+    double eps;
+    bool isVP, isVerbose, isCUDA, isInner;
+
+    int exit_flag;
+    T test_error;
+
+    int N;
+
+    std::ofstream f_his;
+    std::ofstream f_x;
+
+  public:
+    cg(collection<T> *coll, T *bvec, T *xvec);
+    ~cg();
+    int solve();
+};
+
+template <typename T>
+cg<T>::cg(collection<T> *coll, T *bvec, T *xvec){
   this->coll = coll;
-  bs = new blas(this->coll);
+  bs = new blas<T>(this->coll);
 
   N = this->coll->N;
-  rvec = new double [N];
-  pvec = new double [N];
-  mv = new double [N];
-  x_0 = new double [N];
+  rvec = new T [N];
+  pvec = new T [N];
+  mv = new T [N];
+  x_0 = new T [N];
 
   this->xvec = xvec;
   this->bvec = bvec;
@@ -48,7 +85,8 @@ cg::cg(collection *coll, double *bvec, double *xvec){
 
 }
 
-cg::~cg(){
+template <typename T>
+cg<T>::~cg(){
   delete this->bs;
   delete[] rvec;
   delete[] pvec;
@@ -58,36 +96,37 @@ cg::~cg(){
   f_x.close();
 }
 
-int cg::solve(){
+template <typename T>
+int cg<T>::solve(){
   //x_0 = x
-  bs->Vec_copy<double>(xvec, x_0, N);
+  bs->Vec_copy(xvec, x_0, N);
 
   //b 2norm
-  bnorm = bs->norm_2<double>(bvec, N);
+  bnorm = bs->norm_2(bvec, N);
 
   //mv = Ax
   if(isCUDA){
 
   }else{
-    bs->MtxVec_mult<double>(xvec, mv, N);
+    bs->MtxVec_mult(xvec, mv, N);
   }
 
   //r = b - Ax
-  bs->Vec_sub<double>(bvec, mv, rvec, N);
+  bs->Vec_sub(bvec, mv, rvec, N);
 
 
   //p = r
-  bs->Vec_copy<double>(rvec, pvec, N);
+  bs->Vec_copy(rvec, pvec, N);
 
   //r dot
   if(isCUDA){
 
   }else{
-    rr = bs->dot<double>(rvec, rvec, N);
+    rr = bs->dot(rvec, rvec, N);
   }
 
   for(loop=0; loop<maxloop; loop++){
-    rnorm = bs->norm_2<double>(rvec, N);
+    rnorm = bs->norm_2(rvec, N);
     error = rnorm/bnorm;
     if(!isInner){
       if(isVerbose){
@@ -106,27 +145,27 @@ int cg::solve(){
     if(isCUDA){
 
     }else{
-      bs->MtxVec_mult<double>(pvec, mv, N);
+      bs->MtxVec_mult(pvec, mv, N);
     }
 
     //alpha = (r,r) / (p,ap)
     if(isCUDA){
     }else{
-      dot = bs->dot<double>(rvec, mv, N);
+      dot = bs->dot(rvec, mv, N);
     }
     alpha = rr / dot;
 
     //x = alpha * pvec + x
-    bs->Scalar_axy<double>(alpha, pvec, xvec, xvec, N);
+    bs->Scalar_axy(alpha, pvec, xvec, xvec, N);
 
     //r = -alpha * AP(mv) + r
-    bs->Scalar_axy<double>(-alpha, mv, rvec, rvec, N);
+    bs->Scalar_axy(-alpha, mv, rvec, rvec, N);
 
     //rr2 dot
     if(isCUDA){
 
     }else{
-      rr2 = bs->dot<double>(rvec, rvec, N);
+      rr2 = bs->dot(rvec, rvec, N);
     }
 
     beta = rr2/rr;
@@ -134,7 +173,7 @@ int cg::solve(){
     rr = rr2;
 
     //p = beta * p + r
-    bs->Scalar_axy<double>(beta, pvec, rvec, pvec, N);
+    bs->Scalar_axy(beta, pvec, rvec, pvec, N);
   }
 
   if(!isInner){
@@ -151,3 +190,5 @@ int cg::solve(){
 
   return exit_flag;
 }
+#endif //CG_HPP_INCLUDED__
+
