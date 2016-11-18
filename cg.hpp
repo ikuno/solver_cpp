@@ -125,14 +125,14 @@ int cg<T>::solve(){
     rr = bs->dot(rvec, rvec, N);
   }
 
-  for(loop=0; loop<maxloop; loop++){
+  for(loop=1; loop<=maxloop; loop++){
     rnorm = bs->norm_2(rvec, N);
     error = rnorm/bnorm;
     if(!isInner){
       if(isVerbose){
-        std::cout << loop+1 << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
+        std::cout << loop << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
       }
-      f_his << loop+1 << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
+      f_his << loop << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
     }
 
 
@@ -179,7 +179,7 @@ int cg<T>::solve(){
   if(!isInner){
     test_error = bs->Check_error(xvec, x_0, N);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
-    std::cout << "loop = " << loop+1 << std::endl;
+    std::cout << "loop = " << loop-1 << std::endl;
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;

@@ -4,7 +4,7 @@
 #include "solver_collection.hpp"
 #include "cg.hpp"
 #include "cr.hpp"
-// #include "gcr.hpp"
+#include "gcr.hpp"
 
 template <typename T>
 class methods {
@@ -30,8 +30,8 @@ void methods<T>::outerSelect(SOLVERS_NAME solver){
     cr<T> solver(coll, coll->bvec, coll->xvec);
     result = solver.solve();
   }else if(solver == GCR){
-    // gcr<T> solver(coll, coll->bvec, coll->xvec);
-    // result = solver.solve();
+    gcr<T> solver(coll, coll->bvec, coll->xvec);
+    result = solver.solve();
   }
   if(result == 0){
     std::cout << BOLDGREEN << "converge" << RESET << std::endl;
