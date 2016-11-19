@@ -129,34 +129,34 @@ template <typename T>
 int gcr<T>::solve(){
 
   //x_0 = x
-  bs->Vec_copy(xvec, x_0, N);
+  bs->Vec_copy(xvec, x_0);
 
   //b 2norm
-  bnorm = bs->norm_2(bvec, N);
+  bnorm = bs->norm_2(bvec);
 
   while(loop<maxloop){
     //Ax
     if(isCUDA){
 
     }else{
-      bs->MtxVec_mult(xvec, Av, N);
+      bs->MtxVec_mult(xvec, Av);
     }
 
     //r=b-Ax
-    bs->Vec_sub(bvec, Av, rvec, N);
+    bs->Vec_sub(bvec, Av, rvec);
 
     //p=r
-    bs->Vec_copy(rvec, pvec[0], N);
+    bs->Vec_copy(rvec, pvec[0]);
 
     //Ap
     if(isCUDA){
 
     }else{
-      bs->MtxVec_mult(pvec[0], qvec[0], N);
+      bs->MtxVec_mult(pvec[0], qvec[0]);
     }
 
     for(kloop=0; kloop<restart; kloop++){
-      rnorm = bs->norm_2(rvec, N);
+      rnorm = bs->norm_2(rvec);
       error = rnorm / bnorm;
       if(!isInner){
         if(isVerbose){
@@ -179,7 +179,7 @@ int gcr<T>::solve(){
       if(isCUDA){
 
       }else{
-        dot_tmp = bs->dot(qvec[kloop], qvec[kloop], N);
+        dot_tmp = bs->dot(qvec[kloop], qvec[kloop]);
       }
       qq[kloop] = dot_tmp;
 
@@ -187,24 +187,24 @@ int gcr<T>::solve(){
       if(isCUDA){
 
       }else{
-        dot_tmp = bs->dot(rvec, qvec[kloop], N);
+        dot_tmp = bs->dot(rvec, qvec[kloop]);
       }
       alpha = dot_tmp / qq[kloop];
 
       //x = alpha * pvec[k] + xvec
-      bs->Scalar_axy(alpha, pvec[kloop], xvec, xvec, N);
+      bs->Scalar_axy(alpha, pvec[kloop], xvec, xvec);
       if(kloop == restart-1){
         break;
       }
 
       //r = -alpha * qvec[k] + rvec
-      bs->Scalar_axy(-alpha, qvec[kloop], rvec, rvec, N);
+      bs->Scalar_axy(-alpha, qvec[kloop], rvec, rvec);
 
       //Ar
       if(isCUDA){
 
       }else{
-        bs->MtxVec_mult(rvec, Av, N);
+        bs->MtxVec_mult(rvec, Av);
       }
 
       //init p[k+1] q[k+1]
@@ -216,26 +216,26 @@ int gcr<T>::solve(){
         if(isCUDA){
 
         }else{
-          dot_tmp = bs->dot(Av, qvec[iloop], N);
+          dot_tmp = bs->dot(Av, qvec[iloop]);
         }
         beta = -(dot_tmp) / qq[iloop];
 
         //pvec[k+1] = beta * pvec[i] + pvec[k+1]
-        bs->Scalar_axy(beta, pvec[iloop], pvec[kloop+1], pvec[kloop+1], N);
+        bs->Scalar_axy(beta, pvec[iloop], pvec[kloop+1], pvec[kloop+1]);
         //qvec[k+1] = beta * qvec[i] + qvec[k+1]
-        bs->Scalar_axy(beta, qvec[iloop], qvec[kloop+1], qvec[kloop+1], N);
+        bs->Scalar_axy(beta, qvec[iloop], qvec[kloop+1], qvec[kloop+1]);
       }
       //p[k+1] = r + p[k+1]
-      bs->Vec_add(rvec, pvec[kloop+1], pvec[kloop+1], N);
+      bs->Vec_add(rvec, pvec[kloop+1], pvec[kloop+1]);
       //q[k+1] = Av + q[k+1]
-      bs->Vec_add(Av, qvec[kloop+1], qvec[kloop+1], N);
+      bs->Vec_add(Av, qvec[kloop+1], qvec[kloop+1]);
     }
     if(out_flag){
       break;
     }
   }
   if(!isInner){
-    test_error = bs->Check_error(xvec, x_0, N);
+    test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
 

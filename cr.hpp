@@ -100,44 +100,44 @@ cr<T>::~cr(){
 template <typename T>
 int cr<T>::solve(){
   //x_0 = x
-  bs->Vec_copy(xvec, x_0, N);
+  bs->Vec_copy(xvec, x_0);
 
   //b 2norm
-  bnorm = bs->norm_2(bvec, N);
+  bnorm = bs->norm_2(bvec);
 
   //qvec = Ax
   if(isCUDA){
 
   }else{
-    bs->MtxVec_mult(xvec, qvec, N);
+    bs->MtxVec_mult(xvec, qvec);
   }
 
   //r = b - Ax(qvec)
-  bs->Vec_sub(bvec, qvec, rvec, N);
+  bs->Vec_sub(bvec, qvec, rvec);
 
 
   //p = r
-  bs->Vec_copy(rvec, pvec, N);
+  bs->Vec_copy(rvec, pvec);
 
   //qvec = Ap
   if(isCUDA){
 
   }else{
-    bs->MtxVec_mult(pvec, qvec, N);
+    bs->MtxVec_mult(pvec, qvec);
   }
 
   //s = q
-  bs->Vec_copy(qvec, svec, N);
+  bs->Vec_copy(qvec, svec);
 
   //(r, s)
   if(isCUDA){
 
   }else{
-    rs = bs->dot(rvec, svec, N);
+    rs = bs->dot(rvec, svec);
   }
 
   for(loop=1; loop<=maxloop; loop++){
-    rnorm = bs->norm_2(rvec, N);
+    rnorm = bs->norm_2(rvec);
     error = rnorm/bnorm;
     if(!isInner){
       if(isVerbose){
@@ -155,28 +155,28 @@ int cr<T>::solve(){
     //alpha = (r,s) / (q,q)
     if(isCUDA){
     }else{
-      dot = bs->dot(qvec, qvec, N);
+      dot = bs->dot(qvec, qvec);
     }
     alpha = rs / dot;
 
     //x = alpha * pvec + x
-    bs->Scalar_axy(alpha, pvec, xvec, xvec, N);
+    bs->Scalar_axy(alpha, pvec, xvec, xvec);
 
     //r = -alpha * qvec + r
-    bs->Scalar_axy(-alpha, qvec, rvec, rvec, N);
+    bs->Scalar_axy(-alpha, qvec, rvec, rvec);
 
     //s=Ar
     if(isCUDA){
 
     }else{
-      bs->MtxVec_mult(rvec, svec, N);
+      bs->MtxVec_mult(rvec, svec);
     }
 
     //r2=(r, s)
     if(isCUDA){
 
     }else{
-      rs2 = bs->dot(rvec, svec, N);
+      rs2 = bs->dot(rvec, svec);
     }
 
     //beta=(r_new, s_new)/(r, s)
@@ -185,14 +185,14 @@ int cr<T>::solve(){
     rs = rs2;
 
     //p = beta * p + r
-    bs->Scalar_axy(beta, pvec, rvec, pvec, N);
+    bs->Scalar_axy(beta, pvec, rvec, pvec);
 
     //q = beta * q + s
-    bs->Scalar_axy(beta, qvec, svec, qvec, N);
+    bs->Scalar_axy(beta, qvec, svec, qvec);
   }
 
   if(!isInner){
-    test_error = bs->Check_error(xvec, x_0, N);
+    test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
 

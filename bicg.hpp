@@ -104,39 +104,39 @@ template <typename T>
 int bicg<T>::solve(){
 
   //x_0 = x
-  bs->Vec_copy(xvec, x_0, N);
+  bs->Vec_copy(xvec, x_0);
 
   //b 2norm
-  bnorm = bs->norm_2(bvec, N);
+  bnorm = bs->norm_2(bvec);
 
   //mv = Ax
   if(isCUDA){
 
   }else{
-    bs->MtxVec_mult(xvec, mv, N);
+    bs->MtxVec_mult(xvec, mv);
   }
 
   //r = b - Ax
-  bs->Vec_sub(bvec, mv, rvec, N);
+  bs->Vec_sub(bvec, mv, rvec);
 
   //r* = r
-  bs->Vec_copy(rvec, r_vec, N);
+  bs->Vec_copy(rvec, r_vec);
 
   //p = r
-  bs->Vec_copy(rvec, pvec, N);
+  bs->Vec_copy(rvec, pvec);
 
   //p* = *r
-  bs->Vec_copy(r_vec, p_vec, N);
+  bs->Vec_copy(r_vec, p_vec);
 
   //r * r*
   if(isCUDA){
 
   }else{
-    rr = bs->dot(r_vec, rvec, N);
+    rr = bs->dot(r_vec, rvec);
   }
 
   for(loop=1; loop<=maxloop; loop++){
-    rnorm = bs->norm_2(rvec, N);
+    rnorm = bs->norm_2(rvec);
     error = rnorm/bnorm;
     if(!isInner){
       if(isVerbose){
@@ -155,37 +155,37 @@ int bicg<T>::solve(){
     if(isCUDA){
 
     }else{
-      bs->MtxVec_mult(pvec, mv, N);
+      bs->MtxVec_mult(pvec, mv);
     }
 
     //alpha = (r*,r) / (p*,ap)
     if(isCUDA){
     }else{
-      dot = bs->dot(p_vec, mv, N);
+      dot = bs->dot(p_vec, mv);
     }
     alpha = rr / dot;
 
     //x = alpha * pvec + x
-    bs->Scalar_axy(alpha, pvec, xvec, xvec, N);
+    bs->Scalar_axy(alpha, pvec, xvec, xvec);
 
     //r = -alpha * AP(mv) + r
-    bs->Scalar_axy(-alpha, mv, rvec, rvec, N);
+    bs->Scalar_axy(-alpha, mv, rvec, rvec);
 
     //mv = A(T)p*
     if(isCUDA){
 
     }else{
-      bs->MtxVec_mult(this->coll->Tval, this->coll->Tcol, this->coll->Tptr, p_vec, mv, N);
+      bs->MtxVec_mult(this->coll->Tval, this->coll->Tcol, this->coll->Tptr, p_vec, mv);
     }
 
     //r* = r* - alpha * A(T)p*
-    bs->Scalar_axy(-alpha, mv, r_vec, r_vec, N);
+    bs->Scalar_axy(-alpha, mv, r_vec, r_vec);
 
     //r * r*
     if(isCUDA){
 
     }else{
-      rr2 = bs->dot(r_vec, rvec, N);
+      rr2 = bs->dot(r_vec, rvec);
     }
 
     beta = rr2/rr;
@@ -193,14 +193,14 @@ int bicg<T>::solve(){
     rr = rr2;
 
     //p = beta * p + r
-    bs->Scalar_axy(beta, pvec, rvec, pvec, N);
+    bs->Scalar_axy(beta, pvec, rvec, pvec);
     //p* = beta * p* + r*
-    bs->Scalar_axy(beta, p_vec, r_vec, p_vec, N);
+    bs->Scalar_axy(beta, p_vec, r_vec, p_vec);
 
   }
 
   if(!isInner){
-    test_error = bs->Check_error(xvec, x_0, N);
+    test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
 

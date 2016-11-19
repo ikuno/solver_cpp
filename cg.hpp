@@ -97,34 +97,34 @@ cg<T>::~cg(){
 template <typename T>
 int cg<T>::solve(){
   //x_0 = x
-  bs->Vec_copy(xvec, x_0, N);
+  bs->Vec_copy(xvec, x_0);
 
   //b 2norm
-  bnorm = bs->norm_2(bvec, N);
+  bnorm = bs->norm_2(bvec);
 
   //mv = Ax
   if(isCUDA){
 
   }else{
-    bs->MtxVec_mult(xvec, mv, N);
+    bs->MtxVec_mult(xvec, mv);
   }
 
   //r = b - Ax
-  bs->Vec_sub(bvec, mv, rvec, N);
+  bs->Vec_sub(bvec, mv, rvec);
 
 
   //p = r
-  bs->Vec_copy(rvec, pvec, N);
+  bs->Vec_copy(rvec, pvec);
 
   //r dot
   if(isCUDA){
 
   }else{
-    rr = bs->dot(rvec, rvec, N);
+    rr = bs->dot(rvec, rvec);
   }
 
   for(loop=1; loop<=maxloop; loop++){
-    rnorm = bs->norm_2(rvec, N);
+    rnorm = bs->norm_2(rvec);
     error = rnorm/bnorm;
     if(!isInner){
       if(isVerbose){
@@ -143,27 +143,27 @@ int cg<T>::solve(){
     if(isCUDA){
 
     }else{
-      bs->MtxVec_mult(pvec, mv, N);
+      bs->MtxVec_mult(pvec, mv);
     }
 
     //alpha = (r,r) / (p,ap)
     if(isCUDA){
     }else{
-      dot = bs->dot(rvec, mv, N);
+      dot = bs->dot(rvec, mv);
     }
     alpha = rr / dot;
 
     //x = alpha * pvec + x
-    bs->Scalar_axy(alpha, pvec, xvec, xvec, N);
+    bs->Scalar_axy(alpha, pvec, xvec, xvec);
 
     //r = -alpha * AP(mv) + r
-    bs->Scalar_axy(-alpha, mv, rvec, rvec, N);
+    bs->Scalar_axy(-alpha, mv, rvec, rvec);
 
     //rr2 dot
     if(isCUDA){
 
     }else{
-      rr2 = bs->dot(rvec, rvec, N);
+      rr2 = bs->dot(rvec, rvec);
     }
 
     beta = rr2/rr;
@@ -171,11 +171,11 @@ int cg<T>::solve(){
     rr = rr2;
 
     //p = beta * p + r
-    bs->Scalar_axy(beta, pvec, rvec, pvec, N);
+    bs->Scalar_axy(beta, pvec, rvec, pvec);
   }
 
   if(!isInner){
-    test_error = bs->Check_error(xvec, x_0, N);
+    test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
 
