@@ -78,19 +78,18 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec){
   isCUDA = this->coll->isCUDA;
   isInner = this->coll->isInner;
 
-  for(long int i=0; i<N; i++){
-    rvec[i] = 0.0;
-    Av[i] = 0.0;
-    xvec[i] = 0.0;
-  }
+  std::memset(rvec, 0, sizeof(T)*N);
+  std::memset(Av, 0, sizeof(T)*N);
+  std::memset(xvec, 0, sizeof(T)*N);
+
   for(long int i=0; i<restart; i++){
     qq[i] = 0.0;
   }
+  std::memset(qq, 0, sizeof(T)*restart);
+
   for(int i=0; i<restart; i++){
-    for(long int j=0; j<N; j++){
-      qvec[i][j] = 0.0;
-      pvec[i][j] = 0.0;
-    }
+    std::memset(qvec[i], 0, sizeof(T)*N);
+    std::memset(pvec[i], 0, sizeof(T)*N);
   }
 
   f_his.open("./output/GCR_his.txt");
@@ -209,10 +208,8 @@ int gcr<T>::solve(){
       }
 
       //init p[k+1] q[k+1]
-      for(long int i=0; i<N; i++){
-        pvec[kloop+1][i] = 0.0;
-        qvec[kloop+1][i] = 0.0;
-      }
+      std::memset(pvec[kloop+1], 0, sizeof(T)*N);
+      std::memset(qvec[kloop+1], 0, sizeof(T)*N);
 
       for(iloop=0; iloop<=kloop; iloop++){
         //beta = -(Av, qvec) / (q, q)

@@ -65,13 +65,11 @@ cr<T>::cr(collection<T> *coll, T *bvec, T *xvec){
     eps = this->coll->outerEps;
   }
 
-  for(long int i=0; i<N; i++){
-    rvec[i] = 0.0;
-    pvec[i] = 0.0;
-    qvec[i] = 0.0;
-    svec[i] = 0.0;
-    xvec[i] = 0.0;
-  }
+  std::memset(rvec, 0, sizeof(T)*N);
+  std::memset(pvec, 0, sizeof(T)*N);
+  std::memset(qvec, 0, sizeof(T)*N);
+  std::memset(svec, 0, sizeof(T)*N);
+  std::memset(xvec, 0, sizeof(T)*N);
   
   f_his.open("./output/CR_his.txt");
   if(!f_his.is_open()){
@@ -196,7 +194,7 @@ int cr<T>::solve(){
   if(!isInner){
     test_error = bs->Check_error(xvec, x_0, N);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
-    std::cout << "loop = " << loop-1 << std::endl;
+    std::cout << "loop = " << loop << std::endl;
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;

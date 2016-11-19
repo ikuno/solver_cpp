@@ -25,6 +25,8 @@ class blas {
 
     void MtxVec_mult(T *in_vec, T *out_vec, const long int N);
 
+    void MtxVec_mult(T *Tval, int *Tcol, int *Tptr, T *in_vec, T *out_vec, const long int N);
+
     void Vec_sub(T *x, T *y, T *out, const long int N);
 
     void Vec_add(T *x, T *y, T *out, const long int N);
@@ -98,6 +100,19 @@ void blas<T>::MtxVec_mult(T *in_vec, T *out_vec, const long int N){
     out_vec[i] = tmp;
   }
 }
+
+template <typename T>
+void blas<T>::MtxVec_mult(T *Tval, int *Tcol, int *Tptr, T *in_vec, T *out_vec, const long int N){
+  T tmp = 0.0;
+  for(long int i=0; i<N; i++){
+    tmp = 0.0;
+    for(long int j=Tptr[i]; j<Tptr[i+1]; j++){
+      tmp += Tval[j] * in_vec[Tcol[j]];
+    }
+    out_vec[i] = tmp;
+  }
+}
+
 
 template <typename T>
 void blas<T>::Vec_sub(T *x, T *y, T *out, const long int N){

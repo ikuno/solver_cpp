@@ -83,11 +83,18 @@ class collection {
     void checkMatrix();
     void readMatrix();
     void CRSAlloc();
+    void transposeMatrix();
+    void transpose();
 
 //pointer
     T* val;
-    int *col;
-    int *ptr;
+    int* col;
+    int* ptr;
+
+    T* Tval;
+    int* Tcol;
+    int* Tptr;
+
     T* bvec;
     T* xvec;
 
@@ -133,6 +140,10 @@ collection<T>::collection() {
   ptr = NULL;
   bvec = NULL;
   xvec = NULL;
+
+  Tval = NULL;
+  Tcol = NULL;
+  Tptr = NULL;
 }
 
 template <typename T>
@@ -142,6 +153,11 @@ collection<T>::~collection() {
   delete[] ptr;
   delete[] bvec;
   delete[] xvec;
+  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+    delete[] Tval;
+    delete[] Tcol;
+    delete[] Tptr;
+  }
 }
 
 template <typename T>
@@ -673,6 +689,42 @@ void collection<T>::CRSAlloc(){
   this->ptr = new int [this->N+1];
   this->bvec = new T [this->N];
   this->xvec = new T [this->N];
+
+  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+    this->Tval = new T [this->NNZ];
+    this->Tcol = new int [this->NNZ];
+    this->Tptr = new int [this->N+1];
+  }
+}
+
+template <typename T>
+void collection<T>::transpose(){
+  long int col_counter = 0;
+  std::memset(Tptr, -1, sizeof(int)*this->N+1);
+
+  for(long int i=0; i<N; i++){
+    for(long int j=0; j<N; j++){
+      for(long int k=this->ptr[j]; k<this->ptr[j+1]; k++){
+        if(this->col[k] == i){
+          if(this->Tptr[i] == -1){
+            this->Tptr[i] = col_counter;
+          }
+          this->Tcol[col_counter] = j;
+          this->Tval[col_counter] = this->val[k];
+          col_counter++;
+          continue;
+        }
+      }
+    }
+  }
+  this->Tptr[N] = this->NNZ;
+}
+
+template <typename T>
+void collection<T>::transposeMatrix(){
+  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+    this->transpose();
+  }
 }
 
 #endif //SOLVER_COLLECTION_HPP_INCLUDED__

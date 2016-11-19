@@ -5,6 +5,7 @@
 #include "cg.hpp"
 #include "cr.hpp"
 #include "gcr.hpp"
+#include "bicg.hpp"
 
 template <typename T>
 class methods {
@@ -32,7 +33,11 @@ void methods<T>::outerSelect(SOLVERS_NAME solver){
   }else if(solver == GCR){
     gcr<T> solver(coll, coll->bvec, coll->xvec);
     result = solver.solve();
+  }else if(solver == BICG){
+    bicg<T> solver(coll, coll->bvec, coll->xvec);
+    result = solver.solve();
   }
+  
   if(result == 0){
     std::cout << BOLDGREEN << "converge" << RESET << std::endl;
   }else if(result == 2){

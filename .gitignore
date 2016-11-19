@@ -1,0 +1,11 @@
+### C++ ###
+# Compiled Object files
+*.o
+*.obj
+
+# Executables
+*.out
+
+# Dummy Dirctory
+/output/*
+
