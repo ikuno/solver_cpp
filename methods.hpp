@@ -6,6 +6,7 @@
 #include "cr.hpp"
 #include "gcr.hpp"
 #include "bicg.hpp"
+#include "kskipcg.hpp"
 
 template <typename T>
 class methods {
@@ -35,6 +36,11 @@ void methods<T>::outerSelect(SOLVERS_NAME solver){
     result = solver.solve();
   }else if(solver == BICG){
     bicg<T> solver(coll, coll->bvec, coll->xvec);
+    result = solver.solve();
+  }else if(solver == GMRES){
+    exit(-1);
+  }else if(solver == KSKIPCG){
+    kskipcg<T> solver(coll, coll->bvec, coll->xvec);
     result = solver.solve();
   }
   

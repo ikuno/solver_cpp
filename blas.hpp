@@ -42,6 +42,10 @@ class blas {
     void Hye(T *h, T *y, T *e, const long int size);
 
     void Vec_copy(T *in, T *out);
+
+    void Kskip_base(T **Ar, T **Ap, T *rvec, T *pvec, const int kskip);
+
+    void Kskip_innerProduce(T *delta, T *eta, T *zeta, T **Ar, T **Ap, T *rvec, T *pvec, const int kskip);
 };
 
 template <typename T>
@@ -204,6 +208,69 @@ template <typename T>
 void blas<T>::Vec_copy(T *in, T *out){
   for(long int i=0; i<this->coll->N; i++){
     out[i] = in[i];
+  }
+}
+
+template <typename T>
+void blas<T>::Kskip_base(T **Ar, T **Ap, T *rvec, T *pvec, const int kskip){
+  T tmp1 = 0.0;
+  T tmp2 = 0.0;
+
+  for(long int i=0; i<this->coll->N; i++){
+    tmp1 = 0.0;
+    tmp2 = 0.0;
+    for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
+      tmp1 += this->coll->val[j] * rvec[this->coll->col[j]];
+      tmp2 += this->coll->val[j] * pvec[this->coll->col[j]];
+    }
+    Ar[0][i] = tmp1;
+    Ap[0][i] = tmp2;
+  }
+
+  for(int ii=1; ii<2*kskip+2; ii++){
+    for(long int i=0; i<this->coll->N; i++){
+      tmp1 = 0.0;
+      tmp2 = 0.0;
+      for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
+        if(ii<2*kskip){
+          tmp1 += this->coll->val[j] * Ar[(ii-1)][this->coll->col[j]];
+        }
+        tmp2 += this->coll->val[j] * Ap[(ii-1)][this->coll->col[j]];
+      }
+      if(ii<2*kskip){
+        Ar[(ii)][i] = tmp1;
+      }
+      Ap[(ii)][i] = tmp2;
+    }
+  }
+}
+
+template <typename T>
+void blas<T>::Kskip_innerProduce(T *delta, T *eta, T *zeta, T **Ar, T **Ap, T *rvec, T *pvec, const int kskip){
+  T tmp1=0.0;
+  T tmp2=0.0;
+  T tmp3=0.0;
+
+  for(int i=0; i<2*kskip+2; i++){
+    tmp1=0.0;
+    tmp2=0.0;
+    tmp3=0.0;
+    for(long int j=0; j<this->coll->N; j++){
+      if(i<2*kskip){
+        tmp1 += rvec[j] * Ar[i][j];
+      }
+      if(i<2*kskip+1){
+        tmp2 += rvec[j] * Ap[i][j];
+      }
+      tmp3 += pvec[j] * Ap[i][j];
+    }
+    if(i<2*kskip){
+      delta[i] = tmp1;
+    }
+    if(i<2*kskip+1){
+      eta[i] = tmp2;
+    }
+    zeta[i] = tmp3;
   }
 }
 #endif //BLAS_HPP_INCLUDED__

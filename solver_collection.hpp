@@ -121,8 +121,8 @@ collection<T>::collection() {
   innerRestart = 1000;
   outerKskip = 2;
   innerKskip = 2;
-  outerFix = 1;
-  innerFix = 1;
+  outerFix = 2;
+  innerFix = 2;
 
   L1_Dir_Name = "Matrix";
 
