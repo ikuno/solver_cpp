@@ -7,7 +7,7 @@
 #include <fstream>
 #include <string>
 
-#include "solver_collection.hpp"
+// #include "solver_collection.hpp"
 #include "cmdline.h"
 #include "color.hpp"
 

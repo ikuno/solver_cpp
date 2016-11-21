@@ -4,9 +4,8 @@
 #include <fstream>
 #include <ctime>
 #include <string>
-#include "blas.hpp"
+#include <cmath>
 #include "solver_collection.hpp"
-#include "cmath"
 
 template <typename T>
 class blas {

@@ -1,6 +1,6 @@
 #include <iostream>
-#include "solver_collection.hpp"
 #include "methods.hpp"
+#include "solver_collection.hpp"
 
 //0->float 1->double
 #define TYPE_SELECT 1
