@@ -1,26 +1,27 @@
+#ifndef KSKIPBICG_HPP_INCLUDED__
+#define KSKIPBICG_HPP_INCLUDED__
+
 #include <iomanip>
 #include <fstream>
 #include "solver_collection.hpp"
 #include "blas.hpp"
 
 template <typename T>
-class kskipcg {
+class kskipBicg {
   private:
     collection<T> *coll;
     blas<T> *bs;
     
     long int nloop, iloop, jloop;
     T *xvec, *bvec;
-    T *rvec, *pvec, *Av, *x_0, error;
-    T *delta, *eta, *zeta;
+    T *rvec, *r_vec, *pvec, *p_vec, *Av, *x_0, error;
+    T *theta, *eta, *rho, *phi, bnorm, rnorm, alpha, beta, gamma;
     T **Ap, **Ar;
-    T alpha, beta, gamma, bnorm, rnorm;
 
     int maxloop;
     double eps;
     bool isVP, isVerbose, isCUDA, isInner;
     int kskip;
-    int fix;
 
     int exit_flag;
     T test_error;
@@ -31,16 +32,17 @@ class kskipcg {
     std::ofstream f_x;
 
   public:
-    kskipcg(collection<T> *coll, T *bvec, T *xvec);
-    ~kskipcg();
+    kskipBicg(collection<T> *coll, T *bvec, T *xvec);
+    ~kskipBicg();
     int solve();
 };
 
 template <typename T>
-kskipcg<T>::kskipcg(collection<T> *coll, T *bvec, T *xvec){
+kskipBicg<T>::kskipBicg(collection<T> *coll, T *bvec, T *xvec){
   this->coll = coll;
   bs = new blas<T>(this->coll);
 
+  exit_flag = 2;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
@@ -50,44 +52,47 @@ kskipcg<T>::kskipcg(collection<T> *coll, T *bvec, T *xvec){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
     kskip = this->coll->innerKskip;
-    fix = this->coll->innerFix;
   }else{
     maxloop = this->coll->outerMaxLoop;
     eps = this->coll->outerEps;
     kskip = this->coll->outerKskip;
-    fix = this->coll->outerFix;
   }
 
   N = this->coll->N;
   rvec = new T [N];
   pvec = new T [N];
+  r_vec = new T [N];
+  p_vec = new T [N];
   Av = new T [N];
   x_0 = new T [N];
-
-  delta = new T [2*kskip];
+  theta = new T [2*kskip];
   eta = new T [2*kskip+1];
-  zeta = new T [2*kskip+2];
+  rho = new T [2*kskip+1];
+  phi = new T [2*kskip+2];
 
-  Ar = new T* [(2*kskip+1)];
-  Ap = new T* [(2*kskip+2)];
+  Ar = new T* [2*kskip+1];
+  Ap = new T* [2*kskip+2];
   for(int i=0; i<2*kskip+1; i++){
-    Ar[i] = new T[N];
+    Ar[i] = new T [N];
   }
   for(int i=0; i<2*kskip+2; i++){
-    Ap[i] = new T[N];
+    Ap[i] = new T [N];
   }
+
   this->xvec = xvec;
   this->bvec = bvec;
 
-  exit_flag = 2;
-
   std::memset(rvec, 0, sizeof(T)*N);
   std::memset(pvec, 0, sizeof(T)*N);
+  std::memset(r_vec, 0, sizeof(T)*N);
+  std::memset(p_vec, 0, sizeof(T)*N);
   std::memset(Av, 0, sizeof(T)*N);
   std::memset(xvec, 0, sizeof(T)*N);
-  std::memset(delta, 0, sizeof(T)*(2*kskip));
+
+  std::memset(theta, 0, sizeof(T)*(2*kskip));
   std::memset(eta, 0, sizeof(T)*(2*kskip+1));
-  std::memset(zeta, 0, sizeof(T)*(2*kskip+2));
+  std::memset(rho, 0, sizeof(T)*(2*kskip+1));
+  std::memset(phi, 0, sizeof(T)*(2*kskip+2));
 
   for(int i=0; i<2*kskip+1; i++){
     std::memset(Ar[i], 0, sizeof(T)*N);
@@ -95,28 +100,14 @@ kskipcg<T>::kskipcg(collection<T> *coll, T *bvec, T *xvec){
   for(int i=0; i<2*kskip+2; i++){
     std::memset(Ap[i], 0, sizeof(T)*N);
   }
-  // std::memset(Ar, 0, sizeof(T)*(N*2*kskip+1));
-  // std::memset(Ap, 0, sizeof(T)*(N*2*kskip+2));
-
-  // for(int i=0; i<2*kskip+1; i++){
-  //   for(long int j=0; j<N; j++){
-  //     Ar[i][j] = 0.0;
-  //   }
-  // }
-  //
-  // for(int i=0; i<2*kskip+2; i++){
-  //   for(long int j=0; j<N; j++){
-  //     Ap[i][j] = 0.0;
-  //   }
-  // }
-
-  f_his.open("./output/KSKIPCG_his.txt");
+  
+  f_his.open("./output/KSKIPBICG_his.txt");
   if(!f_his.is_open()){
     std::cerr << "File open error" << std::endl;
     exit(-1);
   }
 
-  f_x.open("./output/KSKIPCG_xvec.txt");
+  f_x.open("./output/KSKIPBICG_xvec.txt");
   if(!f_x.is_open()){
     std::cerr << "File open error" << std::endl;
     exit(-1);
@@ -125,15 +116,18 @@ kskipcg<T>::kskipcg(collection<T> *coll, T *bvec, T *xvec){
 }
 
 template <typename T>
-kskipcg<T>::~kskipcg(){
+kskipBicg<T>::~kskipBicg(){
   delete this->bs;
   delete[] rvec;
   delete[] pvec;
+  delete[] r_vec;
+  delete[] p_vec;
   delete[] Av;
   delete[] x_0;
-  delete[] delta;
+  delete[] theta;
   delete[] eta;
-  delete[] zeta;
+  delete[] rho;
+  delete[] phi;
   for(int i=0; i<2*kskip+1; i++){
     delete[] Ar[i];
   }
@@ -147,22 +141,30 @@ kskipcg<T>::~kskipcg(){
 }
 
 template <typename T>
-int kskipcg<T>::solve(){
+int kskipBicg<T>::solve(){
+
   //x_0 = x
   bs->Vec_copy(xvec, x_0);
 
-  //Ax
+//Ax
   if(isCUDA){
 
   }else{
     bs->MtxVec_mult(xvec, Av);
   }
 
+
   //r = b - Ax
   bs->Vec_sub(bvec, Av, rvec);
 
   //p = r
   bs->Vec_copy(rvec, pvec);
+
+  //r* = r
+  bs->Vec_copy(rvec, r_vec);
+
+  //p* = *r
+  bs->Vec_copy(r_vec, p_vec);
 
   //b 2norm
   bnorm = bs->norm_2(bvec);
@@ -182,52 +184,51 @@ int kskipcg<T>::solve(){
       break;
     }
 
-    //Ar-> Ar^2k
+    //Ar-> Ar^2k+1
     //Ap-> Ap^2k+2
     if(isCUDA){
 
     }else{
-      bs->Kskip_cg_base(Ar, Ap, rvec, pvec, kskip);
+      bs->Kskip_kskipBicg_base(Ar, Ap, rvec, pvec, kskip);
     }
 
-    //gamma=(r, r)
+    //gamma=(r*,r)
     if(isCUDA){
 
     }else{
-      gamma = bs->dot(rvec, rvec);
+      gamma = bs->dot(r_vec, rvec);
     }
 
-    //delta=(r,Ar)
-    //eta=(r,Ap)
-    //zeta=(p,Ap)
+    /* theta (2*i_kskip); */
+    /* eta = (2*i_kskip+1); */
+    /* rho = (2*i_kskip+1); */
+    /* phi = (2*i_kskip+2); */
+    //theta = (r*, Ar)
+    //eta = (r*, Ap)
+    //rho = (p*, Ar)
+    //phi = (p*, Ap)
     if(isCUDA){
 
     }else{
-      bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
+      bs->Kskip_kskipBicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
     }
 
     for(iloop=nloop; iloop<=nloop+kskip; iloop++){
-      //alpha = gamma/zeta_1
-      alpha = gamma / zeta[0];
+      //alpha = gamma/phi_1
+      alpha=gamma/phi[0];
+      //beta = 1 - (eta_1 + rho_1 - alpha*phi_2)/phi_1
+      beta=1.0 - (eta[0] + rho[0] - alpha*phi[1])/phi[0];
+      //gamma = gamma - alpha*eta_1 - alpha*rho_1 + alpha^2*phi_2
+      /* gamma = gamma - alpha*eta[0] - alpha*rho[0] + alpha*alpha*phi[1]; */
+      gamma = gamma*beta;
 
-      //beta = (alpha * zeta_2 / zeta_1) - 1
-      beta = alpha * zeta[1] / zeta[0] - 1.0;
-
-      //fix
-      if(fix == 1){
-        gamma = beta * gamma;
-      }else if(fix == 2){
-        T tmp0 = gamma - alpha * eta[0];
-        T tmp1 = eta[0] - alpha * zeta[1];
-        gamma = tmp0 - alpha * tmp1;
-      }
-
-      //update delta eta zeta
+      //update theta eta rho phi
       for(jloop=0; jloop<2*kskip-2*(iloop-nloop); jloop++){
-        delta[jloop] = delta[jloop] - 2*alpha*eta[jloop+1] + alpha*alpha*eta[jloop+2];
-        T eta_old = eta[jloop];
-        eta[jloop] = delta[jloop] + beta*zeta[jloop+1] - alpha*beta*zeta[jloop+1];
-        zeta[jloop] = eta[jloop+1] + beta*eta_old + beta*beta*zeta[jloop] - alpha*beta*zeta[jloop+1];
+        theta[jloop] = theta[jloop] - alpha * eta[jloop+1] - alpha * rho[jloop+1] + alpha * alpha * phi[jloop+2];
+        T tmp = theta[jloop] - alpha * beta * phi[jloop+1];
+        eta[jloop] = tmp + beta * eta[jloop];
+        rho[jloop] = tmp + beta * rho[jloop];
+        phi[jloop] = eta[jloop] + rho[jloop] - theta[jloop] + beta * beta * phi[jloop];
       }
 
       //Ap
@@ -237,20 +238,33 @@ int kskipcg<T>::solve(){
         bs->MtxVec_mult(pvec, Av);
       }
 
-      //x=x+alpha*p
+      //x=alpha*p+x
       bs->Scalar_axy(alpha, pvec, xvec, xvec);
 
-      //r=r-alpha*Ap
+      //r=-alpha*Ap+r
       bs->Scalar_axy(-alpha, Av, rvec, rvec);
 
+      //A^Tp*
+      if(isCUDA){
+
+      }else{
+        bs->MtxVec_mult(this->coll->Tval, this->coll->Tcol, this->coll->Tptr, p_vec, Av);
+      }
+
+      //r*=r*-alpha*A^Tp*
+      bs->Scalar_axy(-alpha, Av, r_vec, r_vec);
       //p=r+beta*p
       bs->Scalar_axy(beta, pvec, rvec, pvec);
+      //p*=r*+beta*p*
+      bs->Scalar_axy(beta, p_vec, r_vec, p_vec);
     }
   }
+
+
   if(!isInner){
     test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
-    std::cout << "loop = " << nloop-kskip+1 << std::endl;
+    std::cout << "loop = " << nloop+1 << std::endl;
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
@@ -261,3 +275,5 @@ int kskipcg<T>::solve(){
 
   return exit_flag;
 }
+#endif //KSKIPBICG_HPP_INCLUDED__
+

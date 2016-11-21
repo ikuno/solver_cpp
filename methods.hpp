@@ -6,7 +6,9 @@
 #include "cr.hpp"
 #include "gcr.hpp"
 #include "bicg.hpp"
+#include "gmres.hpp"
 #include "kskipcg.hpp"
+#include "kskipbicg.hpp"
 
 template <typename T>
 class methods {
@@ -38,9 +40,16 @@ void methods<T>::outerSelect(SOLVERS_NAME solver){
     bicg<T> solver(coll, coll->bvec, coll->xvec);
     result = solver.solve();
   }else if(solver == GMRES){
-    exit(-1);
+    gmres<T> solver(coll, coll->bvec, coll->xvec);
+    result = solver.solve();
   }else if(solver == KSKIPCG){
     kskipcg<T> solver(coll, coll->bvec, coll->xvec);
+    result = solver.solve();
+  }else if(solver == KSKIPCR){
+    std::cout << RED << "Not implemented" << RESET << std::endl;
+    result = 1;
+  }else if(solver == KSKIPBICG){
+    kskipBicg<T> solver(coll, coll->bvec, coll->xvec);
     result = solver.solve();
   }
   
