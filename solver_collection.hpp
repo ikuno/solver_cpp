@@ -37,7 +37,7 @@ class collection {
     bool isCUDA;
     bool isOpenMP;
     bool isVerbose;
-    bool isInner;
+    // bool isInner;
     int OMPThread;
 
     std::string L1_Dir_Name;
@@ -107,7 +107,7 @@ collection<T>::collection() {
   isCUDA = false;
   isOpenMP = true;
   isVerbose = false;
-  isInner = false;
+  // isInner = false;
   OMPThread = 8;
 
   outerSolver = NONE;
@@ -305,6 +305,10 @@ void collection<T>::readCMD(int argc, char* argv[]){
     this->inputSource = 2;
   }else if(this->CRS_Matrix_Name != "NONE"){
     this->inputSource = 1;
+  }
+
+  if(this->innerSolver != NONE){
+    isVP = true;
   }
 
   if(cmd.exist("verbose")) this->isVerbose=true;

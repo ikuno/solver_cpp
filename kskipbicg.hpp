@@ -32,13 +32,13 @@ class kskipBicg {
     std::ofstream f_x;
 
   public:
-    kskipBicg(collection<T> *coll, T *bvec, T *xvec);
+    kskipBicg(collection<T> *coll, T *bvec, T *xvec, bool inner);
     ~kskipBicg();
     int solve();
 };
 
 template <typename T>
-kskipBicg<T>::kskipBicg(collection<T> *coll, T *bvec, T *xvec){
+kskipBicg<T>::kskipBicg(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
 
@@ -46,9 +46,9 @@ kskipBicg<T>::kskipBicg(collection<T> *coll, T *bvec, T *xvec){
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = this->coll->isInner;
+  isInner = inner;
 
-  if(isVP && this->coll->isInner ){
+  if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
     kskip = this->coll->innerKskip;
@@ -100,17 +100,19 @@ kskipBicg<T>::kskipBicg(collection<T> *coll, T *bvec, T *xvec){
   for(int i=0; i<2*kskip+2; i++){
     std::memset(Ap[i], 0, sizeof(T)*N);
   }
-  
-  f_his.open("./output/KSKIPBICG_his.txt");
-  if(!f_his.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
-  }
 
-  f_x.open("./output/KSKIPBICG_xvec.txt");
-  if(!f_x.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
+  if(isInner){
+    f_his.open("./output/KSKIPBICG_his.txt");
+    if(!f_his.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
+
+    f_x.open("./output/KSKIPBICG_xvec.txt");
+    if(!f_x.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
   }
 
 }
@@ -270,7 +272,13 @@ int kskipBicg<T>::solve(){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
-
+    if(exit_flag==0){
+      std::cout << GREEN << "\t" <<  nloop+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else if(exit_flag==2){
+      std::cout << RED << "\t" << nloop+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else{
+      std::cout << RED << " ERROR " << nloop+1 << RESET << std::endl;
+    }
   }
 
   return exit_flag;

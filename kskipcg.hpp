@@ -1,3 +1,6 @@
+#ifndef KSKIPCG_HPP_INCLUDED__
+#define KSKIPCG_HPP_INCLUDED__
+
 #include <iomanip>
 #include <fstream>
 #include "solver_collection.hpp"
@@ -31,22 +34,22 @@ class kskipcg {
     std::ofstream f_x;
 
   public:
-    kskipcg(collection<T> *coll, T *bvec, T *xvec);
+    kskipcg(collection<T> *coll, T *bvec, T *xvec, bool inner);
     ~kskipcg();
     int solve();
 };
 
 template <typename T>
-kskipcg<T>::kskipcg(collection<T> *coll, T *bvec, T *xvec){
+kskipcg<T>::kskipcg(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
 
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = this->coll->isInner;
+  isInner = inner;
 
-  if(isVP && this->coll->isInner ){
+  if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
     kskip = this->coll->innerKskip;
@@ -110,16 +113,18 @@ kskipcg<T>::kskipcg(collection<T> *coll, T *bvec, T *xvec){
   //   }
   // }
 
-  f_his.open("./output/KSKIPCG_his.txt");
-  if(!f_his.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
-  }
+  if(isInner){
+    f_his.open("./output/KSKIPCG_his.txt");
+    if(!f_his.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
 
-  f_x.open("./output/KSKIPCG_xvec.txt");
-  if(!f_x.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
+    f_x.open("./output/KSKIPCG_xvec.txt");
+    if(!f_x.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
   }
 
 }
@@ -256,8 +261,16 @@ int kskipcg<T>::solve(){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
-
+    if(exit_flag==0){
+      std::cout << GREEN << "\t" <<  nloop-kskip+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else if(exit_flag==2){
+      std::cout << RED << "\t" << nloop-kskip+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else{
+      std::cout << RED << " ERROR " << nloop-kskip+1 << RESET << std::endl;
+    }
   }
 
   return exit_flag;
 }
+#endif //KSKIPCG_HPP_INCLUDED__
+

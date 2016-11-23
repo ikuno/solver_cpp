@@ -1,5 +1,5 @@
 #include <iostream>
-#include "methods.hpp"
+#include "outerMethods.hpp"
 #include "solver_collection.hpp"
 
 //0->float 1->double
@@ -9,7 +9,7 @@ int main(int argc, char* argv[])
 {
   if(TYPE_SELECT==0){
     collection<float> col;
-    methods<float> method(&col);
+    outerMethods<float> method(&col);
     col.readCMD(argc, argv);
     col.checkCMD();
     col.checkMatrix();
@@ -24,7 +24,7 @@ int main(int argc, char* argv[])
 
   }else{
     collection<double> col;
-    methods<double> method(&col);
+    outerMethods<double> method(&col);
     col.readCMD(argc, argv);
     col.checkCMD();
     col.checkMatrix();

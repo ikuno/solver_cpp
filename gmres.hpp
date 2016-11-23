@@ -34,13 +34,13 @@ class gmres {
     std::ofstream f_x;
 
   public:
-    gmres(collection<T> *coll, T *bvec, T *xvec);
+    gmres(collection<T> *coll, T *bvec, T *xvec, bool inner);
     ~gmres();
     int solve();
 };
 
 template <typename T>
-gmres<T>::gmres(collection<T> *coll, T *bvec, T *xvec){
+gmres<T>::gmres(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
 
@@ -48,9 +48,9 @@ gmres<T>::gmres(collection<T> *coll, T *bvec, T *xvec){
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = this->coll->isInner;
+  isInner = inner;
 
-  if(isVP && this->coll->isInner ){
+  if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
     restart = this->coll->innerRestart;
@@ -96,16 +96,19 @@ gmres<T>::gmres(collection<T> *coll, T *bvec, T *xvec){
   std::memset(tmpvec, 0, sizeof(T)*N);
   std::memset(xvec, 0, sizeof(T)*N);
 
-  f_his.open("./output/GMRES_his.txt");
-  if(!f_his.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
-  }
 
-  f_x.open("./output/GMRES_xvec.txt");
-  if(!f_x.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
+  if(isInner){
+    f_his.open("./output/GMRES_his.txt");
+    if(!f_his.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
+
+    f_x.open("./output/GMRES_xvec.txt");
+    if(!f_x.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
   }
 
 }
@@ -118,6 +121,7 @@ gmres<T>::~gmres(){
   delete[] evec;
   delete[] vvec;
   delete[] vmtx;
+  delete[] hmtx;
   delete[] yvec;
   delete[] wvec;
   delete[] avvec;
@@ -244,9 +248,6 @@ int gmres<T>::solve(){
 
       count++;
 
-      if(count+1 >= maxloop){
-        break;
-      }
     }
 
     if(exit_flag==0){
@@ -278,7 +279,13 @@ int gmres<T>::solve(){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
-
+    if(exit_flag==0){
+      std::cout << GREEN << "\t" <<  count+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else if(exit_flag==2){
+      std::cout << RED << "\t" << count+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else{
+      std::cout << RED << " ERROR " << loop << RESET << std::endl;
+    }
   }
 
   return exit_flag;

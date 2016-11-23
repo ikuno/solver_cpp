@@ -2,6 +2,8 @@
 # Compiled Object files
 *.o
 *.obj
+*.swp
+*.dSYM
 
 # Executables
 *.out

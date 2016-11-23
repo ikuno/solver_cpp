@@ -34,17 +34,24 @@ class gcr {
     std::ofstream f_x;
 
   public:
-    gcr(collection<T> *coll, T *bvec, T *xvec);
+    gcr(collection<T> *coll, T *bvec, T *xvec, bool inner);
     ~gcr();
     int solve();
 };
 
 template <typename T>
-gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec){
+gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
 
-  if(isVP && this->coll->isInner ){
+  exit_flag = 2;
+  isVP = this->coll->isVP;
+  isVerbose = this->coll->isVerbose;
+  isCUDA = this->coll->isCUDA;
+  isInner = inner;
+
+
+  if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
     restart = this->coll->innerRestart;
@@ -72,12 +79,7 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec){
     pvec[i] = new T [N];
   }
 
-  exit_flag = 2;
-  isVP = this->coll->isVP;
-  isVerbose = this->coll->isVerbose;
-  isCUDA = this->coll->isCUDA;
-  isInner = this->coll->isInner;
-
+  
   std::memset(rvec, 0, sizeof(T)*N);
   std::memset(Av, 0, sizeof(T)*N);
   std::memset(xvec, 0, sizeof(T)*N);
@@ -92,16 +94,18 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec){
     std::memset(pvec[i], 0, sizeof(T)*N);
   }
 
-  f_his.open("./output/GCR_his.txt");
-  if(!f_his.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
-  }
+  if(isInner){
+    f_his.open("./output/GCR_his.txt");
+    if(!f_his.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
 
-  f_x.open("./output/GCR_xvec.txt");
-  if(!f_x.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
+    f_x.open("./output/GCR_xvec.txt");
+    if(!f_x.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
   }
 
   out_flag = false;
@@ -243,7 +247,13 @@ int gcr<T>::solve(){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
-
+    if(exit_flag==0){
+      std::cout << GREEN << "\t" <<  loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else if(exit_flag==2){
+      std::cout << RED << "\t" << loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else{
+      std::cout << RED << " ERROR " << loop << RESET << std::endl;
+    }
   }
 
   return exit_flag;

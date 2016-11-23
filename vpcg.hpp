@@ -4,17 +4,16 @@
 #include <iomanip>
 #include <fstream>
 #include "solver_collection.hpp"
-#include "methods.hpp"
 #include "blas.hpp"
-#include "cg.hpp"
+#include "innerMethods.hpp"
 
 template <typename T>
 class vpcg {
   private:
     collection<T> *coll;
     blas<T> *bs;
-    methods<T> *innerMethod;
-    
+    innerMethods<T> *in;
+
     long int loop;
     T *xvec, *bvec;
     T *rvec, *pvec, *mv, *x_0, dot, error;
@@ -35,16 +34,16 @@ class vpcg {
     std::ofstream f_x;
 
   public:
-    vpcg(collection<T> *coll, T *bvec, T *xvec);
+    vpcg(collection<T> *coll, T *bvec, T *xvec, bool inner);
     ~vpcg();
     int solve();
 };
 
 template <typename T>
-vpcg<T>::vpcg(collection<T> *coll, T *bvec, T *xvec){
+vpcg<T>::vpcg(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
-  // innerMethod = new methods<T>(this->coll);
+  in = new innerMethods<T>(this->coll);
 
   N = this->coll->N;
   rvec = new T [N];
@@ -60,9 +59,9 @@ vpcg<T>::vpcg(collection<T> *coll, T *bvec, T *xvec){
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = this->coll->isInner;
+  isInner = inner;
 
-  if(isVP && this->coll->isInner ){
+  if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
   }else{
@@ -93,7 +92,7 @@ vpcg<T>::vpcg(collection<T> *coll, T *bvec, T *xvec){
 template <typename T>
 vpcg<T>::~vpcg(){
   delete this->bs;
-  // delete this->innerMethod;
+  delete this->in;
   delete[] rvec;
   delete[] pvec;
   delete[] zvec;
@@ -122,7 +121,8 @@ int vpcg<T>::solve(){
   //r = b - Ax
   bs->Vec_sub(bvec, mv, rvec);
 
-  // innerMethod->innerSelect(this->coll->innerSolver, rvec, zvec);
+  // inner->innerSelect(this->coll->innerSolver, rvec, zvec);
+  in->innerSelect(this->coll, this->coll->innerSolver, rvec, zvec);
 
   //p = z
   bs->Vec_copy(zvec, pvec);
@@ -144,7 +144,6 @@ int vpcg<T>::solve(){
       f_his << loop << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
     }
 
-
     if(error <= eps){
       exit_flag = 0;
       break;
@@ -160,7 +159,7 @@ int vpcg<T>::solve(){
     //alpha = (r,r) / (p,ap)
     if(isCUDA){
     }else{
-      dot = bs->dot(rvec, mv);
+      dot = bs->dot(pvec, mv);
     }
     alpha = rr / dot;
 
@@ -172,7 +171,8 @@ int vpcg<T>::solve(){
 
     std::memset(zvec, 0, sizeof(T)*N);
 
-    // innerMethod->innerSelect(this->coll->innerSolver, rvec, zvec);
+    // inner->innerSelect(this->coll->innerSolver, rvec, zvec);
+    in->innerSelect(this->coll, this->coll->innerSolver, rvec, zvec);
 
     //z, r  dot
     if(isCUDA){
@@ -187,6 +187,7 @@ int vpcg<T>::solve(){
 
     //p = beta * p + z
     bs->Scalar_axy(beta, pvec, zvec, pvec);
+
   }
 
   if(!isInner){

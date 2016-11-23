@@ -31,13 +31,13 @@ class bicg {
     std::ofstream f_x;
 
   public:
-    bicg(collection<T> *coll, T *bvec, T *xvec);
+    bicg(collection<T> *coll, T *bvec, T *xvec, bool inner);
     ~bicg();
     int solve();
 };
 
 template <typename T>
-bicg<T>::bicg(collection<T> *coll, T *bvec, T *xvec){
+bicg<T>::bicg(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
 
@@ -56,9 +56,9 @@ bicg<T>::bicg(collection<T> *coll, T *bvec, T *xvec){
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = this->coll->isInner;
+  isInner = inner;
 
-  if(isVP && this->coll->isInner ){
+  if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
   }else{

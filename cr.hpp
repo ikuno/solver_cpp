@@ -31,13 +31,13 @@ class cr {
     std::ofstream f_x;
 
   public:
-    cr(collection<T> *coll, T *bvec, T *xvec);
+    cr(collection<T> *coll, T *bvec, T *xvec, bool inner);
     ~cr();
     int solve();
 };
 
 template <typename T>
-cr<T>::cr(collection<T> *coll, T *bvec, T *xvec){
+cr<T>::cr(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
 
@@ -55,9 +55,9 @@ cr<T>::cr(collection<T> *coll, T *bvec, T *xvec){
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = this->coll->isInner;
+  isInner = inner;
 
-  if(isVP && this->coll->isInner ){
+  if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
   }else{
@@ -70,17 +70,19 @@ cr<T>::cr(collection<T> *coll, T *bvec, T *xvec){
   std::memset(qvec, 0, sizeof(T)*N);
   std::memset(svec, 0, sizeof(T)*N);
   std::memset(xvec, 0, sizeof(T)*N);
-  
-  f_his.open("./output/CR_his.txt");
-  if(!f_his.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
-  }
 
-  f_x.open("./output/CR_xvec.txt");
-  if(!f_x.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
+  if(!isInner){
+    f_his.open("./output/CR_his.txt");
+    if(!f_his.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
+
+    f_x.open("./output/CR_xvec.txt");
+    if(!f_x.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
   }
 
 }
@@ -200,7 +202,13 @@ int cr<T>::solve(){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
-
+    if(exit_flag==0){
+      std::cout << GREEN << "\t" <<  loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else if(exit_flag==2){
+      std::cout << RED << "\t" << loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else{
+      std::cout << RED << " ERROR " << loop << RESET << std::endl;
+    }
   }
 
   return exit_flag;
