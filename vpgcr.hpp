@@ -1,22 +1,24 @@
-#ifndef gcr_HPP_INCLUDED__
-#define gcr_HPP_INCLUDED__
+#ifndef VPGCR_HPP_INCLUDED__
+#define VPGCR_HPP_INCLUDED__
 
 #include <iomanip>
 #include <fstream>
 #include "solver_collection.hpp"
 #include "blas.hpp"
+#include "innerMethods.hpp"
 
 template <typename T>
-class gcr {
+class vpgcr {
   private:
     collection<T> *coll;
     blas<T> *bs;
+    innerMethods<T> *in;
 
     long int loop, iloop, kloop;
     T *xvec, *bvec;
-    T *rvec, *Av, *x_0, *qq;
+    T *rvec, *zvec, *Av, *x_0, *qq;
     T **qvec, **pvec;
-    T dot, dot_tmp, error;
+    T dot_tmp, error;
     T alpha, beta, bnorm, rnorm;
 
     int maxloop;
@@ -34,15 +36,16 @@ class gcr {
     std::ofstream f_x;
 
   public:
-    gcr(collection<T> *coll, T *bvec, T *xvec, bool inner);
-    ~gcr();
+    vpgcr(collection<T> *coll, T *bvec, T *xvec, bool inner);
+    ~vpgcr();
     int solve();
 };
 
 template <typename T>
-gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
+vpgcr<T>::vpgcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
+  in = new innerMethods<T>(this->coll);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -69,6 +72,7 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->bvec = bvec;
 
   rvec = new T [N];
+  zvec = new T [N];
   Av = new T [N];
   x_0 = new T [N];
   qq = new T [restart];
@@ -83,6 +87,7 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
   std::memset(rvec, 0, sizeof(T)*N);
   std::memset(Av, 0, sizeof(T)*N);
   std::memset(xvec, 0, sizeof(T)*N);
+  std::memset(zvec, 0, sizeof(T)*N);
 
   for(long int i=0; i<restart; i++){
     qq[i] = 0.0;
@@ -94,18 +99,16 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
     std::memset(pvec[i], 0, sizeof(T)*N);
   }
 
-  if(!isInner){
-    f_his.open("./output/GCR_his.txt");
-    if(!f_his.is_open()){
-      std::cerr << "File open error" << std::endl;
-      exit(-1);
-    }
+  f_his.open("./output/VPGCR_his.txt");
+  if(!f_his.is_open()){
+    std::cerr << "File open error" << std::endl;
+    exit(-1);
+  }
 
-    f_x.open("./output/GCR_xvec.txt");
-    if(!f_x.is_open()){
-      std::cerr << "File open error" << std::endl;
-      exit(-1);
-    }
+  f_x.open("./output/VPGCR_xvec.txt");
+  if(!f_x.is_open()){
+    std::cerr << "File open error" << std::endl;
+    exit(-1);
   }
 
   out_flag = false;
@@ -113,8 +116,9 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
 }
 
 template <typename T>
-gcr<T>::~gcr(){
+vpgcr<T>::~vpgcr(){
   delete this->bs;
+  delete this->in;
   delete[] rvec;
   delete[] Av;
   delete[] qq;
@@ -125,12 +129,13 @@ gcr<T>::~gcr(){
   }
   delete[] qvec;
   delete[] pvec;
+  delete[] zvec;
   f_his.close();
   f_x.close();
 }
 
 template <typename T>
-int gcr<T>::solve(){
+int vpgcr<T>::solve(){
 
   //x_0 = x
   bs->Vec_copy(xvec, x_0);
@@ -149,10 +154,12 @@ int gcr<T>::solve(){
     //r=b-Ax
     bs->Vec_sub(bvec, Av, rvec);
 
-    //p=r
-    bs->Vec_copy(rvec, pvec[0]);
+    std::memset(pvec[0], 0, sizeof(T)*N);
 
-    //Ap
+    //Ap p = r
+    in->innerSelect(this->coll, this->coll->innerSolver, rvec, pvec[0]);
+
+    //q[0*ndata+x]=A*p[0*ndata+x]
     if(isCUDA){
 
     }else{
@@ -197,6 +204,7 @@ int gcr<T>::solve(){
 
       //x = alpha * pvec[k] + xvec
       bs->Scalar_axy(alpha, pvec[kloop], xvec, xvec);
+
       if(kloop == restart-1){
         break;
       }
@@ -204,11 +212,16 @@ int gcr<T>::solve(){
       //r = -alpha * qvec[k] + rvec
       bs->Scalar_axy(-alpha, qvec[kloop], rvec, rvec);
 
-      //Ar
+      std::memset(zvec, 0, sizeof(T)*N);
+
+      //Az = r
+      in->innerSelect(this->coll, this->coll->innerSolver, rvec, zvec);
+
+      //Az = r
       if(isCUDA){
 
       }else{
-        bs->MtxVec_mult(rvec, Av);
+        bs->MtxVec_mult(zvec, Av);
       }
 
       //init p[k+1] q[k+1]
@@ -229,8 +242,10 @@ int gcr<T>::solve(){
         //qvec[k+1] = beta * qvec[i] + qvec[k+1]
         bs->Scalar_axy(beta, qvec[iloop], qvec[kloop+1], qvec[kloop+1]);
       }
+
       //p[k+1] = r + p[k+1]
-      bs->Vec_add(rvec, pvec[kloop+1], pvec[kloop+1]);
+      bs->Vec_add(zvec, pvec[kloop+1], pvec[kloop+1]);
+
       //q[k+1] = Av + q[k+1]
       bs->Vec_add(Av, qvec[kloop+1], qvec[kloop+1]);
     }
@@ -247,16 +262,9 @@ int gcr<T>::solve(){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
-    if(exit_flag==0){
-      std::cout << GREEN << "\t" <<  loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
-    }else if(exit_flag==2){
-      std::cout << RED << "\t" << loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
-    }else{
-      std::cout << RED << " ERROR " << loop << RESET << std::endl;
-    }
   }
 
   return exit_flag;
 }
-#endif //gcr_HPP_INCLUDED__
+#endif //VPGCR_HPP_INCLUDED__
 

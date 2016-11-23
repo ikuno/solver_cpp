@@ -7,7 +7,6 @@
 #include <fstream>
 #include <string>
 
-// #include "solver_collection.hpp"
 #include "cmdline.h"
 #include "color.hpp"
 
@@ -20,12 +19,12 @@ enum SOLVERS_NAME {
     GMRES,
 
     KSKIPCG,
-    KSKIPCR,
+    KSKIPCR,//未実装
     KSKIPBICG,
     
     VPCG,
-    VPBICG,
-    VPCR,
+    VPBICG,//未実装
+    VPCR,//BUG?
     VPGCR,
     VPGMRES
   };
@@ -37,7 +36,6 @@ class collection {
     bool isCUDA;
     bool isOpenMP;
     bool isVerbose;
-    // bool isInner;
     int OMPThread;
 
     std::string L1_Dir_Name;

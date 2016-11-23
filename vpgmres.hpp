@@ -1,20 +1,22 @@
-#ifndef GMRES_HPP_INCLUDED__
-#define GMRES_HPP_INCLUDED__
+#ifndef VPGMRES_HPP_INCLUDED__
+#define VPGMRES_HPP_INCLUDED__
 
 #include <iomanip>
 #include <fstream>
 #include "solver_collection.hpp"
 #include "blas.hpp"
+#include "innerMethods.hpp"
 
 template <typename T>
-class gmres {
+class vpgmres {
   private:
     collection<T> *coll;
     blas<T> *bs;
+    innerMethods<T> *in;
     
     long int loop;
     T *xvec, *bvec;
-    T *rvec, *axvec, *evec, *vvec, *vmtx, *hmtx, *yvec, *wvec, *avvec, *hvvec, *cvec, *svec, *x0vec, *tmpvec, *x_0;
+    T *rvec, *axvec, *evec, *vvec, *vmtx, *hmtx, *yvec, *wvec, *avvec, *hvvec, *cvec, *svec, *x0vec, *tmpvec, *zmtx, *zvec, *x_0;
     T wv_ip, error;
     T alpha, bnorm;
     T tmp, tmp2, rr2;
@@ -34,15 +36,16 @@ class gmres {
     std::ofstream f_x;
 
   public:
-    gmres(collection<T> *coll, T *bvec, T *xvec, bool inner);
-    ~gmres();
+    vpgmres(collection<T> *coll, T *bvec, T *xvec, bool inner);
+    ~vpgmres();
     int solve();
 };
 
 template <typename T>
-gmres<T>::gmres(collection<T> *coll, T *bvec, T *xvec, bool inner){
+vpgmres<T>::vpgmres(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
+  in = new innerMethods<T>(this->coll);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -75,6 +78,8 @@ gmres<T>::gmres(collection<T> *coll, T *bvec, T *xvec, bool inner){
   svec = new T [restart];
   x0vec = new T [N];
   tmpvec = new T [N];
+  zmtx = new T [N*(restart+1)];
+  zvec = new T [N];
   x_0 = new T [N];
 
   this->xvec = xvec;
@@ -94,28 +99,29 @@ gmres<T>::gmres(collection<T> *coll, T *bvec, T *xvec, bool inner){
   std::memset(svec, 0, sizeof(T)*restart);
   std::memset(x0vec, 0, sizeof(T)*N);
   std::memset(tmpvec, 0, sizeof(T)*N);
+  std::memset(zmtx, 0, sizeof(T)*(N*restart+1));
+  std::memset(zvec, 0, sizeof(T)*N);
   std::memset(xvec, 0, sizeof(T)*N);
 
 
-  if(!isInner){
-    f_his.open("./output/GMRES_his.txt");
-    if(!f_his.is_open()){
-      std::cerr << "File open error" << std::endl;
-      exit(-1);
-    }
+  f_his.open("./output/VPGMRES_his.txt");
+  if(!f_his.is_open()){
+    std::cerr << "File open error" << std::endl;
+    exit(-1);
+  }
 
-    f_x.open("./output/GMRES_xvec.txt");
-    if(!f_x.is_open()){
-      std::cerr << "File open error" << std::endl;
-      exit(-1);
-    }
+  f_x.open("./output/VPGMRES_xvec.txt");
+  if(!f_x.is_open()){
+    std::cerr << "File open error" << std::endl;
+    exit(-1);
   }
 
 }
 
 template <typename T>
-gmres<T>::~gmres(){
+vpgmres<T>::~vpgmres(){
   delete this->bs;
+  delete this->in;
   delete[] rvec;
   delete[] axvec;
   delete[] evec;
@@ -130,13 +136,15 @@ gmres<T>::~gmres(){
   delete[] svec;
   delete[] x0vec;
   delete[] tmpvec;
+  delete[] zmtx;
+  delete[] zvec;
   delete[] x_0;
   f_his.close();
   f_x.close();
 }
 
 template <typename T>
-int gmres<T>::solve(){
+int vpgmres<T>::solve(){
 
   //b 2norm
   bnorm = bs->norm_2(bvec);
@@ -159,7 +167,8 @@ int gmres<T>::solve(){
     //2norm rvec
     tmp = bs->norm_2(rvec);
 
-    //
+    //v0 = r0 / 2norm(r)
+    //v0 >> vmtx[0][]
     bs->Scalar_x_div_a(rvec, tmp, vvec);
 
     bs->Vec_copy(vvec, vmtx, 0, N);
@@ -185,7 +194,7 @@ int gmres<T>::solve(){
         for(int i=0; i<k; i++)
         {
           for(long int j=0; j<N; j++){
-            tmpvec[j] += yvec[i] * vmtx[i*N+j];
+            tmpvec[j] += yvec[i] * zmtx[i*N+j];
           }
         }
 
@@ -195,15 +204,26 @@ int gmres<T>::solve(){
         break;
       }
 
-      //Av & w
-      for(long int i=0; i<N; i++){
-        tmp = 0.0;
-        for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
-          tmp += this->coll->val[j] * vmtx[k*N+(this->coll->col[j])];
-        }
-        avvec[i] = tmp;
-        wvec[i] = avvec[i];
+      in->innerSelect(this->coll, this->coll->innerSolver, vvec, zvec);
+
+      // //Av & w
+      // for(long int i=0; i<N; i++){
+      //   tmp = 0.0;
+      //   for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
+      //     tmp += this->coll->val[j] * vmtx[k*N+(this->coll->col[j])];
+      //   }
+      //   avvec[i] = tmp;
+      //   wvec[i] = avvec[i];
+      // }
+
+      /* //Av & W */
+      if(isCUDA){
+
+      }else{
+        bs->MtxVec_mult(zvec, wvec);
       }
+
+      bs->Vec_copy(zvec, zmtx, k, N);
 
       //h_i_k & w update
       for(int i=0; i<=k; i++){
@@ -260,7 +280,7 @@ int gmres<T>::solve(){
 
     for(int i=0; i<restart; i++){
       for(long int j=0; j<N; j++){
-        tmpvec[j] += yvec[i] * vmtx[i*N+j];
+        tmpvec[j] += yvec[i] * zmtx[i*N+j];
       }
     }
 
@@ -290,5 +310,5 @@ int gmres<T>::solve(){
 
   return exit_flag;
 }
-#endif //GMRES_HPP_INCLUDED__
+#endif //VPGMRES_HPP_INCLUDED__
 

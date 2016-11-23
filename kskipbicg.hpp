@@ -101,7 +101,7 @@ kskipBicg<T>::kskipBicg(collection<T> *coll, T *bvec, T *xvec, bool inner){
     std::memset(Ap[i], 0, sizeof(T)*N);
   }
 
-  if(isInner){
+  if(!isInner){
     f_his.open("./output/KSKIPBICG_his.txt");
     if(!f_his.is_open()){
       std::cerr << "File open error" << std::endl;
