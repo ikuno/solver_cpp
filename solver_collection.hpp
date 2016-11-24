@@ -83,6 +83,7 @@ class collection {
     void CRSAlloc();
     void transposeMatrix();
     void transpose();
+    void setOpenmpThread();
 
 //pointer
     T* val;
@@ -727,6 +728,12 @@ void collection<T>::transposeMatrix(){
   if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
     this->transpose();
   }
+}
+
+template <typename T>
+void collection<T>::setOpenmpThread(){
+  omp_set_num_threads(this->OMPThread);
+  std::cout << GREEN << "[○]Set OpenMP Threads => " << this->OMPThread << RESET << std::endl;
 }
 
 #endif //SOLVER_COLLECTION_HPP_INCLUDED__

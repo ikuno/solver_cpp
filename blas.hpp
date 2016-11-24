@@ -5,6 +5,7 @@
 #include <ctime>
 #include <string>
 #include <cmath>
+#include <omp.h>
 #include "solver_collection.hpp"
 
 template <typename T>
@@ -107,10 +108,15 @@ T blas<T>::norm_2(T *v){
 template <typename T>
 void blas<T>::MtxVec_mult(T *in_vec, T *out_vec){
   T tmp = 0.0;
-  for(long int i=0; i<this->coll->N; i++){
+  T *val=this->coll->val;
+  int *ptr=this->coll->ptr;
+  int *col=this->coll->col;
+  long int N = this->coll->N;
+#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec)
+  for(long int i=0; i<N; i++){
     tmp = 0.0;
-    for(long int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
-      tmp += this->coll->val[j] * in_vec[this->coll->col[j]];
+    for(long int j=ptr[i]; j<ptr[i+1]; j++){
+      tmp += val[j] * in_vec[col[j]];
     }
     out_vec[i] = tmp;
   }
@@ -119,7 +125,10 @@ void blas<T>::MtxVec_mult(T *in_vec, T *out_vec){
 template <typename T>
 void blas<T>::MtxVec_mult(T *Tval, int *Tcol, int *Tptr, T *in_vec, T *out_vec){
   T tmp = 0.0;
-  for(long int i=0; i<this->coll->N; i++){
+  long int N = this->coll->N;
+
+#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, Tval, in_vec) lastprivate(out_vec)
+  for(long int i=0; i<N; i++){
     tmp = 0.0;
     for(long int j=Tptr[i]; j<Tptr[i+1]; j++){
       tmp += Tval[j] * in_vec[Tcol[j]];
@@ -257,26 +266,33 @@ void blas<T>::Kskip_cg_base(T **Ar, T **Ap, T *rvec, T *pvec, const int kskip){
   T tmp1 = 0.0;
   T tmp2 = 0.0;
 
-  for(long int i=0; i<this->coll->N; i++){
+  T *val=this->coll->val;
+  int *ptr=this->coll->ptr;
+  int *col=this->coll->col;
+  long int N = this->coll->N;
+
+#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap)
+  for(long int i=0; i<N; i++){
     tmp1 = 0.0;
     tmp2 = 0.0;
-    for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
-      tmp1 += this->coll->val[j] * rvec[this->coll->col[j]];
-      tmp2 += this->coll->val[j] * pvec[this->coll->col[j]];
+    for(int j=ptr[i]; j<ptr[i+1]; j++){
+      tmp1 += val[j] * rvec[col[j]];
+      tmp2 += val[j] * pvec[col[j]];
     }
     Ar[0][i] = tmp1;
     Ap[0][i] = tmp2;
   }
 
   for(int ii=1; ii<2*kskip+2; ii++){
-    for(long int i=0; i<this->coll->N; i++){
+#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val) lastprivate(Ar, Ap)
+    for(long int i=0; i<N; i++){
       tmp1 = 0.0;
       tmp2 = 0.0;
-      for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
+      for(int j=ptr[i]; j<ptr[i+1]; j++){
         if(ii<2*kskip){
-          tmp1 += this->coll->val[j] * Ar[(ii-1)][this->coll->col[j]];
+          tmp1 += val[j] * Ar[(ii-1)][col[j]];
         }
-        tmp2 += this->coll->val[j] * Ap[(ii-1)][this->coll->col[j]];
+        tmp2 += val[j] * Ap[(ii-1)][col[j]];
       }
       if(ii<2*kskip){
         Ar[(ii)][i] = tmp1;
@@ -291,12 +307,14 @@ void blas<T>::Kskip_cg_innerProduce(T *delta, T *eta, T *zeta, T **Ar, T **Ap, T
   T tmp1=0.0;
   T tmp2=0.0;
   T tmp3=0.0;
+  long int N = this->coll->N;
 
+#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3) schedule(static) firstprivate(delta, eta, zeta, Ar, rvec, Ap, pvec) lastprivate(delta, eta, zeta)
   for(int i=0; i<2*kskip+2; i++){
     tmp1=0.0;
     tmp2=0.0;
     tmp3=0.0;
-    for(long int j=0; j<this->coll->N; j++){
+    for(long int j=0; j<N; j++){
       if(i<2*kskip){
         tmp1 += rvec[j] * Ar[i][j];
       }
@@ -319,27 +337,32 @@ template <typename T>
 void blas<T>::Kskip_kskipBicg_base(T **Ar, T **Ap, T *rvec, T *pvec, const int kskip){
   T tmp1 = 0.0;
   T tmp2 = 0.0;
+  T *val=this->coll->val;
+  int *ptr=this->coll->ptr;
+  int *col=this->coll->col;
+  long int N = this->coll->N;
 
-  for(long int i=0; i<this->coll->N; i++){
+#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap)
+  for(long int i=0; i<N; i++){
     tmp1 = 0.0;
     tmp2 = 0.0;
-    for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
-      tmp1 += this->coll->val[j] * rvec[this->coll->col[j]];
-      tmp2 += this->coll->val[j] * pvec[this->coll->col[j]];
+    for(int j=ptr[i]; j<ptr[i+1]; j++){
+      tmp1 += val[j] * rvec[col[j]];
+      tmp2 += val[j] * pvec[col[j]];
     }
     Ar[0][i] = tmp1;
     Ap[0][i] = tmp2;
   }
 
   for(int ii=1; ii<2*kskip+2; ii++){
-    for(long int i=0; i<this->coll->N; i++){
+    for(long int i=0; i<N; i++){
       tmp1 = 0.0;
       tmp2 = 0.0;
-      for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
+      for(int j=ptr[i]; j<ptr[i+1]; j++){
         if(ii<2*kskip+1){
-          tmp1 += this->coll->val[j] * Ar[(ii-1)][this->coll->col[j]];
+          tmp1 += val[j] * Ar[(ii-1)][col[j]];
         }
-        tmp2 += this->coll->val[j] * Ap[(ii-1)][this->coll->col[j]];
+        tmp2 += val[j] * Ap[(ii-1)][col[j]];
       }
       if(ii<2*kskip+1){
         Ar[(ii)][i] = tmp1;
@@ -355,13 +378,15 @@ void blas<T>::Kskip_kskipBicg_innerProduce(T *theta, T *eta, T *rho, T *phi, T *
   T tmp2=0.0;
   T tmp3=0.0;
   T tmp4=0.0;
+  long int N = this->coll->N;
 
+#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3, tmp4) schedule(static) firstprivate(theta, eta, rho, phi, Ar, rvec, Ap, pvec, r_vec, p_vec) lastprivate(theta, eta, rho, phi)
   for(int i=0; i<2*kskip+2; i++){
     tmp1=0.0;
     tmp2=0.0;
     tmp3=0.0;
     tmp4=0.0;
-    for(long int j=0; j<this->coll->N; j++){
+    for(long int j=0; j<N; j++){
       if(i<2*kskip){
         tmp1 += r_vec[j] * Ar[i][j];
       }
