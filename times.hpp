@@ -2,7 +2,9 @@
 #define TIMES_HPP_INCLUDED__
 
 #include <chrono>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 #include <sys/time.h>
 
 class times {
@@ -18,12 +20,16 @@ class times {
     }
     void start(){
       c_start = std::chrono::system_clock::now();
+#ifdef _OPENMP
       o_start = omp_get_wtime();
+#endif
       e_start = getEtime();
     }
     void end(){
       c_end = std::chrono::system_clock::now();
+#ifdef _OPENMP
       o_end = omp_get_wtime();
+#endif
       e_end = getEtime();
     }
     double getTime(){

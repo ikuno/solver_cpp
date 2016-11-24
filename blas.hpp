@@ -5,7 +5,9 @@
 #include <ctime>
 #include <string>
 #include <cmath>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 #include "solver_collection.hpp"
 
 template <typename T>
@@ -24,6 +26,8 @@ class blas {
     T norm_2(T *v);
 
     void MtxVec_mult(T *in_vec, T *out_vec);
+    
+    void MtxVec_mult(T *in_vec, int xindex, int xsize, T *out_vec);
 
     void MtxVec_mult(T *Tval, int *Tcol, int *Tptr, T *in_vec, T *out_vec);
 
@@ -35,7 +39,11 @@ class blas {
 
     T dot(T *x, T *y, const long int size);
 
+    T dot(T *x, T *y, int xindex, int xsize);
+
     void Scalar_ax(T a, T *x, T *out);
+    
+    void Scalar_ax(T a, T *x, int xindex, int xsize, T *out);
 
     void Scalar_axy(T a, T *x, T *y, T *out);
 
@@ -51,6 +59,8 @@ class blas {
 
     void Vec_copy(T *in, T *out, int xindex, int xsize);
 
+//-----------------------------------
+
     void Kskip_cg_base(T **Ar, T **Ap, T *rvec, T *pvec, const int kskip);
 
     void Kskip_cg_innerProduce(T *delta, T *eta, T *zeta, T **Ar, T **Ap, T *rvec, T *pvec, const int kskip);
@@ -58,14 +68,15 @@ class blas {
     void Kskip_kskipBicg_base(T **Ar, T **Ap, T *rvec, T *pvec, const int kskip);
 
     void Kskip_kskipBicg_innerProduce(T *theta, T *eta, T *rho, T *phi, T **Ar, T **Ap, T *rvec, T *pvec, T *r_vec, T *p_vec, const int kskip);
+
+    void Gmres_sp_1(int k, T *x, T *y, T *out);
+
 };
 
 template <typename T>
 blas<T>::blas(collection<T> *col){
   coll = col;
-#ifdef _OPENMP
   omp_set_num_threads(this->coll->OMPThread);
-#endif
 }
 
 template <typename T>
@@ -126,6 +137,23 @@ void blas<T>::MtxVec_mult(T *in_vec, T *out_vec){
 }
 
 template <typename T>
+void blas<T>::MtxVec_mult(T *in_vec, int xindex, int xsize, T *out_vec){
+  T tmp = 0.0;
+  T *val=this->coll->val;
+  int *ptr=this->coll->ptr;
+  int *col=this->coll->col;
+  long int N = this->coll->N;
+#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
+  for(long int i=0; i<N; i++){
+    tmp = 0.0;
+    for(long int j=ptr[i]; j<ptr[i+1]; j++){
+      tmp += val[j] * in_vec[xindex*xsize+col[j]];
+    }
+    out_vec[i] = tmp;
+  }
+}
+
+template <typename T>
 void blas<T>::MtxVec_mult(T *Tval, int *Tcol, int *Tptr, T *in_vec, T *out_vec){
   T tmp = 0.0;
   long int N = this->coll->N;
@@ -174,9 +202,26 @@ T blas<T>::dot(T *x, T *y, const long int size){
 }
 
 template <typename T>
+T blas<T>::dot(T *x, T *y, int xindex, int xsize){
+  T tmp = 0.0;
+  for(long int i=0; i<this->coll->N; i++){
+    tmp += x[i] * y[xindex*xsize+i];
+  }
+  return tmp;
+}
+
+template <typename T>
 void blas<T>::Scalar_ax(T a, T *x, T *out){
   for(long int i=0; i<this->coll->N; i++){
     out[i] = a * x[i];
+  }
+}
+
+template <typename T>
+void blas<T>::Scalar_ax(T a, T *x, int xindex, int xsize, T *out){
+#pragma omp parallel for schedule(static) firstprivate(out, a, x) lastprivate(out) num_threads(this->coll->OMPThread)
+  for(long int i=0; i<this->coll->N; i++){
+    out[i] = a * x[xindex*xsize+i];
   }
 }
 
@@ -410,6 +455,19 @@ void blas<T>::Kskip_kskipBicg_innerProduce(T *theta, T *eta, T *rho, T *phi, T *
     phi[i] = tmp4;
   }
 }
+
+template <typename T>
+void blas<T>::Gmres_sp_1(int k, T *x, T *y, T *out){
+  int N = this->coll->N;
+
+#pragma omp parallel for schedule(static) firstprivate(out, x, y) lastprivate(out) num_threads(this->coll->OMPThread)
+  for(long int j=0; j<N; j++){
+    for(int i=0; i<=k; i++){
+      out[j] -= x[i*N+k] * y[i*N+j];
+    }
+  }
+}
+
 
 #endif //BLAS_HPP_INCLUDED__
 

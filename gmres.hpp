@@ -189,9 +189,11 @@ int gmres<T>::solve(){
 
         for(int i=0; i<k; i++)
         {
-          for(long int j=0; j<N; j++){
-            tmpvec[j] += yvec[i] * vmtx[i*N+j];
-          }
+          tmp = yvec[i];
+          // for(long int j=0; j<N; j++){
+          //   tmpvec[j] += tmp * vmtx[i*N+j];
+          // }
+          bs->Scalar_ax(tmp, vmtx, i, N, tmpvec);
         }
 
         bs->Vec_add(x0vec, tmpvec, xvec);
@@ -207,9 +209,11 @@ int gmres<T>::solve(){
 
         for(int i=0; i<k; i++)
         {
-          for(long int j=0; j<N; j++){
-            tmpvec[j] += yvec[i] * vmtx[i*N+j];
-          }
+          tmp = yvec[i];
+          // for(long int j=0; j<N; j++){
+          //   tmpvec[j] += tmp * vmtx[i*N+j];
+          // }
+          bs->Scalar_ax(tmp, vmtx, i, N, tmpvec);
         }
 
         bs->Vec_add(x0vec, tmpvec, xvec);
@@ -219,29 +223,21 @@ int gmres<T>::solve(){
       }
 
       //Av & w
-      for(long int i=0; i<N; i++){
-        tmp = 0.0;
-        for(int j=this->coll->ptr[i]; j<this->coll->ptr[i+1]; j++){
-          tmp += this->coll->val[j] * vmtx[k*N+(this->coll->col[j])];
-        }
-        avvec[i] = tmp;
-        wvec[i] = avvec[i];
+      if(isCUDA){
+
+      }else{
+        bs->MtxVec_mult(vmtx, k, N, avvec);
       }
+
+      bs->Vec_copy(avvec, wvec);
 
       //h_i_k & w update
       for(int i=0; i<=k; i++){
-        wv_ip = 0.0;
-        for(long int j=0; j<N; j++){
-          wv_ip+=wvec[j] * vmtx[i*N+j];
-        }
+        wv_ip = bs->dot(wvec, vmtx, i, N);
         hmtx[i*N+k] = wv_ip;
       }
 
-      for(int i=0; i<=k; i++){
-        for(long int j=0; j<N; j++){
-          wvec[j] -= hmtx[i*N+k] * vmtx[i*N+j];
-        }
-      }
+      bs->Gmres_sp_1(k, hmtx, vmtx, wvec);
 
       //h_k+1 update
       tmp = bs->norm_2(wvec);
