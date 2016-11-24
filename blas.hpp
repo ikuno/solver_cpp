@@ -186,7 +186,9 @@ void blas<T>::Vec_add(T *x, T *y, T *out){
 template <typename T>
 T blas<T>::dot(T *x, T *y){
   T tmp = 0.0;
-  for(long int i=0; i<this->coll->N; i++){
+  int N = this->coll->N;
+// #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
+  for(long int i=0; i<N; i++){
     tmp += x[i] * y[i];
   }
   return tmp;
@@ -195,6 +197,7 @@ T blas<T>::dot(T *x, T *y){
 template <typename T>
 T blas<T>::dot(T *x, T *y, const long int size){
   T tmp = 0.0;
+// #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
   for(long int i=0; i<size; i++){
     tmp += x[i] * y[i];
   }
@@ -204,7 +207,9 @@ T blas<T>::dot(T *x, T *y, const long int size){
 template <typename T>
 T blas<T>::dot(T *x, T *y, int xindex, int xsize){
   T tmp = 0.0;
-  for(long int i=0; i<this->coll->N; i++){
+  int N = this->coll->N;
+// #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
+  for(long int i=0; i<N; i++){
     tmp += x[i] * y[xindex*xsize+i];
   }
   return tmp;
