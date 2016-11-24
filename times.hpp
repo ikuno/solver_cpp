@@ -1,0 +1,44 @@
+#ifndef TIMES_HPP_INCLUDED__
+#define TIMES_HPP_INCLUDED__
+
+#include <chrono>
+#include <omp.h>
+#include <sys/time.h>
+
+class times {
+  public:
+    std::chrono::system_clock::time_point c_start, c_end;
+    double o_start, o_end;
+    double e_start, e_end;
+
+    double getEtime(){
+      struct timeval tv;
+      gettimeofday(&tv, NULL);
+      return tv.tv_sec + (double)tv.tv_usec*1e-6;
+    }
+    void start(){
+      c_start = std::chrono::system_clock::now();
+      o_start = omp_get_wtime();
+      e_start = getEtime();
+    }
+    void end(){
+      c_end = std::chrono::system_clock::now();
+      o_end = omp_get_wtime();
+      e_end = getEtime();
+    }
+    double getTime(){
+      double tmp = std::chrono::duration_cast<std::chrono::nanoseconds>(c_end-c_start).count();
+      tmp = tmp*1e-9;
+      return tmp;
+    }
+    double getTime_o(){
+      return o_end-o_start;
+    }
+    double getTime_e(){
+      return e_end-e_start;
+    }
+
+};
+
+#endif //TIMES_HPP_INCLUDED__
+

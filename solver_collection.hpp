@@ -3,9 +3,11 @@
 
 #include <iostream>
 #include <cstdlib>
+#include <cstdlib>
 #include <dirent.h>
 #include <fstream>
 #include <string>
+#include <omp.h>
 
 #include "cmdline.h"
 #include "color.hpp"
@@ -312,6 +314,7 @@ void collection<T>::readCMD(int argc, char* argv[]){
 
   if(cmd.exist("verbose")) this->isVerbose=true;
 
+  this->setOpenmpThread();
 }
 
 template <typename T>
@@ -733,6 +736,9 @@ void collection<T>::transposeMatrix(){
 template <typename T>
 void collection<T>::setOpenmpThread(){
   omp_set_num_threads(this->OMPThread);
+  std::string name = "OMP_NUM_THREADS";
+  std::string num = std::to_string(this->OMPThread);
+  setenv(name.c_str(), num.c_str(), 1);
   std::cout << GREEN << "[○]Set OpenMP Threads => " << this->OMPThread << RESET << std::endl;
 }
 

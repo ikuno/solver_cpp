@@ -63,6 +63,9 @@ class blas {
 template <typename T>
 blas<T>::blas(collection<T> *col){
   coll = col;
+#ifdef _OPENMP
+  omp_set_num_threads(this->coll->OMPThread);
+#endif
 }
 
 template <typename T>
@@ -112,7 +115,7 @@ void blas<T>::MtxVec_mult(T *in_vec, T *out_vec){
   int *ptr=this->coll->ptr;
   int *col=this->coll->col;
   long int N = this->coll->N;
-#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec)
+#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp = 0.0;
     for(long int j=ptr[i]; j<ptr[i+1]; j++){
@@ -127,7 +130,7 @@ void blas<T>::MtxVec_mult(T *Tval, int *Tcol, int *Tptr, T *in_vec, T *out_vec){
   T tmp = 0.0;
   long int N = this->coll->N;
 
-#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, Tval, in_vec) lastprivate(out_vec)
+#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, Tval, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp = 0.0;
     for(long int j=Tptr[i]; j<Tptr[i+1]; j++){
@@ -271,7 +274,7 @@ void blas<T>::Kskip_cg_base(T **Ar, T **Ap, T *rvec, T *pvec, const int kskip){
   int *col=this->coll->col;
   long int N = this->coll->N;
 
-#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap)
+#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp1 = 0.0;
     tmp2 = 0.0;
@@ -284,7 +287,7 @@ void blas<T>::Kskip_cg_base(T **Ar, T **Ap, T *rvec, T *pvec, const int kskip){
   }
 
   for(int ii=1; ii<2*kskip+2; ii++){
-#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val) lastprivate(Ar, Ap)
+#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
     for(long int i=0; i<N; i++){
       tmp1 = 0.0;
       tmp2 = 0.0;
@@ -309,7 +312,7 @@ void blas<T>::Kskip_cg_innerProduce(T *delta, T *eta, T *zeta, T **Ar, T **Ap, T
   T tmp3=0.0;
   long int N = this->coll->N;
 
-#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3) schedule(static) firstprivate(delta, eta, zeta, Ar, rvec, Ap, pvec) lastprivate(delta, eta, zeta)
+#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3) schedule(static) firstprivate(delta, eta, zeta, Ar, rvec, Ap, pvec) lastprivate(delta, eta, zeta) num_threads(this->coll->OMPThread)
   for(int i=0; i<2*kskip+2; i++){
     tmp1=0.0;
     tmp2=0.0;
@@ -342,7 +345,7 @@ void blas<T>::Kskip_kskipBicg_base(T **Ar, T **Ap, T *rvec, T *pvec, const int k
   int *col=this->coll->col;
   long int N = this->coll->N;
 
-#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap)
+#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp1 = 0.0;
     tmp2 = 0.0;
@@ -355,6 +358,7 @@ void blas<T>::Kskip_kskipBicg_base(T **Ar, T **Ap, T *rvec, T *pvec, const int k
   }
 
   for(int ii=1; ii<2*kskip+2; ii++){
+#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
     for(long int i=0; i<N; i++){
       tmp1 = 0.0;
       tmp2 = 0.0;
@@ -380,7 +384,7 @@ void blas<T>::Kskip_kskipBicg_innerProduce(T *theta, T *eta, T *rho, T *phi, T *
   T tmp4=0.0;
   long int N = this->coll->N;
 
-#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3, tmp4) schedule(static) firstprivate(theta, eta, rho, phi, Ar, rvec, Ap, pvec, r_vec, p_vec) lastprivate(theta, eta, rho, phi)
+#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3, tmp4) schedule(static) firstprivate(theta, eta, rho, phi, Ar, rvec, Ap, pvec, r_vec, p_vec) lastprivate(theta, eta, rho, phi) num_threads(this->coll->OMPThread)
   for(int i=0; i<2*kskip+2; i++){
     tmp1=0.0;
     tmp2=0.0;

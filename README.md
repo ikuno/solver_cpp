@@ -8,6 +8,7 @@ Linear Solver
 ## Todo
 1.gcrとgmresには二次元配列で格納したデータがあります，それを全部一次元配列に統一することを考えている．
 2.vpcrのアルゴリズムがおかしい．
+3.gmresの並列化
 
 CG,
   BICG,

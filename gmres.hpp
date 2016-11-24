@@ -5,12 +5,14 @@
 #include <fstream>
 #include "solver_collection.hpp"
 #include "blas.hpp"
+#include "times.hpp"
 
 template <typename T>
 class gmres {
   private:
     collection<T> *coll;
     blas<T> *bs;
+    times time;
     
     long int loop;
     T *xvec, *bvec;
@@ -25,7 +27,7 @@ class gmres {
     bool isVP, isVerbose, isCUDA, isInner;
     int restart;
 
-    int exit_flag;
+    int exit_flag, over_flag;
     T test_error;
 
     int N;
@@ -45,6 +47,7 @@ gmres<T>::gmres(collection<T> *coll, T *bvec, T *xvec, bool inner){
   bs = new blas<T>(this->coll);
 
   exit_flag = 2;
+  over_flag = 0;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
@@ -138,6 +141,8 @@ gmres<T>::~gmres(){
 template <typename T>
 int gmres<T>::solve(){
 
+  time.start();
+
   //b 2norm
   bnorm = bs->norm_2(bvec);
 
@@ -175,6 +180,24 @@ int gmres<T>::solve(){
           std::cout << count+1 << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
         }
         f_his << count+1 << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
+      }
+
+      if(count+1 >= maxloop){
+        bs->Hye(hmtx, yvec, evec, k);
+
+        std::memset(tmpvec, 0, sizeof(T)*N);
+
+        for(int i=0; i<k; i++)
+        {
+          for(long int j=0; j<N; j++){
+            tmpvec[j] += yvec[i] * vmtx[i*N+j];
+          }
+        }
+
+        bs->Vec_add(x0vec, tmpvec, xvec);
+
+        over_flag = 1;
+        break;
       }
 
       if(error <= eps){
@@ -250,7 +273,7 @@ int gmres<T>::solve(){
 
     }
 
-    if(exit_flag==0){
+    if(exit_flag==0 || over_flag==1){
       break;
     }
 
@@ -269,22 +292,27 @@ int gmres<T>::solve(){
     bs->Vec_copy(xvec, x0vec);
 
   }
+  time.end();
 
   if(!isInner){
     test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << count+1 << std::endl;
+    std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
+
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
-    if(exit_flag==0){
-      std::cout << GREEN << "\t" <<  count+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
-    }else if(exit_flag==2){
-      std::cout << RED << "\t" << count+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
-    }else{
-      std::cout << RED << " ERROR " << loop << RESET << std::endl;
+    if(isVerbose){
+      if(exit_flag==0){
+        std::cout << GREEN << "\t" <<  count+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+      }else if(exit_flag==2){
+        std::cout << RED << "\t" << count+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+      }else{
+        std::cout << RED << " ERROR " << loop << RESET << std::endl;
+      }
     }
   }
 

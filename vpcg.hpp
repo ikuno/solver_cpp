@@ -6,6 +6,7 @@
 #include "solver_collection.hpp"
 #include "blas.hpp"
 #include "innerMethods.hpp"
+#include "times.hpp"
 
 template <typename T>
 class vpcg {
@@ -13,6 +14,7 @@ class vpcg {
     collection<T> *coll;
     blas<T> *bs;
     innerMethods<T> *in;
+    times time;
 
     long int loop;
     T *xvec, *bvec;
@@ -105,6 +107,8 @@ vpcg<T>::~vpcg(){
 template <typename T>
 int vpcg<T>::solve(){
 
+  time.start();
+
   //x_0 = x
   bs->Vec_copy(xvec, x_0);
 
@@ -190,10 +194,13 @@ int vpcg<T>::solve(){
 
   }
 
+  time.end();
+
   if(!isInner){
     test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
+    std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;

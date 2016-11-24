@@ -5,12 +5,14 @@
 #include <fstream>
 #include "solver_collection.hpp"
 #include "blas.hpp"
+#include "times.hpp"
 
 template <typename T>
 class gcr {
   private:
     collection<T> *coll;
     blas<T> *bs;
+    times time;
 
     long int loop, iloop, kloop;
     T *xvec, *bvec;
@@ -132,6 +134,8 @@ gcr<T>::~gcr(){
 template <typename T>
 int gcr<T>::solve(){
 
+  time.start();
+
   //x_0 = x
   bs->Vec_copy(xvec, x_0);
 
@@ -238,21 +242,27 @@ int gcr<T>::solve(){
       break;
     }
   }
+
+  time.end();
+
   if(!isInner){
     test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
+    std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
-    if(exit_flag==0){
-      std::cout << GREEN << "\t" <<  loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
-    }else if(exit_flag==2){
-      std::cout << RED << "\t" << loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
-    }else{
-      std::cout << RED << " ERROR " << loop << RESET << std::endl;
+    if(isVerbose){
+      if(exit_flag==0){
+        std::cout << GREEN << "\t" <<  loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+      }else if(exit_flag==2){
+        std::cout << RED << "\t" << loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+      }else{
+        std::cout << RED << " ERROR " << loop << RESET << std::endl;
+      }
     }
   }
 

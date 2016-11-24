@@ -16,6 +16,7 @@ int main(int argc, char* argv[])
     col.CRSAlloc();
     col.readMatrix();
     col.transposeMatrix();
+    col.setOpenmpThread();
 
     col.showCMD();
     method.outerSelect(col.outerSolver);
@@ -31,6 +32,7 @@ int main(int argc, char* argv[])
     col.CRSAlloc();
     col.readMatrix();
     col.transposeMatrix();
+    col.setOpenmpThread();
 
     col.showCMD();
     method.outerSelect(col.outerSolver);

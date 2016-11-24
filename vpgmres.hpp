@@ -6,6 +6,7 @@
 #include "solver_collection.hpp"
 #include "blas.hpp"
 #include "innerMethods.hpp"
+#include "times.hpp"
 
 template <typename T>
 class vpgmres {
@@ -13,6 +14,7 @@ class vpgmres {
     collection<T> *coll;
     blas<T> *bs;
     innerMethods<T> *in;
+    times time;
     
     long int loop;
     T *xvec, *bvec;
@@ -27,7 +29,7 @@ class vpgmres {
     bool isVP, isVerbose, isCUDA, isInner;
     int restart;
 
-    int exit_flag;
+    int exit_flag, over_flag;
     T test_error;
 
     int N;
@@ -48,6 +50,7 @@ vpgmres<T>::vpgmres(collection<T> *coll, T *bvec, T *xvec, bool inner){
   in = new innerMethods<T>(this->coll);
 
   exit_flag = 2;
+  over_flag = 0;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
@@ -146,6 +149,8 @@ vpgmres<T>::~vpgmres(){
 template <typename T>
 int vpgmres<T>::solve(){
 
+  time.start();
+
   //b 2norm
   bnorm = bs->norm_2(bvec);
 
@@ -184,6 +189,23 @@ int vpgmres<T>::solve(){
           std::cout << count+1 << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
         }
         f_his << count+1 << " " << std::scientific << std::setprecision(12) << std::uppercase << error << std::endl;
+      }
+      if(count+1 >= maxloop){
+        bs->Hye(hmtx, yvec, evec, k);
+
+        std::memset(tmpvec, 0, sizeof(T)*N);
+
+        for(int i=0; i<k; i++)
+        {
+          for(long int j=0; j<N; j++){
+            tmpvec[j] += yvec[i] * zmtx[i*N+j];
+          }
+        }
+
+        bs->Vec_add(x0vec, tmpvec, xvec);
+
+        over_flag = 1;
+        break;
       }
 
       if(error <= eps){
@@ -270,7 +292,7 @@ int vpgmres<T>::solve(){
 
     }
 
-    if(exit_flag==0){
+    if(exit_flag==0 || over_flag==1){
       break;
     }
 
@@ -290,11 +312,13 @@ int vpgmres<T>::solve(){
 
   }
 
+  time.end();
+
   if(!isInner){
     test_error = bs->Check_error(xvec, x_0);
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << count+1 << std::endl;
-
+    std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
