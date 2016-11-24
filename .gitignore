@@ -10,4 +10,6 @@
 
 # Dummy Dirctory
 /output/*
+!/output
+
 

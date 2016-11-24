@@ -85,10 +85,6 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
   std::memset(rvec, 0, sizeof(T)*N);
   std::memset(Av, 0, sizeof(T)*N);
   std::memset(xvec, 0, sizeof(T)*N);
-
-  for(long int i=0; i<restart; i++){
-    qq[i] = 0.0;
-  }
   std::memset(qq, 0, sizeof(T)*restart);
 
   for(int i=0; i<restart; i++){
@@ -109,9 +105,7 @@ gcr<T>::gcr(collection<T> *coll, T *bvec, T *xvec, bool inner){
       exit(-1);
     }
   }
-
   out_flag = false;
-
 }
 
 template <typename T>
