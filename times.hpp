@@ -2,6 +2,7 @@
 #define TIMES_HPP_INCLUDED__
 
 #include <chrono>
+#include <string>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -12,6 +13,27 @@ class times {
     std::chrono::system_clock::time_point c_start, c_end;
     double o_start, o_end;
     double e_start, e_end;
+
+    std::string get_date_time(){
+      struct tm *date;
+      time_t now;
+      int month, day;
+      int hour, minute, second;
+      std::string date_time;
+
+      time(&now);
+      date = localtime(&now);
+
+      month = date->tm_mon + 1;
+      day = date->tm_mday;
+      hour = date->tm_hour;
+      minute = date->tm_min;
+      second = date->tm_sec;
+
+      date_time=std::to_string(month)+"-"+std::to_string(day)+"-"+std::to_string(hour)+"_"+std::to_string(minute)+"_"+std::to_string(second);
+
+      return date_time;
+    }
 
     double getEtime(){
       struct timeval tv;

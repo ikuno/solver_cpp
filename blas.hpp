@@ -18,10 +18,6 @@ class blas {
   public:
     blas(collection<T> *col);
 
-    std::ofstream *output(std::string name);
-
-    std::string get_date_time();
-
     T norm_1(T *v);
 
     T norm_2(T *v);
@@ -79,28 +75,6 @@ blas<T>::blas(collection<T> *col){
   coll = col;
   mix = col->isInnerNow;
   omp_set_num_threads(this->coll->OMPThread);
-}
-
-template <typename T>
-std::string blas<T>::get_date_time(){
-  struct tm *date;
-  time_t now;
-  int month, day;
-  int hour, minute, second;
-  std::string date_time;
-
-  time(&now);
-  date = localtime(&now);
-
-  month = date->tm_mon + 1;
-  day = date->tm_mday;
-  hour = date->tm_hour;
-  minute = date->tm_min;
-  second = date->tm_sec;
-
-  date_time=std::to_string(month)+"-"+std::to_string(day)+"-"+std::to_string(hour)+"_"+std::to_string(minute)+"_"+std::to_string(second);
-
-  return date_time;
 }
 
 template <typename T>

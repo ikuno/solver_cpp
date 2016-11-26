@@ -258,7 +258,7 @@ void collection<T>::readCMD(int argc, char* argv[]){
   cmd.add<int>("OuterKskip", 'K', "kskip number in outersolver", false, this->outerKskip);
   cmd.add<int>("OuterFix", 'F', "fix bug in outersolver", false, this->outerFix);
   
-  cmd.add<std::string>("InnerSolver", 's', "method use in innersolver", false, "");
+  cmd.add<std::string>("InnerSolver", 's', "method use in innersolver", false, "NO");
   cmd.add<int>("InnerMaxLoop", 'l', "max loops in innersolver", false, this->innerMaxLoop);
   cmd.add<double>("InnerEps", 'e', "eps in innersolver", false, this->innerEps);
   cmd.add<int>("InnerRestart", 'r', "Restart number in innersolver", false, this->innerRestart);
@@ -320,12 +320,6 @@ void collection<T>::readCMD(int argc, char* argv[]){
   if(this->innerSolver != NONE){
     isVP = true;
   }
-
-  if(this->innerSolver == NONE){
-    std::cerr << RED << "[X]InnerSolverName can not found in List" << RESET << std::endl;
-    exit(-1);
-  }
-
 
   if(cmd.exist("verbose")) this->isVerbose=true;
   if(cmd.exist("mixPecision")) this->isMixPrecision=true;

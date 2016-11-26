@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Solver
 ====
 
@@ -5,27 +7,11 @@ Solver
 
 Linear Solver
 
-## Todo
-1.gcrとgmresには二次元配列で格納したデータがあります，それを全部一次元配列に統一することを考えている．
-2.vpcrのアルゴリズムがおかしい．
-3.gmresの並列化
+## ISSUE & TODO
+- [x]gcrとgmresには二次元配列で格納したデータがあります，それを全部一次元配列に統一することを考えている．
+- [o]vpcrのアルゴリズムがおかしい．
+- [o]gmresの並列化
+- [o]SolverName not found
 
-CG,
-  BICG,
-  CR,
-  GCR,
-  GMRES,
-
-  KSKIPCG,
-  KSKIPCR,//未実装
-  KSKIPBICG,
-
-  VPCG,
-  VPBICG,//未実装
-  VPCR,//BUG?
-  VPGCR,
-  VPGMRES
-
-## Licence
-
-[MIT](https://github.com/tcnksm/tool/blob/master/LICENCE)
+## 未実装
+  KSKIPCR, VPBICG, VPCR
