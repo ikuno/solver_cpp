@@ -312,9 +312,20 @@ void collection<T>::readCMD(int argc, char* argv[]){
     this->inputSource = 1;
   }
 
+  if(this->outerSolver == NONE){
+    std::cerr << RED << "[X]OuterSolverName can not found in List" << RESET << std::endl;
+    exit(-1);
+  }
+
   if(this->innerSolver != NONE){
     isVP = true;
   }
+
+  if(this->innerSolver == NONE){
+    std::cerr << RED << "[X]InnerSolverName can not found in List" << RESET << std::endl;
+    exit(-1);
+  }
+
 
   if(cmd.exist("verbose")) this->isVerbose=true;
   if(cmd.exist("mixPecision")) this->isMixPrecision=true;
