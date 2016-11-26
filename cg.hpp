@@ -11,8 +11,7 @@ template <typename T>
 class cg {
   private:
     collection<T> *coll;
-    blas<T, T> *bs;
-    blas<T, float> *bs_f;
+    blas<T> *bs;
     times time;
     
     long int loop;
@@ -43,7 +42,6 @@ template <typename T>
 cg<T>::cg(collection<T> *coll, T *bvec, T *xvec, bool inner){
   this->coll = coll;
   bs = new blas<T>(this->coll);
-  bs_f = new blas<T, float>(this->coll);
   
   N = this->coll->N;
   rvec = new T [N];
@@ -92,7 +90,6 @@ cg<T>::cg(collection<T> *coll, T *bvec, T *xvec, bool inner){
 template <typename T>
 cg<T>::~cg(){
   delete this->bs;
-  delete this->bs_f;
   delete[] rvec;
   delete[] pvec;
   delete[] mv;
@@ -107,62 +104,34 @@ int cg<T>::solve(){
   time.start();
 
   //x_0 = x
-  if(isInner){
-    bs_f->Vec_copy(xvec, x_0);
-  }else{
-    bs->Vec_copy(xvec, x_0);
-  }
+  bs->Vec_copy(xvec, x_0);
 
   //b 2norm
-  if(isInner){
-    bnorm = bs_f->norm_2(bvec);
-  }else{
-    bnorm = bs->norm_2(bvec);
-  }
+  bnorm = bs->norm_2(bvec);
 
   //mv = Ax
   if(isCUDA){
 
   }else{
-    if(isInner){
-      bs_f->MtxVec_mult(xvec, mv);
-    }else{
-      bs->MtxVec_mult(xvec, mv);
-    }
+    bs->MtxVec_mult(xvec, mv);
   }
 
   //r = b - Ax
-  if(isInner){
-    bs_f->Vec_sub(bvec, mv, rvec);
-  }else{
-    bs->Vec_sub(bvec, mv, rvec);
-  }
+  bs->Vec_sub(bvec, mv, rvec);
 
 
   //p = r
-  if(isInner){
-    bs_f->Vec_copy(rvec, pvec);
-  }else{
-    bs->Vec_copy(rvec, pvec);
-  }
+  bs->Vec_copy(rvec, pvec);
 
   //r dot
   if(isCUDA){
 
   }else{
-    if(isInner){
-      rr = bs_f->dot(rvec, rvec);
-    }else{
-      rr = bs->dot(rvec, rvec);
-    }
+    rr = bs->dot(rvec, rvec);
   }
 
   for(loop=1; loop<=maxloop; loop++){
-    if(isInner){
-      rnorm = bs_f->norm_2(rvec);
-    }else{
-      rnorm = bs->norm_2(rvec);
-    }
+    rnorm = bs->norm_2(rvec);
     error = rnorm/bnorm;
     if(!isInner){
       if(isVerbose){
@@ -181,47 +150,27 @@ int cg<T>::solve(){
     if(isCUDA){
 
     }else{
-      if(isInner){
-        bs_f->MtxVec_mult(pvec, mv);
-      }else{
-        bs->MtxVec_mult(pvec, mv);
-      }
+      bs->MtxVec_mult(pvec, mv);
     }
 
     //alpha = (r,r) / (p,ap)
     if(isCUDA){
     }else{
-      if(isInner){
-        dot = bs_f->dot(pvec, mv);
-      }else{
-        dot = bs->dot(pvec, mv);
-      }
+      dot = bs->dot(pvec, mv);
     }
     alpha = rr / dot;
 
     //x = alpha * pvec + x
-    if(isInner){
-      bs->Scalar_axy(alpha, pvec, xvec, xvec);
-    }else{
-      bs_f->Scalar_axy(alpha, pvec, xvec, xvec);
-    }
+    bs->Scalar_axy(alpha, pvec, xvec, xvec);
 
     //r = -alpha * AP(mv) + r
-    if(isInner){
-      bs_f->Scalar_axy(-alpha, mv, rvec, rvec);
-    }else{
-      bs->Scalar_axy(-alpha, mv, rvec, rvec);
-    }
+    bs->Scalar_axy(-alpha, mv, rvec, rvec);
 
     //rr2 dot
     if(isCUDA){
 
     }else{
-      if(isInner){
-        rr2 = bs_f->dot(rvec, rvec);
-      }else{
-        rr2 = bs->dot(rvec, rvec);
-      }
+      rr2 = bs->dot(rvec, rvec);
     }
 
     beta = rr2/rr;
@@ -229,11 +178,7 @@ int cg<T>::solve(){
     rr = rr2;
 
     //p = beta * p + r
-    if(isInner){
-      bs_f->Scalar_axy(beta, pvec, rvec, pvec);
-    }else{
-      bs->Scalar_axy(beta, pvec, rvec, pvec);
-    }
+    bs->Scalar_axy(beta, pvec, rvec, pvec);
   }
   time.end();
 

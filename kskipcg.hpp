@@ -217,26 +217,52 @@ int kskipcg<T>::solve(){
 
     for(iloop=nloop; iloop<=nloop+kskip; iloop++){
       //alpha = gamma/zeta_1
-      alpha = gamma / zeta[0];
+      if(this->coll->isInnerNow){
+        alpha = static_cast<float>(gamma) / static_cast<float>(zeta[0]);
+      }else{
+        alpha = gamma / zeta[0];
+      }
 
       //beta = (alpha * zeta_2 / zeta_1) - 1
-      beta = alpha * zeta[1] / zeta[0] - 1.0;
+      if(this->coll->isInnerNow){
+        beta = static_cast<float>(alpha) * zeta[1] / zeta[0] - 1.0;
+      }else{
+        beta = alpha * zeta[1] / zeta[0] - 1.0;
+      }
 
       //fix
       if(fix == 1){
-        gamma = beta * gamma;
+        if(this->coll->isInnerNow){
+          gamma = static_cast<float>(beta) * static_cast<float>(gamma);
+        }else{
+          gamma = beta * gamma;
+        }
       }else if(fix == 2){
-        T tmp0 = gamma - alpha * eta[0];
-        T tmp1 = eta[0] - alpha * zeta[1];
-        gamma = tmp0 - alpha * tmp1;
+        if(this->coll->isInnerNow){
+          T tmp0 = static_cast<float>(gamma) - static_cast<float>(alpha) * eta[0];
+          T tmp1 = eta[0] - static_cast<float>(alpha) * zeta[1];
+          gamma = static_cast<float>(tmp0) - static_cast<float>(alpha) * static_cast<float>(tmp1);
+        }else{
+          T tmp0 = gamma - alpha * eta[0];
+          T tmp1 = eta[0] - alpha * zeta[1];
+          gamma = tmp0 - alpha * tmp1;
+
+        }
       }
 
       //update delta eta zeta
       for(jloop=0; jloop<2*kskip-2*(iloop-nloop); jloop++){
-        delta[jloop] = delta[jloop] - 2*alpha*eta[jloop+1] + alpha*alpha*eta[jloop+2];
-        T eta_old = eta[jloop];
-        eta[jloop] = delta[jloop] + beta*zeta[jloop+1] - alpha*beta*zeta[jloop+1];
-        zeta[jloop] = eta[jloop+1] + beta*eta_old + beta*beta*zeta[jloop] - alpha*beta*zeta[jloop+1];
+        if(this->coll->isInnerNow){
+          delta[jloop] = delta[jloop] - 2*static_cast<float>(alpha)*eta[jloop+1] + static_cast<float>(alpha)*static_cast<float>(alpha)*eta[jloop+2];
+          T eta_old = eta[jloop];
+          eta[jloop] = delta[jloop] + static_cast<float>(beta)*zeta[jloop+1] - static_cast<float>(alpha)*static_cast<float>(beta)*zeta[jloop+1];
+          zeta[jloop] = eta[jloop+1] + static_cast<float>(beta)*static_cast<float>(eta_old) + static_cast<float>(beta)*static_cast<float>(beta)*zeta[jloop] - static_cast<float>(alpha)*static_cast<float>(beta)*zeta[jloop+1];
+        }else{
+          delta[jloop] = delta[jloop] - 2*alpha*eta[jloop+1] + alpha*alpha*eta[jloop+2];
+          T eta_old = eta[jloop];
+          eta[jloop] = delta[jloop] + beta*zeta[jloop+1] - alpha*beta*zeta[jloop+1];
+          zeta[jloop] = eta[jloop+1] + beta*eta_old + beta*beta*zeta[jloop] - alpha*beta*zeta[jloop+1];
+        }
       }
 
       //Ap

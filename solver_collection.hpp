@@ -7,7 +7,9 @@
 #include <dirent.h>
 #include <fstream>
 #include <string>
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include "cmdline.h"
 #include "color.hpp"
@@ -36,8 +38,9 @@ class collection {
   public:
     bool isVP;
     bool isCUDA;
-    bool isOpenMP;
     bool isVerbose;
+    bool isInnerNow;
+    bool isMixPrecision;
     int OMPThread;
 
     std::string L1_Dir_Name;
@@ -106,9 +109,9 @@ template <typename T>
 collection<T>::collection() {
   isVP = false;
   isCUDA = false;
-  isOpenMP = true;
   isVerbose = false;
-  // isInner = false;
+  isInnerNow = false;
+  isMixPrecision = false;
   OMPThread = 8;
 
   outerSolver = NONE;
@@ -263,6 +266,7 @@ void collection<T>::readCMD(int argc, char* argv[]){
   cmd.add<int>("InnerFix", 'f', "fix bug in innersolver", false, this->innerFix);
 
   cmd.add("verbose", 'v', "verbose mode will printout all detel ");
+  cmd.add("mixPecision", 'x', "MixPecison in VP method");
 
   cmd.parse_check(argc, argv);
 
@@ -313,6 +317,7 @@ void collection<T>::readCMD(int argc, char* argv[]){
   }
 
   if(cmd.exist("verbose")) this->isVerbose=true;
+  if(cmd.exist("mixPecision")) this->isMixPrecision=true;
 
   this->setOpenmpThread();
 }
@@ -531,7 +536,6 @@ void collection<T>::showCMD(){
 
   std::cout << "VP : " << this->isVP << std::endl;
   std::cout << "CUDA : " << this->isCUDA << std::endl;
-  std::cout << "OpenMP : " << this->isOpenMP << std::endl;
   std::cout << "OpenMP thread : " << this->OMPThread << std::endl;
 
   std::cout << "-------------" << std::endl;
