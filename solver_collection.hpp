@@ -83,7 +83,7 @@ class collection {
     std::string enum2string(SOLVERS_NAME id);
     SOLVERS_NAME string2enum(std::string str);
 
-    void checkMatrix();
+    void checkCRSMatrix();
     void readMatrix();
     void CRSAlloc();
     void transposeMatrix();
@@ -234,6 +234,8 @@ template <typename T>
 void collection<T>::readCMD(int argc, char* argv[]){
   cmdline::parser cmd;
 
+  std::cout << "Reading CommandLine Option ..........";
+
   //1.long name
   //2.short name
   //3.description
@@ -325,6 +327,8 @@ void collection<T>::readCMD(int argc, char* argv[]){
   if(cmd.exist("mixPecision")) this->isMixPrecision=true;
 
   this->setOpenmpThread();
+
+  std::cout << GREEN << "[○] Done" << RESET << std::endl;
 }
 
 template <typename T>
@@ -339,18 +343,22 @@ void collection<T>::checkCMD(){
   bool hasCRSFiles[3]={false, false, false};
   bool hasMMFiles = false;
 
+  std::cout << "Checking Input Matrix Type ..........";
+
   // CRS input
   if(this->inputSource == 1){
 
-    std::cout << GREEN << "[○]Input Matrix Type => CRS" << RESET << std::endl;
+    std::cout << GREEN << "[○] CRS" << RESET << std::endl;
     dp = opendir(this->CRS_Path.c_str());
     if(dp == NULL) exit(1);
+
+    std::cout << "Checking 1L Dir ..........";
 
     do{
       entry = readdir(dp);
       if(entry!=NULL){
         if(this->L1_Dir_Name == entry->d_name){
-          std::cout << GREEN << "[○]Get 1L Dir -> " << this->L1_Dir_Name << RESET << std::endl;
+          std::cout << GREEN << "[○] " << this->L1_Dir_Name << RESET << std::endl;
           getDir = entry->d_name;
           hasFiles = true;
         }
@@ -368,11 +376,14 @@ void collection<T>::checkCMD(){
     fullDir += "/";
     fullDir += getDir;
     dp = opendir(fullDir.c_str());
+
+    std::cout << "Checking CRS Dir ..........";
+
     do{
       entry = readdir(dp);
       if(entry!=NULL){
         if(this->CRS_Dir_Name == entry->d_name){
-          std::cout << GREEN << "[○]Get CRS Dir -> " << this->CRS_Dir_Name << RESET << std::endl;
+          std::cout << GREEN << "[○] " << this->CRS_Dir_Name << RESET << std::endl;
           getDir = entry->d_name;
           hasFiles = true;
         }
@@ -389,11 +400,14 @@ void collection<T>::checkCMD(){
 
     hasFiles = false;
     dp = opendir(fullDir.c_str());
+
+    std::cout << "Checking CRS files ..........";
+
     do{
       entry = readdir(dp);
       if(entry!=NULL){
         if(this->CRS_Matrix_Name == entry->d_name){
-          std::cout << GREEN << "[○]Get CRS files Dir -> " << this->CRS_Matrix_Name << RESET << std::endl;
+          std::cout << GREEN << "[○] " << this->CRS_Matrix_Name << RESET << std::endl;
           getDir = entry->d_name;
           hasFiles = true;
         }
@@ -410,6 +424,9 @@ void collection<T>::checkCMD(){
     this->fullPath = fullDir;
 
     dp = opendir(fullDir.c_str());
+
+    std::cout << "Checking CRS files name ..........";
+
     do{
       entry = readdir(dp);
       if(entry!=NULL){
@@ -424,16 +441,16 @@ void collection<T>::checkCMD(){
     }while(entry!=NULL);
 
     if(!hasCRSFiles[0] || !hasCRSFiles[1] || !hasCRSFiles[2]){
-      std::cerr << RED << "[X]Error in CRS files " << RESET << std::endl;
+      std::cerr << RED << "[X] Error in CRS files " << RESET << std::endl;
       exit(-1);
     }else{
-      std::cout << GREEN << "[○]Get CRS files " << RESET << std::endl;
+      std::cout << GREEN << "[○] Get CRS files " << RESET << std::endl;
     }
 
     // MM input
   }else if(this->inputSource == 2){
 
-    std::cout << GREEN << "[○]Input Matrix Type => CRS" << RESET << std::endl;
+    std::cout << "\tLoading MM path ..........";
 
     dp = opendir(this->MM_Path.c_str());
     if(dp == NULL) exit(1);
@@ -442,7 +459,7 @@ void collection<T>::checkCMD(){
       entry = readdir(dp);
       if(entry!=NULL){
         if(this->L1_Dir_Name == entry->d_name){
-          std::cout << GREEN << "[○]Get 1L Dir -> " << this->L1_Dir_Name << RESET << std::endl;
+          std::cout << GREEN << "[○] " << this->L1_Dir_Name << RESET << std::endl;
           getDir = entry->d_name;
           hasFiles = true;
         }
@@ -450,7 +467,7 @@ void collection<T>::checkCMD(){
     }while(entry!=NULL);
 
     if(!hasFiles){
-      std::cerr << RED << "[X]Error no 1L Dir -> " << this->L1_Dir_Name << RESET << std::endl;
+      std::cerr << RED << "[X] Error no 1L Dir -> " << this->L1_Dir_Name << RESET << std::endl;
       exit(-1);
     }
 
@@ -461,11 +478,13 @@ void collection<T>::checkCMD(){
     fullDir += getDir;
     dp = opendir(fullDir.c_str());
 
+    std::cout << "\tLoading MM Dir ..........";
+
     do{
       entry = readdir(dp);
       if(entry!=NULL){
         if(this->MM_Dir_Name == entry->d_name){
-          std::cout << GREEN << "[○]Get MM Dir -> " << this->MM_Dir_Name << RESET << std::endl;
+          std::cout << GREEN << "[○] " << this->MM_Dir_Name << RESET << std::endl;
           getDir = entry->d_name;
           hasFiles = true;
         }
@@ -473,7 +492,7 @@ void collection<T>::checkCMD(){
     }while(entry!=NULL);
 
     if(!hasFiles){
-      std::cerr << RED << "[X]Error no MM Dir -> " << this->MM_Dir_Name << RESET << std::endl;
+      std::cerr << RED << "[X] Error no MM Dir -> " << this->MM_Dir_Name << RESET << std::endl;
       exit(-1);
     }
 
@@ -483,11 +502,13 @@ void collection<T>::checkCMD(){
     hasFiles = false;
     dp = opendir(fullDir.c_str());
 
+    std::cout << "\tLoading MM files ..........";
+
     do{
       entry = readdir(dp);
       if(entry!=NULL){
         if(this->MM_Matrix_Name == entry->d_name){
-          std::cout << GREEN << "[○]Get MM files Dir -> " << this->MM_Matrix_Name << RESET << std::endl;
+          std::cout << GREEN << "[○] " << this->MM_Matrix_Name << RESET << std::endl;
           getDir = entry->d_name;
           hasFiles = true;
         }
@@ -495,7 +516,7 @@ void collection<T>::checkCMD(){
     }while(entry!=NULL);
 
     if(!hasFiles){
-      std::cerr << RED << "[X]Error no MM files Dir -> " << this->MM_Matrix_Name << RESET << std::endl;
+      std::cerr << RED << "[X] Error no MM files Dir -> " << this->MM_Matrix_Name << RESET << std::endl;
       exit(-1);
     }
 
@@ -504,24 +525,25 @@ void collection<T>::checkCMD(){
     this->fullPath = fullDir;
     dp = opendir(fullDir.c_str());
 
+    std::cout << "\tLoading mtx file ..........";
+
     do{
       entry = readdir(dp);
       if(entry!=NULL){
         if((this->MM_Matrix_Name)+".mtx" == entry->d_name){
-          std::cout << GREEN << "[○]Get mtx matrix -> " << this->MM_Matrix_Name << RESET << std::endl;
           hasMMFiles = true;
         }
       }
     }while(entry!=NULL);
+    
 
     if(!hasMMFiles){
-      std::cerr << RED << "[X]Error no mm file" << RESET << std::endl;
+      std::cerr << RED << "[X] Error no mm file" << RESET << std::endl;
       exit(-1);
     }else{
-      std::cout << GREEN << "[○]Get mm file" << RESET << std::endl;
+      std::cout << GREEN << "[○] Get mm file" << RESET << std::endl;
     }
 
-    std::cout << GREEN << "[○] PreProcess Done" << RESET << std::endl;
   }
 }
 
@@ -564,7 +586,8 @@ void collection<T>::showCMD(){
 }
 
 template <typename T>
-void collection<T>::checkMatrix(){
+void collection<T>::checkCRSMatrix(){
+  std::cout << "Checking CRS type Matrix ..........";
   //CRS input
   if(this->inputSource == 1){
     std::string valcol_path, ptr_path, bx_path;
@@ -579,7 +602,7 @@ void collection<T>::checkMatrix(){
     std::ifstream valcol_file(valcol_path);
     if (valcol_file.fail())
     {
-      std::cerr << "read valcol fail" << std::endl;
+      std::cerr << "[X] Read valcol fail" << std::endl;
       exit(-1);
     }
     valcol_file >> r_N[0];
@@ -590,7 +613,7 @@ void collection<T>::checkMatrix(){
     std::ifstream ptr_file(ptr_path);
     if (ptr_file.fail())
     {
-      std::cerr << "read ptr fail" << std::endl;
+      std::cerr << "[X] Read ptr fail" << std::endl;
       exit(-1);
     }
     ptr_file >> r_N[1];
@@ -601,7 +624,7 @@ void collection<T>::checkMatrix(){
     std::ifstream bx_file(bx_path);
     if (bx_file.fail())
     {
-      std::cerr << "read bx fail" << std::endl;
+      std::cerr << "[X] Read bx fail" << std::endl;
       exit(-1);
     }
     bx_file >> r_N[2];
@@ -610,33 +633,34 @@ void collection<T>::checkMatrix(){
     bx_file.close();
 
     if(r_N[0] != r_N[1] || r_N[1] != r_N[2] || r_N[2] != r_N[1]){
-      std::cerr << "three N in files is not same" << std::endl;
+      std::cerr << "[X] Three N in files is not same" << std::endl;
       exit(-1);
     }
 
     if(r_M[0] != r_M[1] || r_M[1] != r_M[2] || r_M[2] != r_M[1]){
-      std::cerr << "three M in files is not same" << std::endl;
+      std::cerr << "[X] Three M in files is not same" << std::endl;
       exit(-1);
     }
     
     if(r_NNZ[0] != r_NNZ[1] || r_NNZ[1] != r_NNZ[2] || r_NNZ[2] != r_NNZ[1]){
-      std::cerr << "three NNZ in files is not same" << std::endl;
+      std::cerr << "[X] Three NNZ in files is not same" << std::endl;
       exit(-1);
     }
 
     if(r_N[0] != r_M[0]){
-      std::cerr << "N != M" << std::endl;
+      std::cerr << "[X] N != M" << std::endl;
       exit(-1);
     }
     this->N = r_N[0];
     this->NNZ = r_NNZ[0];
-    std::cout << GREEN << "[○]Get N NNZ" << RESET << std::endl;
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
   }
 }
 
 template <typename T>
 void collection<T>::readMatrix(){
   if(this->inputSource == 1){
+    std::cout << "Loading CRS type Matrix ..........";
     std::string valcol_path, ptr_path, bx_path;
     valcol_path = this->fullPath+"/ColVal.txt";
     ptr_path = this->fullPath+"/Ptr.txt";
@@ -648,7 +672,7 @@ void collection<T>::readMatrix(){
     std::ifstream valcol_file(valcol_path);
     if (valcol_file.fail())
     {
-      std::cerr << "read valcol fail" << std::endl;
+      std::cerr << "[X] Read valcol fail" << std::endl;
       exit(-1);
     }
     valcol_file >> dammy;
@@ -664,7 +688,7 @@ void collection<T>::readMatrix(){
     std::ifstream ptr_file(ptr_path);
     if (ptr_file.fail())
     {
-      std::cerr << "read ptr fail" << std::endl;
+      std::cerr << "[X] Read ptr fail" << std::endl;
       exit(-1);
     }
     ptr_file >> dammy;
@@ -679,7 +703,7 @@ void collection<T>::readMatrix(){
     std::ifstream bx_file(bx_path);
     if (bx_file.fail())
     {
-      std::cerr << "read bx fail" << std::endl;
+      std::cerr << "[X] Read bx fail" << std::endl;
       exit(-1);
     }
     bx_file >> dammy;
@@ -692,23 +716,27 @@ void collection<T>::readMatrix(){
     }
     bx_file.close();
 
-    std::cout << GREEN << "[○]Get Matrix"<< RESET << std::endl;
+    std::cout << GREEN << "[○] Done"<< RESET << std::endl;
   }
 
 }
 
 template <typename T>
 void collection<T>::CRSAlloc(){
+  std::cout << "Allocing Matrix ..........";
   this->val = new T [this->NNZ];
   this->col = new int [this->NNZ];
   this->ptr = new int [this->N+1];
   this->bvec = new T [this->N];
   this->xvec = new T [this->N];
+  std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
   if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+    std::cout << "\tAllocing Transpse Matrix ..........";
     this->Tval = new T [this->NNZ];
     this->Tcol = new int [this->NNZ];
     this->Tptr = new int [this->N+1];
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
   }
 }
 
@@ -716,6 +744,8 @@ template <typename T>
 void collection<T>::transpose(){
   long int col_counter = 0;
   std::memset(Tptr, -1, sizeof(int)*this->N+1);
+
+  std::cout << "Transposeing Matrix ..........";
 
   for(long int i=0; i<N; i++){
     for(long int j=0; j<N; j++){
@@ -733,6 +763,7 @@ void collection<T>::transpose(){
     }
   }
   this->Tptr[N] = this->NNZ;
+  std::cout << GREEN << "[○] Done" << RESET << std::endl;
 }
 
 template <typename T>
@@ -748,7 +779,6 @@ void collection<T>::setOpenmpThread(){
   std::string name = "OMP_NUM_THREADS";
   std::string num = std::to_string(this->OMPThread);
   setenv(name.c_str(), num.c_str(), 1);
-  std::cout << GREEN << "[○]Set OpenMP Threads => " << this->OMPThread << RESET << std::endl;
 }
 
 #endif //SOLVER_COLLECTION_HPP_INCLUDED__

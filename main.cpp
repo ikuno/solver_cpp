@@ -12,7 +12,7 @@ int main(int argc, char* argv[])
     outerMethods<float> method(&col);
     col.readCMD(argc, argv);
     col.checkCMD();
-    col.checkMatrix();
+    col.checkCRSMatrix();
     col.CRSAlloc();
     col.readMatrix();
     col.transposeMatrix();
@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
     outerMethods<double> method(&col);
     col.readCMD(argc, argv);
     col.checkCMD();
-    col.checkMatrix();
+    col.checkCRSMatrix();
     col.CRSAlloc();
     col.readMatrix();
     col.transposeMatrix();
