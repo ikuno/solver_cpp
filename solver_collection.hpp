@@ -234,7 +234,6 @@ template <typename T>
 void collection<T>::readCMD(int argc, char* argv[]){
   cmdline::parser cmd;
 
-  std::cout << "Reading CommandLine Option ..........";
 
   //1.long name
   //2.short name
@@ -271,6 +270,8 @@ void collection<T>::readCMD(int argc, char* argv[]){
   cmd.add("mixPecision", 'x', "MixPecison in VP method");
 
   cmd.parse_check(argc, argv);
+
+  std::cout << "Reading CommandLine Option ..........";
 
   this->L1_Dir_Name = cmd.get<std::string>("L1_Dir_Name");
 

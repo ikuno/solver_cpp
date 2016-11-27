@@ -1,2 +1,2 @@
 all:
-	g++-6 main.cpp -Wall -fopenmp -O3 -pedantic
+	g++5 main.cpp -Wall -fopenmp -O3 -pedantic -std=c++11
