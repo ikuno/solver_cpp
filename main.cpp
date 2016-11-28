@@ -1,6 +1,7 @@
 #include <iostream>
 #include "outerMethods.hpp"
 #include "solver_collection.hpp"
+#include "cudaFunction.hpp"
 
 //0->float 1->double
 #define TYPE_SELECT 1

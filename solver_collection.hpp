@@ -13,6 +13,7 @@
 
 #include "cmdline.h"
 #include "color.hpp"
+#include "cudaFunction.hpp"
 
 enum SOLVERS_NAME {
     NONE,
@@ -35,6 +36,8 @@ enum SOLVERS_NAME {
 
 template <typename T>
 class collection {
+  private:
+    cuda* cu;
   public:
     bool isVP;
     bool isCUDA;
@@ -102,11 +105,16 @@ class collection {
     T* bvec;
     T* xvec;
 
+    double* Cval;
+    int* Ccol;
+    int* Cptr;
 
 };
 
 template <typename T>
 collection<T>::collection() {
+  cu = new cuda();
+
   isVP = false;
   isCUDA = false;
   isVerbose = false;
@@ -152,6 +160,7 @@ collection<T>::collection() {
 
 template <typename T>
 collection<T>::~collection() {
+  delete cu;
   delete[] val;
   delete[] col;
   delete[] ptr;
@@ -161,6 +170,11 @@ collection<T>::~collection() {
     delete[] Tval;
     delete[] Tcol;
     delete[] Tptr;
+  }
+  if(isCUDA){
+    cu->d_Free(Cval);
+    cu->i_Free(Ccol);
+    cu->i_Free(Cptr);
   }
 }
 
@@ -268,6 +282,7 @@ void collection<T>::readCMD(int argc, char* argv[]){
 
   cmd.add("verbose", 'v', "verbose mode will printout all detel ");
   cmd.add("mixPecision", 'x', "MixPecison in VP method");
+  cmd.add("cuda", 'c', "cuda");
 
   cmd.parse_check(argc, argv);
 
@@ -326,6 +341,7 @@ void collection<T>::readCMD(int argc, char* argv[]){
 
   if(cmd.exist("verbose")) this->isVerbose=true;
   if(cmd.exist("mixPecision")) this->isMixPrecision=true;
+  if(cmd.exist("cuda")) this->isCUDA=true;
 
   this->setOpenmpThread();
 
@@ -738,6 +754,12 @@ void collection<T>::CRSAlloc(){
     this->Tcol = new int [this->NNZ];
     this->Tptr = new int [this->N+1];
     std::cout << GREEN << "[○] Done" << RESET << std::endl;
+  }
+
+  if(isCUDA){
+    Cval = cu->d_Malloc(this->NNZ);
+    Ccol = cu->i_Malloc(this->NNZ);
+    Cptr = cu->i_Malloc(this->N+1);
   }
 }
 
