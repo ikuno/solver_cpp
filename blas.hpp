@@ -9,14 +9,17 @@
 #include <omp.h>
 #endif
 #include "solver_collection.hpp"
+#include "cudaFunction.hpp"
 
 template <typename T>
 class blas {
   private:
     collection<T> *coll;
+    cuda *cu;
     bool mix;
   public:
     blas(collection<T> *col);
+    ~blas();
 
     T norm_1(T *v);
 
@@ -75,6 +78,12 @@ blas<T>::blas(collection<T> *col){
   coll = col;
   mix = col->isInnerNow;
   omp_set_num_threads(this->coll->OMPThread);
+  cu = new cuda();
+}
+
+template <typename T>
+blas<T>::~blas(){
+  delete cu;
 }
 
 template <typename T>
@@ -112,27 +121,37 @@ T blas<T>::norm_2(T *v){
 template <typename T>
 void blas<T>::MtxVec_mult(T *in_vec, T *out_vec){
   T tmp = 0.0;
+
   T *val=this->coll->val;
   int *ptr=this->coll->ptr;
   int *col=this->coll->col;
+
+  double *Cval=this->coll->Cval;
+  int *Cptr=this->coll->Cptr;
+  int *Ccol=this->coll->Ccol;
+
   long int N = this->coll->N;
-  if(mix){
-#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
-    for(long int i=0; i<N; i++){
-      tmp = 0.0;
-      for(long int j=ptr[i]; j<ptr[i+1]; j++){
-        tmp += static_cast<float>(val[j]) * static_cast<float>(in_vec[col[j]]);
-      }
-      out_vec[i] = static_cast<float>(tmp);
-    }
+  if(this->coll->isCUDA){
+    cu->d_MV(in_vec, out_vec, N, Cval, Ccol, Cptr);
   }else{
+    if(mix){
 #pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
-    for(long int i=0; i<N; i++){
-      tmp = 0.0;
-      for(long int j=ptr[i]; j<ptr[i+1]; j++){
-        tmp += val[j] * in_vec[col[j]];
+      for(long int i=0; i<N; i++){
+        tmp = 0.0;
+        for(long int j=ptr[i]; j<ptr[i+1]; j++){
+          tmp += static_cast<float>(val[j]) * static_cast<float>(in_vec[col[j]]);
+        }
+        out_vec[i] = static_cast<float>(tmp);
       }
-      out_vec[i] = tmp;
+    }else{
+#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
+      for(long int i=0; i<N; i++){
+        tmp = 0.0;
+        for(long int j=ptr[i]; j<ptr[i+1]; j++){
+          tmp += val[j] * in_vec[col[j]];
+        }
+        out_vec[i] = tmp;
+      }
     }
   }
 }

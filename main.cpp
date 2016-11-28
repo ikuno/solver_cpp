@@ -34,6 +34,7 @@ int main(int argc, char* argv[])
     col.readMatrix();
     col.transposeMatrix();
     col.setOpenmpThread();
+    col.CudaCopy();
 
     col.showCMD();
     method.outerSelect(col.outerSolver);

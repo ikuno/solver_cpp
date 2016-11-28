@@ -3,10 +3,9 @@
 
 #include <iostream>
 #include <cstdlib>
-#include <cstdlib>
 #include <dirent.h>
 #include <fstream>
-#include <string>
+#include <cstring>
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -93,6 +92,8 @@ class collection {
     void transpose();
     void setOpenmpThread();
 
+    void CudaCopy();
+
 //pointer
     T* val;
     int* col;
@@ -105,7 +106,7 @@ class collection {
     T* bvec;
     T* xvec;
 
-    double* Cval;
+    T* Cval;
     int* Ccol;
     int* Cptr;
 
@@ -802,6 +803,15 @@ void collection<T>::setOpenmpThread(){
   std::string name = "OMP_NUM_THREADS";
   std::string num = std::to_string(this->OMPThread);
   setenv(name.c_str(), num.c_str(), 1);
+}
+
+template <typename T>
+void collection<T>::CudaCopy(){
+  if(isCUDA){
+    cu->d_H2D(this->val, this->Cval, this->NNZ);
+    cu->i_H2D(this->col, this->Ccol, this->NNZ);
+    cu->i_H2D(this->ptr, this->Cptr, this->N+1);
+  }
 }
 
 #endif //SOLVER_COLLECTION_HPP_INCLUDED__
