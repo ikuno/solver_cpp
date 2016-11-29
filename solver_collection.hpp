@@ -2,6 +2,7 @@
 #define SOLVER_COLLECTION_HPP_INCLUDED__
 
 #include <iostream>
+#include "cudaFunction.hpp"
 
 enum SOLVERS_NAME {
     NONE,
@@ -24,6 +25,7 @@ enum SOLVERS_NAME {
 
 class collection {
   private:
+    cuda *cu;
   public:
     bool isVP;
     bool isCUDA;

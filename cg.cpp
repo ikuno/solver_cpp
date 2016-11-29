@@ -7,6 +7,7 @@
 cg::cg(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll);
+  cu = new cuda();
   
   N = this->coll->N;
   rvec = new double [N];
@@ -53,6 +54,7 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 cg::~cg(){
+  delete cu;
   delete this->bs;
   delete[] rvec;
   delete[] pvec;
@@ -74,7 +76,7 @@ int cg::solve(){
 
   //mv = Ax
   if(isCUDA){
-
+    cu->MtxVec_mult(xvec, mv, this->coll->N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(xvec, mv);
   }
@@ -88,7 +90,8 @@ int cg::solve(){
 
   //r dot
   if(isCUDA){
-
+    rr = cu->dot(rvec, rvec, this->coll->N);
+    // rr = bs->dot(rvec, rvec);
   }else{
     rr = bs->dot(rvec, rvec);
   }
@@ -111,13 +114,15 @@ int cg::solve(){
 
     //mv = Ap
     if(isCUDA){
-
+      cu->MtxVec_mult(pvec, mv, this->coll->N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(pvec, mv);
     }
 
     //alpha = (r,r) / (p,ap)
     if(isCUDA){
+      dot = cu->dot(pvec, mv, this->coll->N);
+      // dot = bs->dot(pvec, mv);
     }else{
       dot = bs->dot(pvec, mv);
     }
@@ -131,7 +136,8 @@ int cg::solve(){
 
     //rr2 dot
     if(isCUDA){
-
+      rr2 = cu->dot(rvec, rvec, this->coll->N);
+      // rr2 = bs->dot(rvec, rvec);
     }else{
       rr2 = bs->dot(rvec, rvec);
     }

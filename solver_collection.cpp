@@ -13,11 +13,12 @@
 #include "color.hpp"
 
 collection::collection() {
+  cu = new cuda();
+
   isVP = false;
   isCUDA = false;
   isVerbose = false;
   isInnerNow = false;
-  isMixPrecision = false;
   OMPThread = 8;
 
   outerSolver = NONE;
@@ -57,6 +58,7 @@ collection::collection() {
 }
 
 collection::~collection() {
+  delete cu;
   delete[] val;
   delete[] col;
   delete[] ptr;
@@ -66,6 +68,12 @@ collection::~collection() {
     delete[] Tval;
     delete[] Tcol;
     delete[] Tptr;
+  }
+  if(isCUDA){
+    cu->Free(Cval);
+    cu->Free(Ccol);
+    cu->Free(Cptr);
+    cu->Reset();
   }
 }
 
@@ -169,7 +177,6 @@ void collection::readCMD(int argc, char* argv[]){
   cmd.add<int>("InnerFix", 'f', "fix bug in innersolver", false, this->innerFix);
 
   cmd.add("verbose", 'v', "verbose mode will printout all detel ");
-  cmd.add("mixPecision", 'x', "MixPecison in VP method");
   cmd.add("cuda", 'c', "cuda");
 
   cmd.parse_check(argc, argv);
@@ -228,7 +235,6 @@ void collection::readCMD(int argc, char* argv[]){
   }
 
   if(cmd.exist("verbose")) this->isVerbose=true;
-  if(cmd.exist("mixPecision")) this->isMixPrecision=true;
   if(cmd.exist("cuda")) this->isCUDA=true;
 
   this->setOpenmpThread();
@@ -632,10 +638,17 @@ void collection::CRSAlloc(){
   std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
   if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-    std::cout << "\tAllocing Transpse Matrix ..........";
+    std::cout << "Allocing Transpse Matrix ..........";
     this->Tval = new double [this->NNZ];
     this->Tcol = new int [this->NNZ];
     this->Tptr = new int [this->N+1];
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+  }
+  if(isCUDA){
+    std::cout << "Allocing CUDA side Matrix ..........";
+    this->Cval = cu->d_Malloc(this->NNZ);
+    this->Ccol = cu->i_Malloc(this->NNZ);
+    this->Cptr = cu->i_Malloc(this->N+1);
     std::cout << GREEN << "[○] Done" << RESET << std::endl;
   }
 }
@@ -684,5 +697,10 @@ void collection::setOpenmpThread(){
 
 void collection::CudaCopy(){
   if(isCUDA){
+    std::cout << "Copy Matrix to CUDA..........";
+    cu->H2D(this->val, this->Cval, this->NNZ);
+    cu->H2D(this->col, this->Ccol, this->NNZ);
+    cu->H2D(this->ptr, this->Cptr, this->N+1);
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
   }
 }
