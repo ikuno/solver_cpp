@@ -7,7 +7,8 @@
 cg::cg(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll);
-  cu = new cuda();
+  cu = new cuda(this->coll->N);
+  // cu = new cuda();
   
   N = this->coll->N;
   rvec = new double [N];
@@ -76,7 +77,8 @@ int cg::solve(){
 
   //mv = Ax
   if(isCUDA){
-    cu->MtxVec_mult(xvec, mv, this->coll->N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+    // cu->MtxVec_mult(xvec, mv, this->coll->N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+    cu->MtxVec_mult(xvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(xvec, mv);
   }
@@ -90,8 +92,8 @@ int cg::solve(){
 
   //r dot
   if(isCUDA){
-    rr = cu->dot(rvec, rvec, this->coll->N);
-    // rr = bs->dot(rvec, rvec);
+    // rr = cu->dot(rvec, rvec, this->coll->N);
+    rr = cu->dot(rvec, rvec);
   }else{
     rr = bs->dot(rvec, rvec);
   }
@@ -114,15 +116,16 @@ int cg::solve(){
 
     //mv = Ap
     if(isCUDA){
-      cu->MtxVec_mult(pvec, mv, this->coll->N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->MtxVec_mult(pvec, mv, this->coll->N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->MtxVec_mult(pvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(pvec, mv);
     }
 
     //alpha = (r,r) / (p,ap)
     if(isCUDA){
-      dot = cu->dot(pvec, mv, this->coll->N);
-      // dot = bs->dot(pvec, mv);
+      // dot = cu->dot(pvec, mv, this->coll->N);
+      dot = cu->dot(pvec, mv);
     }else{
       dot = bs->dot(pvec, mv);
     }
@@ -136,8 +139,8 @@ int cg::solve(){
 
     //rr2 dot
     if(isCUDA){
-      rr2 = cu->dot(rvec, rvec, this->coll->N);
-      // rr2 = bs->dot(rvec, rvec);
+      // rr2 = cu->dot(rvec, rvec, this->coll->N);
+      rr2 = cu->dot(rvec, rvec);
     }else{
       rr2 = bs->dot(rvec, rvec);
     }
@@ -157,19 +160,35 @@ int cg::solve(){
     std::cout << "loop = " << loop << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
     if(this->coll->isCUDA){
-      double dot_t = cu->dot_copy_time + cu->dot_proc_time + cu->dot_malloc_time + cu->dot_reduce_time;
-      double mv_t = cu->MV_copy_time + cu->MV_malloc_time + cu->MV_proc_time;
-      double all_t = dot_t + mv_t;
+      // double dot_t = cu->dot_copy_time + cu->dot_proc_time + cu->dot_malloc_time + cu->dot_reduce_time;
+      // double mv_t = cu->MV_copy_time + cu->MV_malloc_time + cu->MV_proc_time;
+      // double all_t = dot_t + mv_t;
+      // std::cout << "\tdot copy time   = " << std::setprecision(6) << cu->dot_copy_time << ", " << std::setprecision(2) << cu->dot_copy_time/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\tdot proc time   = " << std::setprecision(6) << cu->dot_proc_time <<  ", " << std::setprecision(2) << cu->dot_proc_time/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\tdot malloc time = " << std::setprecision(6) << cu->dot_malloc_time <<  ", " << std::setprecision(2) << cu->dot_malloc_time/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\tdot reduce time = " << std::setprecision(6) << cu->dot_reduce_time <<  ", " << std::setprecision(2) << cu->dot_reduce_time/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\t                = " << std::setprecision(6) << dot_t <<  ", " << std::setprecision(2) << dot_t/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\tMV copy time    = " << std::setprecision(6) << cu->MV_copy_time <<  ", " << std::setprecision(2) << cu->MV_copy_time/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\tMV proc time    = " << std::setprecision(6) << cu->MV_proc_time <<  ", " << std::setprecision(2) << cu->MV_proc_time/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\tMV malloc time  = " << std::setprecision(6) << cu->MV_malloc_time <<  ", " << std::setprecision(2) << cu->MV_malloc_time/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\t                = " << std::setprecision(6) << mv_t <<  ", " << std::setprecision(2) << mv_t/time.getTime()*100 << "%" << std::endl;
+      // std::cout << "\tother time =      " << std::setprecision(6) << time.getTime()-all_t <<  ", " << std::setprecision(2) << (time.getTime()-all_t)/time.getTime()*100 << "%" << std::endl;
+
+      double dot_t = cu->dot_copy_time + cu->dot_proc_time + cu->dot_reduce_time;
+      double mv_t = cu->MV_copy_time + cu->MV_proc_time;
+      double malloc_t = cu->All_malloc_time;
+      double all_t = dot_t + mv_t + malloc_t;
       std::cout << "\tdot copy time   = " << std::setprecision(6) << cu->dot_copy_time << ", " << std::setprecision(2) << cu->dot_copy_time/time.getTime()*100 << "%" << std::endl;
       std::cout << "\tdot proc time   = " << std::setprecision(6) << cu->dot_proc_time <<  ", " << std::setprecision(2) << cu->dot_proc_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tdot malloc time = " << std::setprecision(6) << cu->dot_malloc_time <<  ", " << std::setprecision(2) << cu->dot_malloc_time/time.getTime()*100 << "%" << std::endl;
       std::cout << "\tdot reduce time = " << std::setprecision(6) << cu->dot_reduce_time <<  ", " << std::setprecision(2) << cu->dot_reduce_time/time.getTime()*100 << "%" << std::endl;
       std::cout << "\t                = " << std::setprecision(6) << dot_t <<  ", " << std::setprecision(2) << dot_t/time.getTime()*100 << "%" << std::endl;
       std::cout << "\tMV copy time    = " << std::setprecision(6) << cu->MV_copy_time <<  ", " << std::setprecision(2) << cu->MV_copy_time/time.getTime()*100 << "%" << std::endl;
       std::cout << "\tMV proc time    = " << std::setprecision(6) << cu->MV_proc_time <<  ", " << std::setprecision(2) << cu->MV_proc_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tMV malloc time  = " << std::setprecision(6) << cu->MV_malloc_time <<  ", " << std::setprecision(2) << cu->MV_malloc_time/time.getTime()*100 << "%" << std::endl;
       std::cout << "\t                = " << std::setprecision(6) << mv_t <<  ", " << std::setprecision(2) << mv_t/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tother time =      " << std::setprecision(6) << time.getTime()-all_t <<  ", " << std::setprecision(2) << (time.getTime()-all_t)/time.getTime()*100 << "%" << std::endl;
+      std::cout << "\tAll malloc time = " << std::setprecision(6) << cu->All_malloc_time <<  ", " << std::setprecision(2) << cu->All_malloc_time/time.getTime()*100 << "%" << std::endl;
+      std::cout << "\tother time      = " << std::setprecision(6) << time.getTime()-all_t <<  ", " << std::setprecision(2) << (time.getTime()-all_t)/time.getTime()*100 << "%" << std::endl;
+
+
     }else{
       double all_t = bs->dot_proc_time + bs->MV_proc_time;
       std::cout << "\tdot proc time   = " << std::setprecision(6) << bs->dot_proc_time << ", " << std::setprecision(2) << bs->dot_proc_time/time.getTime()*100 << "%" << std::endl;

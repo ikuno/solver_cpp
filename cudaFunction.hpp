@@ -5,6 +5,10 @@
 #include "times.hpp"
 
 class cuda { 
+  private:
+    double *cu_d1, *cu_d2, *cu_d3, *cu_h1;
+    int size;
+
   public:
     times *time;
     double dot_copy_time;
@@ -15,16 +19,14 @@ class cuda {
     double MV_copy_time;
     double MV_proc_time;
     double MV_malloc_time;
-    int ThreadsinBlock;
-    int BlocksinGrid;
-    
+
+    double All_malloc_time;
+
     cuda();
-    cuda(int t, int b);
+    cuda(int size);
     ~cuda();
 
     //--------------------------------------
-    void SetCores(int t, int b);
-
     double* d_Malloc(int size);
     double* d_MallocHost(int size);
 
@@ -54,7 +56,11 @@ class cuda {
 
     void MtxVec_mult(double *in, double *out, int size, double *val, int *col, int *ptr);
 
+    void MtxVec_mult(double *in, double *out, double *val, int *col, int *ptr);
+
     double dot(double *in1, double *in2, int size);
+
+    double dot(double *in1, double *in2);
 };
 #endif //CUDAFUNCTION_HPP_INCLUDED__
 

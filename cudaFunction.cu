@@ -36,13 +36,6 @@ __global__ void kernel_dot (int N, double *a, double *b, double *c)
   }
 }
 
-__global__ void kernel_add(double *in1, double *in2, double *out, int size){
-  int id = blockDim.x * blockIdx.x + threadIdx.x;
-  if(id < size){
-    out[id] = in1[id] + in2[id];
-  }
-}
-
 __global__ void kernel_MtxVec_mult(int n, double *val, int *col, int *ptr, double *b, double *c){
   long row=blockDim.x * blockIdx.x + threadIdx.x;
   long int i;
@@ -96,6 +89,12 @@ __global__ void kernel_MtxVec_mult_2(int n, double *val, int *col, int *ptr, dou
 
 cuda::cuda(){
   time = new times();
+
+  this->cu_d1 = NULL;
+  this->cu_d2 = NULL;
+  this->cu_d3 = NULL;
+  this->cu_h1 = NULL;
+
   this->dot_copy_time = 0.0;
   this->dot_proc_time = 0.0;
   this->dot_malloc_time = 0.0;
@@ -104,10 +103,15 @@ cuda::cuda(){
   this->MV_copy_time = 0.0;
   this->MV_proc_time = 0.0;
   this->MV_malloc_time = 0.0;
+
+  this->All_malloc_time = 0.0;
+
 }
 
-cuda::cuda(int t, int b){
+cuda::cuda(int size){
+  this->size = size;
   time = new times();
+
   this->dot_copy_time = 0.0;
   this->dot_proc_time = 0.0;
   this->dot_malloc_time = 0.0;
@@ -117,16 +121,26 @@ cuda::cuda(int t, int b){
   this->MV_proc_time = 0.0;
   this->MV_malloc_time = 0.0;
 
-  this->SetCores(t, b);
+  this->All_malloc_time = 0.0;
+
+  this->time->start();
+  int tmp = ceil((double)this->size/(double)128);
+  this->cu_d1 = d_Malloc(this->size);
+  this->cu_d2 = d_Malloc(this->size);
+  this->cu_d3 = d_Malloc(tmp);
+  this->cu_h1 = new double [tmp];
+  this->time->end();
+  this->All_malloc_time += this->time->getTime();
 }
 
 cuda::~cuda(){
-  delete time;
-}
 
-void cuda::SetCores(int t, int b){
-  this->ThreadsinBlock = t;
-  this->BlocksinGrid = b;
+  Free(cu_d1);
+  Free(cu_d2);
+  Free(cu_d3);
+  delete[] cu_h1;
+
+  delete this->time;
 }
 
 void cuda::Free(double *ptr){
@@ -201,31 +215,6 @@ void cuda::Reset(){
   checkCudaErrors(cudaDeviceReset());
 }
 
-void cuda::add(double *in1, double *in2, double *out, int size){
-  double *D_in1=NULL, *D_in2=NULL, *D_out=NULL;
-
-  D_in1 = d_Malloc(size);
-  D_in2 = d_Malloc(size);
-  D_out = d_Malloc(size);
-
-  H2D(in1, D_in1, size);
-  H2D(in2, D_in2, size);
-
-  cudaMemset(D_out, 1, sizeof(double)*size);
-
-  /* kernel_add<<<, this->ThreadsinBlock>>>(D_in1, D_in2, D_out, size); */
-
-  D2H(D_out, out, size);
-
-  for(int i=0; i<10; i++){
-    std::cout << out[i] << std::endl;
-  } 
-
-  Free(D_in1);
-  Free(D_in2);
-  Free(D_out);
-}
-
 void cuda::MtxVec_mult(double *in, double *out, int size, double *val, int *col, int *ptr){
   double *D_in = NULL, *D_out = NULL;
 
@@ -235,12 +224,12 @@ void cuda::MtxVec_mult(double *in, double *out, int size, double *val, int *col,
   this->time->start();
   D_in = d_Malloc(size);
   D_out = d_Malloc(size);
+  Memset(D_out, 0, size);
   this->time->end();
   this->MV_malloc_time += this->time->getTime();
 
   this->time->start();
   H2D(in, D_in, size);
-  Memset(D_out, 0, size);
   this->time->end();
   this->MV_copy_time += this->time->getTime();
 
@@ -265,6 +254,40 @@ void cuda::MtxVec_mult(double *in, double *out, int size, double *val, int *col,
   Free(D_out);
   this->time->end();
   this->MV_malloc_time += this->time->getTime();
+}
+
+void cuda::MtxVec_mult(double *in, double *out, double *val, int *col, int *ptr){
+
+  int ThreadPerBlock=128;
+  int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
+
+  this->time->start();
+  Memset(this->cu_d2, 0, size);
+  this->time->end();
+  this->All_malloc_time += this->time->getTime();
+
+  //d1 -> in
+  //d2 -> out
+  this->time->start();
+  H2D(in, this->cu_d1, size);
+  this->time->end();
+  this->MV_copy_time += this->time->getTime();
+
+  if(ThreadPerBlock*8 >= 49152){
+    std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
+  }
+  /* kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock>>>(size, val, col, ptr, D_in, D_out); */
+  ///
+  this->time->start();
+  kernel_MtxVec_mult_2<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock+16)>>>(this->size, val, col, ptr, cu_d1, cu_d2);
+  checkCudaErrors( cudaPeekAtLastError() );
+  this->time->end();
+  this->MV_proc_time += this->time->getTime();
+
+  this->time->start();
+  D2H(cu_d2, out, size);
+  this->time->end();
+  this->MV_copy_time += this->time->getTime();
 }
 
 double cuda::dot(double *in1, double *in2, int size){
@@ -320,6 +343,54 @@ double cuda::dot(double *in1, double *in2, int size){
   Free(D_out);
   this->time->end();
   this->dot_malloc_time += this->time->getTime();
+
+  return sum;
+}
+
+double cuda::dot(double *in1, double *in2){
+  double sum=0.0;
+
+  int ThreadPerBlock=128;
+  int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
+
+  this->time->start();
+  Memset(this->cu_d3, 0, BlockPerGrid);
+  this->time->end();
+  this->All_malloc_time += this->time->getTime();
+
+  //d_1 -> in1
+  //d_2 -> in2
+  //d_3 -> out
+  this->time->start();
+  H2D(in1, this->cu_d1, size);
+  H2D(in2, this->cu_d2, size);
+  this->time->end();
+  this->dot_copy_time += this->time->getTime();
+ 
+  if(ThreadPerBlock*8 >= 49152){
+    std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
+  }
+
+  this->time->start();
+  kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d1, cu_d2, cu_d3);
+  checkCudaErrors( cudaPeekAtLastError() );
+  this->time->end();
+  this->dot_proc_time += this->time->getTime();
+
+  //d_3 -> out
+  //h_1 -> out(host)
+  this->time->start();
+  D2H(cu_d3, cu_h1, BlockPerGrid);
+  this->time->end();
+  this->dot_copy_time += this->time->getTime();
+
+  this->time->start();
+#pragma omp parallel for schedule(static) reduction(+:sum)
+  for(int i=0; i<BlockPerGrid; i++){
+    sum += cu_h1[i];
+  }
+  this->time->end();
+  this->dot_reduce_time += this->time->getTime();
 
   return sum;
 }
