@@ -9,14 +9,18 @@
 #include "blas.hpp"
 
 blas::blas(collection *col){
+  time = new times();
+  dot_proc_time = 0.0;
+  MV_proc_time = 0.0;
+
   coll = col;
-  mix = col->isInnerNow;
 #ifdef _OPENMP
   omp_set_num_threads(this->coll->OMPThread);
 #endif
 }
 
 blas::~blas(){
+  delete time;
 }
 
 double blas::norm_1(double *v){
@@ -44,6 +48,8 @@ void blas::MtxVec_mult(double *in_vec, double *out_vec){
   int *col=this->coll->col;
 
   long int N = this->coll->N;
+
+  this->time->start();
 #pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp = 0.0;
@@ -52,6 +58,8 @@ void blas::MtxVec_mult(double *in_vec, double *out_vec){
     }
     out_vec[i] = tmp;
   }
+  this->time->end();
+  this->MV_proc_time += this->time->getTime();
 }
 
 void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec){
@@ -61,6 +69,7 @@ void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec){
   int *col=this->coll->col;
   long int N = this->coll->N;
 
+  this->time->start();
 #pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp = 0.0;
@@ -69,12 +78,15 @@ void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec){
     }
     out_vec[i] = tmp;
   }
+  this->time->end();
+  this->MV_proc_time += this->time->getTime();
 }
 
 void blas::MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, double *out_vec){
   double tmp = 0.0;
   long int N = this->coll->N;
 
+  this->time->start();
 #pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, Tval, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp = 0.0;
@@ -83,6 +95,8 @@ void blas::MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, doubl
     }
     out_vec[i] = tmp;
   }
+  this->time->end();
+  this->MV_proc_time += this->time->getTime();
 }
 
 
@@ -101,29 +115,38 @@ void blas::Vec_add(double *x, double *y, double *out){
 double blas::dot(double *x, double *y){
   double tmp = 0.0;
   int N = this->coll->N;
+  this->time->start();
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp += x[i] * y[i];
   }
+  this->time->end();
+  this->dot_proc_time += this->time->getTime();
   return tmp;
 }
 
 double blas::dot(double *x, double *y, const long int size){
   double tmp = 0.0;
+  this->time->start();
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
   for(long int i=0; i<size; i++){
     tmp += x[i] * y[i];
   }
+  this->time->end();
+  this->dot_proc_time += this->time->getTime();
   return tmp;
 }
 
 double blas::dot(double *x, double *y, int xindex, int xsize){
   double tmp = 0.0;
   int N = this->coll->N;
+  this->time->start();
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp += x[i] * y[xindex*xsize+i];
   }
+  this->time->end();
+  this->dot_proc_time += this->time->getTime();
   return tmp;
 }
 

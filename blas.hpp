@@ -3,12 +3,16 @@
 
 #include "solver_collection.hpp"
 #include "cudaFunction.hpp"
+#include "times.hpp"
 
 class blas {
-  private:
-    collection *coll;
-    bool mix;
   public:
+    times *time;
+    collection *coll;
+
+    double dot_proc_time;
+    double MV_proc_time;
+
     blas(collection *col);
     ~blas();
 

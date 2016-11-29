@@ -2,15 +2,25 @@
 #define CUDAFUNCTION_HPP_INCLUDED__
 
 #include <iostream>
+#include "times.hpp"
 
 class cuda { 
-  private:
-    public:
+  public:
+    times *time;
+    double dot_copy_time;
+    double dot_proc_time;
+    double dot_malloc_time;
+    double dot_reduce_time;
+
+    double MV_copy_time;
+    double MV_proc_time;
+    double MV_malloc_time;
     int ThreadsinBlock;
     int BlocksinGrid;
     
     cuda();
     cuda(int t, int b);
+    ~cuda();
 
     //--------------------------------------
     void SetCores(int t, int b);
