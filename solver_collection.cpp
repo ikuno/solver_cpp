@@ -67,31 +67,43 @@ collection::collection() {
 }
 
 collection::~collection() {
-  delete cu;
-  delete[] val;
-  delete[] col;
-  delete[] ptr;
-  delete[] bvec;
-  delete[] xvec;
-
   if(isCUDA){
+    cu->FreeHost(val);
+    cu->FreeHost(col);
+    cu->FreeHost(ptr);
+    cu->FreeHost(bvec);
+    cu->FreeHost(xvec);
+
     cu->Free(Cval);
     cu->Free(Ccol);
     cu->Free(Cptr);
-  }
 
-  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-    delete[] Tval;
-    delete[] Tcol;
-    delete[] Tptr;
-    if(isCUDA){
+    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      cu->FreeHost(Tval);
+      cu->FreeHost(Tcol);
+      cu->FreeHost(Tptr);
+
       cu->Free(CTval);
       cu->Free(CTcol);
       cu->Free(CTptr);
     }
+
+  }else{
+    delete[] val;
+    delete[] col;
+    delete[] ptr;
+    delete[] bvec;
+    delete[] xvec;
+
+    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      delete[] Tval;
+      delete[] Tcol;
+      delete[] Tptr;
+    }
   }
 
   cu->Reset();
+  delete cu;
 }
 
 std::string collection::enum2string(SOLVERS_NAME id){
@@ -646,37 +658,50 @@ void collection::readMatrix(){
 }
 
 void collection::CRSAlloc(){
-  std::cout << "Allocing Matrix .........."<< std::flush;
-  this->val = new double [this->NNZ];
-  this->col = new int [this->NNZ];
-  this->ptr = new int [this->N+1];
-  this->bvec = new double [this->N];
-  this->xvec = new double [this->N];
-  std::cout << GREEN << "[○] Done" << RESET << std::endl;
-
   if(isCUDA){
+    std::cout << "Allocing Matrix pinned.........."<< std::flush;
+    this->val = cu->d_MallocHost(this->NNZ);
+    this->col = cu->i_MallocHost(this->NNZ);
+    this->ptr = cu->i_MallocHost(this->N+1);
+    this->bvec = cu->d_MallocHost(this->N);
+    this->xvec = cu->d_MallocHost(this->N);
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
     std::cout << "Allocing CUDA side Matrix .........."<< std::flush;
     this->Cval = cu->d_Malloc(this->NNZ);
     this->Ccol = cu->i_Malloc(this->NNZ);
     this->Cptr = cu->i_Malloc(this->N+1);
     std::cout << GREEN << "[○] Done" << RESET << std::endl;
-  }
 
-  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-    std::cout << "Allocing Transpose Matrix .........."<< std::flush;
-    this->Tval = new double [this->NNZ];
-    this->Tcol = new int [this->NNZ];
-    this->Tptr = new int [this->N+1];
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-    if(isCUDA){
+    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      std::cout << "Allocing Transpose Matrix pinned .........."<< std::flush;
+      this->Tval = cu->d_MallocHost(this->NNZ);
+      this->Tcol = cu->i_MallocHost(this->NNZ);
+      this->Tptr = cu->i_MallocHost(this->N+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
       std::cout << "Allocing Transpose CUDA side Matrix .........."<< std::flush;
       this->CTval = cu->d_Malloc(this->NNZ);
       this->CTcol = cu->i_Malloc(this->NNZ);
       this->CTptr = cu->i_Malloc(this->N+1);
       std::cout << GREEN << "[○] Done" << RESET << std::endl;
     }
+  }else{
+    std::cout << "Allocing Matrix .........."<< std::flush;
+    this->val = new double [this->NNZ];
+    this->col = new int [this->NNZ];
+    this->ptr = new int [this->N+1];
+    this->bvec = new double [this->N];
+    this->xvec = new double [this->N];
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      std::cout << "Allocing Transpose Matrix .........."<< std::flush;
+      this->Tval = new double [this->NNZ];
+      this->Tcol = new int [this->NNZ];
+      this->Tptr = new int [this->N+1];
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    }
   }
-
 }
 
 void collection::transpose(){

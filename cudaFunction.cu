@@ -7,7 +7,12 @@
 
 #include "color.hpp"
 
-__global__ void kernel_dot (int N, double *a, double *b, double *c)
+__device__ __inline__ double shfl_xor(double value, int const lane)
+{
+  return __hiloint2double(__shfl_xor(__double2hiint(value), lane),
+      __shfl_xor(__double2loint(value), lane)); 
+}
+__global__ void kernel_dot (const int N, const double *__restrict__ a, const double *__restrict__ b, double *c)
 {
   extern __shared__ double cache[];
   int tid = threadIdx.x + blockIdx.x * blockDim.x;
@@ -19,12 +24,9 @@ __global__ void kernel_dot (int N, double *a, double *b, double *c)
     tid += blockDim.x * gridDim.x;
   }
 
-  // Set Cache
   cache[cacheIndex] = temp;
-  // synchronize threads in the block
   __syncthreads ();
 
-  // This code, threadsPerBlock should be power of 2
   int i = blockDim.x / 2;
   while (i != 0) {
     if (cacheIndex < i) {
@@ -53,8 +55,8 @@ __global__ void kernel_MtxVec_mult(int n, double *val, int *col, int *ptr, doubl
   }
 }
 
-__global__ void kernel_MtxVec_mult_2(int n, double *val, int *col, int *ptr, double *b, double *c){
-  extern __shared__ double vals[];
+__global__ void kernel_MtxVec_mult_2(int n, const double *val, const int *col, const int *ptr, const double *__restrict__ b, double *c){
+  extern __shared__ volatile double vals[];
 
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
   int warp_id = thread_id/32;
@@ -66,26 +68,52 @@ __global__ void kernel_MtxVec_mult_2(int n, double *val, int *col, int *ptr, dou
     int row_start = ptr[row];
     int row_end = ptr[row+1];
 
-    vals[threadIdx.x] = 0.0;
-
+    double sum = 0.0;
     for(int jj = row_start+lane; jj<row_end; jj+=32)
     { 
-      vals[threadIdx.x]+=val[jj] * b[col[jj]];
+      sum += val[jj] * b[col[jj]];
     }
 
-    if(lane <16)
-      vals[threadIdx.x] += vals[threadIdx.x +16];
-    if(lane<8)
-      vals[threadIdx.x] += vals[threadIdx.x + 8];
-    if(lane<4)
-      vals[threadIdx.x] += vals[threadIdx.x + 4];
-    if(lane<2)
-      vals[threadIdx.x] += vals[threadIdx.x + 2];
-    if(lane<1)
-      vals[threadIdx.x] += vals[threadIdx.x + 1];
+    vals[threadIdx.x] = sum;
+    vals[threadIdx.x] = sum = sum + vals[threadIdx.x + 16];
+    vals[threadIdx.x] = sum = sum + vals[threadIdx.x + 8];
+    vals[threadIdx.x] = sum = sum + vals[threadIdx.x + 4];
+    vals[threadIdx.x] = sum = sum + vals[threadIdx.x + 2];
+    sum = sum + vals[threadIdx.x+1];
 
     if(lane == 0){
-      c[row] += vals[threadIdx.x];
+      c[row] = sum;
+    }
+  }
+}
+
+__global__ void kernel_MtxVec_mult_3(int n, const double *val, const int *col, const int *ptr, const double *__restrict__ b, double *c){
+
+  int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
+  int warp_id = thread_id/32;
+  int lane = thread_id & (32 - 1);
+
+  int row = warp_id;
+  if(row<n)
+  {
+    int row_start = ptr[row];
+    int row_end = ptr[row+1];
+
+    double sum = 0.0;
+    for(int jj = row_start+lane; jj<row_end; jj+=32)
+    { 
+      sum += val[jj] * b[col[jj]];
+    }
+
+    sum += shfl_xor(sum, 16);
+    sum += shfl_xor(sum, 8);
+    sum += shfl_xor(sum, 4);
+    sum += shfl_xor(sum, 2);
+    sum += shfl_xor(sum, 1);
+
+
+    if(lane == 0){
+      c[row] = sum;
     }
   }
 }
@@ -109,11 +137,13 @@ cuda::cuda(){
 
   this->All_malloc_time = 0.0;
 
+
 }
 
 cuda::cuda(int size){
   this->size = size;
   time = new times();
+
 
   this->dot_copy_time = 0.0;
   this->dot_proc_time = 0.0;
@@ -146,19 +176,12 @@ cuda::~cuda(){
   delete this->time;
 }
 
-void cuda::Free(double *ptr){
+
+void cuda::Free(void* ptr){
   checkCudaErrors(cudaFree(ptr));
 }
 
-void cuda::FreeHost(double *ptr){
-  checkCudaErrors(cudaFreeHost(ptr));
-}
-
-void cuda::Free(int *ptr){
-  checkCudaErrors(cudaFree(ptr));
-}
-
-void cuda::FreeHost(int *ptr){
+void cuda::FreeHost(void* ptr){
   checkCudaErrors(cudaFreeHost(ptr));
 }
 
@@ -280,9 +303,10 @@ void cuda::MtxVec_mult(double *in, double *out, double *val, int *col, int *ptr)
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
   /* kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock>>>(size, val, col, ptr, D_in, D_out); */
+  /* kernel_MtxVec_mult_2<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock+16)>>>(this->size, val, col, ptr, cu_d1, cu_d2); */
   ///
   this->time->start();
-  kernel_MtxVec_mult_2<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock+16)>>>(this->size, val, col, ptr, cu_d1, cu_d2);
+  kernel_MtxVec_mult_3<<<BlockPerGrid, ThreadPerBlock>>>(this->size, val, col, ptr, cu_d1, cu_d2);
   checkCudaErrors( cudaPeekAtLastError() );
   this->time->end();
   this->MV_proc_time += this->time->getTime();
@@ -353,8 +377,10 @@ double cuda::dot(double *in1, double *in2, int size){
 double cuda::dot(double *in1, double *in2){
   double sum=0.0;
 
+
   int ThreadPerBlock=128;
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
+
 
   this->time->start();
   Memset(this->cu_d3, 0, BlockPerGrid);

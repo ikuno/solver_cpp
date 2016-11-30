@@ -16,40 +16,39 @@ innerMethods::innerMethods(collection *coll){
 void innerMethods::innerSelect(collection *innercoll, SOLVERS_NAME solver, double *ibvec, double *ixvec){
   int result = 1;
   if(solver == CG){
-    cg innerSolver(innercoll, ibvec, ixvec, true);
-    result = innerSolver.solve();
+    cg *innerSolver = new cg(innercoll, ibvec, ixvec, true);
+    result = innerSolver->solve();
+    delete innerSolver;
   }
   
   else if(solver == CR){
-    cr innerSolver(innercoll, ibvec, ixvec, true);
-    result = innerSolver.solve();
+    cr *innerSolver = new cr(innercoll, ibvec, ixvec, true);
+    result = innerSolver->solve();
+    delete innerSolver;
   }
   
   else if(solver == GCR){
-    
-    gcr innerSolver(innercoll, ibvec, ixvec, true);
-    result = innerSolver.solve();
-   
+    gcr *innerSolver = new gcr(innercoll, ibvec, ixvec, true);
+    result = innerSolver->solve();
+    delete innerSolver;
   }
   
   else if(solver == BICG){
-    
-    bicg innerSolver(innercoll, ibvec, ixvec, true);
-    result = innerSolver.solve();
-    
+    bicg *innerSolver = new bicg(innercoll, ibvec, ixvec, true);
+    result = innerSolver->solve();
+    delete innerSolver;
   }
   
   else if(solver == GMRES){
-    
-    gmres innerSolver(innercoll, ibvec, ixvec, true);
-    result = innerSolver.solve();
-    
+    gmres *innerSolver = new gmres(innercoll, ibvec, ixvec, true);
+    result = innerSolver->solve();
+    delete innerSolver;
   }
   
   else if(solver == KSKIPCG){
-    kskipcg innerSolver(innercoll, ibvec, ixvec, true);
-    result = innerSolver.solve();
-    
+    kskipcg *innerSolver = new kskipcg(innercoll, ibvec, ixvec, true);
+    result = innerSolver->solve();
+    delete innerSolver;
   }
   
   else if(solver == KSKIPCR){
@@ -58,10 +57,9 @@ void innerMethods::innerSelect(collection *innercoll, SOLVERS_NAME solver, doubl
   }
   
   else if(solver == KSKIPBICG){
-    
-    kskipBicg innerSolver(innercoll, ibvec, ixvec, true);
-    result = innerSolver.solve();
-    
+    kskipBicg *innerSolver = new kskipBicg(innercoll, ibvec, ixvec, true);
+    result = innerSolver->solve();
+    delete innerSolver;
   }
 
   if(result != 2 && result !=0 ){

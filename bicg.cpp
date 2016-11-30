@@ -9,22 +9,32 @@ bicg::bicg(collection *coll, double *bvec, double *xvec, bool inner){
   bs = new blas(this->coll);
   cu = new cuda(this->coll->N);
 
-  N = this->coll->N;
-  rvec = new double [N];
-  pvec = new double [N];
-  r_vec = new double [N];
-  p_vec = new double [N];
-  mv = new double [N];
-  x_0 = new double [N];
-
-  this->xvec = xvec;
-  this->bvec = bvec;
-
   exit_flag = 2;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
   isInner = inner;
+
+  N = this->coll->N;
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    pvec = cu->d_MallocHost(N);
+    r_vec = cu->d_MallocHost(N);
+    p_vec = cu->d_MallocHost(N);
+    mv = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+  }else{
+    rvec = new double [N];
+    pvec = new double [N];
+    r_vec = new double [N];
+    p_vec = new double [N];
+    mv = new double [N];
+    x_0 = new double [N];
+  }
+
+  this->xvec = xvec;
+  this->bvec = bvec;
+
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -56,14 +66,24 @@ bicg::bicg(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 bicg::~bicg(){
-  delete cu;
   delete this->bs;
-  delete[] rvec;
-  delete[] pvec;
-  delete[] r_vec;
-  delete[] p_vec;
-  delete[] mv;
-  delete[] x_0;
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(pvec);
+    cu->FreeHost(r_vec);
+    cu->FreeHost(p_vec);
+    cu->FreeHost(mv);
+    cu->FreeHost(x_0);
+  }else{
+    delete[] rvec;
+    delete[] pvec;
+    delete[] r_vec;
+    delete[] p_vec;
+    delete[] mv;
+    delete[] x_0;
+  }
+
+  delete cu;
   f_his.close();
   f_x.close();
 }
@@ -99,8 +119,8 @@ int bicg::solve(){
 
   //r * r*
   if(isCUDA){
-    // rr = cu->dot(r_vec, rvec);
-    rr = bs->dot(r_vec, rvec);
+    rr = cu->dot(r_vec, rvec);
+    // rr = bs->dot(r_vec, rvec);
   }else{
     rr = bs->dot(r_vec, rvec);
   }
@@ -130,8 +150,8 @@ int bicg::solve(){
 
     //alpha = (r*,r) / (p*,ap)
     if(isCUDA){
-      // dot = cu->dot(p_vec, mv);
-      dot = bs->dot(p_vec, mv);
+      dot = cu->dot(p_vec, mv);
+      // dot = bs->dot(p_vec, mv);
     }else{
       dot = bs->dot(p_vec, mv);
     }
@@ -155,8 +175,8 @@ int bicg::solve(){
 
     //r * r*
     if(isCUDA){
-      // rr2 = cu->dot(r_vec, rvec);
-      rr2 = bs->dot(r_vec, rvec);
+      rr2 = cu->dot(r_vec, rvec);
+      // rr2 = bs->dot(r_vec, rvec);
     }else{
       rr2 = bs->dot(r_vec, rvec);
     }

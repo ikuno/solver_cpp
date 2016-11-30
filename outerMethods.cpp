@@ -20,44 +20,55 @@ outerMethods::outerMethods(collection *coll){
 void outerMethods::outerSelect(SOLVERS_NAME solver){
   int result = 99;
   if(solver == CG){
-    cg outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    cg *outerSolver = new cg(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == CR){
-    cr outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    cr *outerSolver = new cr(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == GCR){
-    gcr outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    gcr *outerSolver = new gcr(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == BICG){
-    bicg outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    bicg *outerSolver = new bicg(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == GMRES){
-    gmres outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    gmres *outerSolver = new gmres(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == KSKIPCG){
-    kskipcg outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    kskipcg *outerSolver = new kskipcg(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == KSKIPCR){
     std::cout << RED << "Not implemented" << RESET << std::endl;
     result = 99;
   }else if(solver == KSKIPBICG){
-    kskipBicg outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    kskipBicg *outerSolver = new kskipBicg(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == VPCG){
-    vpcg outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    vpcg *outerSolver = new vpcg(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == VPBICG){
     std::cout << RED << "Not implemented" << RESET << std::endl;
     result = 99;
   }else if(solver == VPCR){
-    vpcr outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    vpcr *outerSolver = new vpcr(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == VPGCR){
-    vpgcr outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    vpgcr *outerSolver = new vpgcr(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }else if(solver == VPGMRES){
-    vpgmres outerSolver(coll, coll->bvec, coll->xvec, false);
-    result = outerSolver.solve();
+    vpgmres *outerSolver = new vpgmres(coll, coll->bvec, coll->xvec, false);
+    result = outerSolver->solve();
+    delete outerSolver;
   }
   
   if(result == 0){

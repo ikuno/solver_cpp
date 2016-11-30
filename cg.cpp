@@ -9,15 +9,6 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner){
   bs = new blas(this->coll);
   cu = new cuda(this->coll->N);
   // cu = new cuda();
-  
-  N = this->coll->N;
-  rvec = new double [N];
-  pvec = new double [N];
-  mv = new double [N];
-  x_0 = new double [N];
-
-  this->xvec = xvec;
-  this->bvec = bvec;
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -25,6 +16,23 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner){
   isCUDA = this->coll->isCUDA;
   isInner = inner;
 
+  N = this->coll->N;
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    pvec = cu->d_MallocHost(N);
+    mv = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+  }else{
+    rvec = new double [N];
+    pvec = new double [N];
+    mv = new double [N];
+    x_0 = new double [N];
+  }
+
+  this->xvec = xvec;
+  this->bvec = bvec;
+
+  
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
@@ -55,12 +63,21 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 cg::~cg(){
-  delete cu;
   delete this->bs;
-  delete[] rvec;
-  delete[] pvec;
-  delete[] mv;
-  delete[] x_0;
+
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(pvec);
+    cu->FreeHost(mv);
+    cu->FreeHost(x_0);
+  }else{
+    delete[] rvec;
+    delete[] pvec;
+    delete[] mv;
+    delete[] x_0;
+  }
+
+  delete cu;
   f_his.close();
   f_x.close();
 }

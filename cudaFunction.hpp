@@ -39,11 +39,9 @@ class cuda {
     void H2D(int* from, int* to, int size);
     void D2H(int* from, int* to, int size);
 
-    void Free(double* ptr);
-    void FreeHost(double* ptr);
+    void Free(void* ptr);
 
-    void Free(int* ptr);
-    void FreeHost(int* ptr);
+    void FreeHost(void* ptr);
 
     void Memset(double *ptr, double val, int size);
 
