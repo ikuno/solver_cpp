@@ -5,11 +5,14 @@
 #include "solver_collection.hpp"
 #include "times.hpp"
 #include "blas.hpp"
+#include "cudaFunction.hpp"
 
 class bicg {
   private:
     collection *coll;
     blas *bs;
+    cuda *cu;
+
     times time;
     
     long int loop;

@@ -55,6 +55,15 @@ collection::collection() {
   Tval = NULL;
   Tcol = NULL;
   Tptr = NULL;
+
+  Cval = NULL;
+  Ccol = NULL;
+  Cptr = NULL;
+  
+  CTval = NULL;
+  CTcol = NULL;
+  CTptr = NULL;
+
 }
 
 collection::~collection() {
@@ -64,17 +73,25 @@ collection::~collection() {
   delete[] ptr;
   delete[] bvec;
   delete[] xvec;
-  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-    delete[] Tval;
-    delete[] Tcol;
-    delete[] Tptr;
-  }
+
   if(isCUDA){
     cu->Free(Cval);
     cu->Free(Ccol);
     cu->Free(Cptr);
-    cu->Reset();
   }
+
+  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+    delete[] Tval;
+    delete[] Tcol;
+    delete[] Tptr;
+    if(isCUDA){
+      cu->Free(CTval);
+      cu->Free(CTcol);
+      cu->Free(CTptr);
+    }
+  }
+
+  cu->Reset();
 }
 
 std::string collection::enum2string(SOLVERS_NAME id){
@@ -181,7 +198,7 @@ void collection::readCMD(int argc, char* argv[]){
 
   cmd.parse_check(argc, argv);
 
-  std::cout << "Reading CommandLine Option ..........";
+  std::cout << "Reading CommandLine Option .........."<< std::flush;
 
   this->L1_Dir_Name = cmd.get<std::string>("L1_Dir_Name");
 
@@ -253,7 +270,7 @@ void collection::checkCMD(){
   bool hasCRSFiles[3]={false, false, false};
   bool hasMMFiles = false;
 
-  std::cout << "Checking Input Matrix Type ..........";
+  std::cout << "Checking Input Matrix Type .........."<< std::flush;
 
   // CRS input
   if(this->inputSource == 1){
@@ -262,7 +279,7 @@ void collection::checkCMD(){
     dp = opendir(this->CRS_Path.c_str());
     if(dp == NULL) exit(1);
 
-    std::cout << "Checking 1L Dir ..........";
+    std::cout << "Checking 1L Dir .........."<< std::flush;
 
     do{
       entry = readdir(dp);
@@ -287,7 +304,7 @@ void collection::checkCMD(){
     fullDir += getDir;
     dp = opendir(fullDir.c_str());
 
-    std::cout << "Checking CRS Dir ..........";
+    std::cout << "Checking CRS Dir .........."<< std::flush;
 
     do{
       entry = readdir(dp);
@@ -311,7 +328,7 @@ void collection::checkCMD(){
     hasFiles = false;
     dp = opendir(fullDir.c_str());
 
-    std::cout << "Checking CRS files ..........";
+    std::cout << "Checking CRS files .........."<< std::flush;
 
     do{
       entry = readdir(dp);
@@ -335,7 +352,7 @@ void collection::checkCMD(){
 
     dp = opendir(fullDir.c_str());
 
-    std::cout << "Checking CRS files name ..........";
+    std::cout << "Checking CRS files name .........."<< std::flush;
 
     do{
       entry = readdir(dp);
@@ -360,7 +377,7 @@ void collection::checkCMD(){
     // MM input
   }else if(this->inputSource == 2){
 
-    std::cout << "\tLoading MM path ..........";
+    std::cout << "\tLoading MM path .........."<< std::flush;
 
     dp = opendir(this->MM_Path.c_str());
     if(dp == NULL) exit(1);
@@ -388,7 +405,7 @@ void collection::checkCMD(){
     fullDir += getDir;
     dp = opendir(fullDir.c_str());
 
-    std::cout << "\tLoading MM Dir ..........";
+    std::cout << "\tLoading MM Dir .........."<< std::flush;
 
     do{
       entry = readdir(dp);
@@ -412,7 +429,7 @@ void collection::checkCMD(){
     hasFiles = false;
     dp = opendir(fullDir.c_str());
 
-    std::cout << "\tLoading MM files ..........";
+    std::cout << "\tLoading MM files .........."<< std::flush;
 
     do{
       entry = readdir(dp);
@@ -435,7 +452,7 @@ void collection::checkCMD(){
     this->fullPath = fullDir;
     dp = opendir(fullDir.c_str());
 
-    std::cout << "\tLoading mtx file ..........";
+    std::cout << "\tLoading mtx file .........."<< std::flush;
 
     do{
       entry = readdir(dp);
@@ -495,7 +512,7 @@ void collection::showCMD(){
 }
 
 void collection::checkCRSMatrix(){
-  std::cout << "Checking CRS type Matrix ..........";
+  std::cout << "Checking CRS type Matrix .........."<< std::flush;
   //CRS input
   if(this->inputSource == 1){
     std::string valcol_path, ptr_path, bx_path;
@@ -567,7 +584,7 @@ void collection::checkCRSMatrix(){
 
 void collection::readMatrix(){
   if(this->inputSource == 1){
-    std::cout << "Loading CRS type Matrix ..........";
+    std::cout << "Loading CRS type Matrix .........."<< std::flush;
     std::string valcol_path, ptr_path, bx_path;
     valcol_path = this->fullPath+"/ColVal.txt";
     ptr_path = this->fullPath+"/Ptr.txt";
@@ -629,7 +646,7 @@ void collection::readMatrix(){
 }
 
 void collection::CRSAlloc(){
-  std::cout << "Allocing Matrix ..........";
+  std::cout << "Allocing Matrix .........."<< std::flush;
   this->val = new double [this->NNZ];
   this->col = new int [this->NNZ];
   this->ptr = new int [this->N+1];
@@ -637,27 +654,37 @@ void collection::CRSAlloc(){
   this->xvec = new double [this->N];
   std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
-  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-    std::cout << "Allocing Transpse Matrix ..........";
-    this->Tval = new double [this->NNZ];
-    this->Tcol = new int [this->NNZ];
-    this->Tptr = new int [this->N+1];
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-  }
   if(isCUDA){
-    std::cout << "Allocing CUDA side Matrix ..........";
+    std::cout << "Allocing CUDA side Matrix .........."<< std::flush;
     this->Cval = cu->d_Malloc(this->NNZ);
     this->Ccol = cu->i_Malloc(this->NNZ);
     this->Cptr = cu->i_Malloc(this->N+1);
     std::cout << GREEN << "[○] Done" << RESET << std::endl;
   }
+
+  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+    std::cout << "Allocing Transpose Matrix .........."<< std::flush;
+    this->Tval = new double [this->NNZ];
+    this->Tcol = new int [this->NNZ];
+    this->Tptr = new int [this->N+1];
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    if(isCUDA){
+      std::cout << "Allocing Transpose CUDA side Matrix .........."<< std::flush;
+      this->CTval = cu->d_Malloc(this->NNZ);
+      this->CTcol = cu->i_Malloc(this->NNZ);
+      this->CTptr = cu->i_Malloc(this->N+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    }
+  }
+
 }
 
 void collection::transpose(){
   long int col_counter = 0;
-  std::memset(Tptr, -1, sizeof(int)*this->N+1);
 
-  std::cout << "Transposeing Matrix ..........";
+  std::memset(this->Tptr, -1, sizeof(int)*(this->N+1));
+
+  std::cout << "Transpose Matrix in CPU .........."<< std::flush;
 
   for(long int i=0; i<N; i++){
     for(long int j=0; j<N; j++){
@@ -674,13 +701,19 @@ void collection::transpose(){
       }
     }
   }
+
   this->Tptr[N] = this->NNZ;
   std::cout << GREEN << "[○] Done" << RESET << std::endl;
 }
 
 void collection::transposeMatrix(){
   if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-    this->transpose();
+    if(this->isCUDA){
+      cu->CSR2CSC(this->Cval, this->Ccol, this->Cptr, this->Tval, this->Tcol, this->Tptr, this->CTval, this->CTcol, this->CTptr, this->N, this->NNZ);
+    }else{
+      // this->transpose();
+      cu->CSR2CSC(this->val, this->col, this->ptr, this->Tval, this->Tcol, this->Tptr, this->N, this->NNZ);
+    }
   }
 }
 
@@ -697,10 +730,17 @@ void collection::setOpenmpThread(){
 
 void collection::CudaCopy(){
   if(isCUDA){
-    std::cout << "Copy Matrix to CUDA..........";
+    std::cout << "Copy Matrix to CUDA.........." << std::flush;
     cu->H2D(this->val, this->Cval, this->NNZ);
     cu->H2D(this->col, this->Ccol, this->NNZ);
     cu->H2D(this->ptr, this->Cptr, this->N+1);
     std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      std::cout << "Copy Transpose Matrix to CUDA.........."<< std::flush;
+      cu->H2D(this->Tval, this->CTval, this->NNZ);
+      cu->H2D(this->Tcol, this->CTcol, this->NNZ);
+      cu->H2D(this->Tptr, this->CTptr, this->N+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    }
   }
 }

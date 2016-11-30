@@ -1,8 +1,11 @@
 #include "cudaFunction.hpp"
 
+#include <cuda.h>
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
-#include <cuda.h>
+#include "cusparse.h"
+
+#include "color.hpp"
 
 __global__ void kernel_dot (int N, double *a, double *b, double *c)
 {
@@ -395,3 +398,74 @@ double cuda::dot(double *in1, double *in2){
   return sum;
 }
 
+void cuda::CSR2CSC(double *dCSRval, int *dCSRcol, int *dCSRptr, double *CSCval, int *CSCrow, int *CSCptr, double *dCSCval, int *dCSCrow, int *dCSCptr, int N, int NNZ){
+  cusparseHandle_t handle=0;
+  cusparseCreate(&handle);
+
+  std::cout << "Transpose Matrix in CUDA.........." << std::flush;
+  cusparseStatus_t status = cusparseDcsr2csc(handle, N, N, NNZ, dCSRval, dCSRptr, dCSRcol, dCSCval, dCSCrow, dCSCptr, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO);
+  std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
+  if(status != CUSPARSE_STATUS_SUCCESS){
+    std::cout << "error in cusparse" << std::endl;
+    exit(-1);
+  }
+
+  cudaMemcpy(CSCval, dCSCval, sizeof(double)*NNZ, cudaMemcpyDeviceToHost);
+  cudaMemcpy(CSCrow, dCSCrow, sizeof(int)*NNZ, cudaMemcpyDeviceToHost);
+  cudaMemcpy(CSCptr, dCSCptr, sizeof(int)*(N+1), cudaMemcpyDeviceToHost);
+
+}
+
+void cuda::CSR2CSC(double *CSRval, int *CSRcol, int *CSRptr, double *CSCval, int *CSCrow, int *CSCptr, int N, int NNZ){
+
+  double *dCSRval;
+  int *dCSRcol, *dCSRptr;
+  double *dCSCval;
+  int *dCSCrow, *dCSCptr;
+  cusparseHandle_t handle=0;
+  cusparseCreate(&handle);
+
+
+  cudaMalloc((void**)&dCSRval, sizeof(double)*NNZ);
+  cudaMalloc((void**)&dCSRcol, sizeof(int)*NNZ);
+  cudaMalloc((void**)&dCSRptr, sizeof(int)*(N+1));
+
+  cudaMalloc((void**)&dCSCval, sizeof(double)*NNZ);
+  cudaMalloc((void**)&dCSCrow, sizeof(int)*NNZ);
+  cudaMalloc((void**)&dCSCptr, sizeof(int)*(N+1));
+
+  cudaMemcpy(dCSRval, CSRval, sizeof(double)*NNZ, cudaMemcpyHostToDevice);
+  cudaMemcpy(dCSRcol, CSRcol, sizeof(int)*NNZ, cudaMemcpyHostToDevice );
+  cudaMemcpy(dCSRptr, CSRptr, sizeof(int)*(N+1),  cudaMemcpyHostToDevice);
+
+  memset(CSCval, 0, sizeof(double)*NNZ);
+  memset(CSCrow, 0, sizeof(int)*NNZ);
+  memset(CSCptr, 0, sizeof(int)*(N+1));
+
+  cudaMemset(dCSCval, 0, sizeof(double)*NNZ);
+  cudaMemset(dCSCrow, 0, sizeof(int)*NNZ);
+  cudaMemset(dCSCptr, 0, sizeof(int)*(N+1));
+
+  std::cout << "Transpose Matrix in CUDA.........."<< std::flush;
+  cusparseStatus_t status = cusparseDcsr2csc(handle, N, N, NNZ, dCSRval, dCSRptr, dCSRcol, dCSCval, dCSCrow, dCSCptr, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO);
+  std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
+  if(status != CUSPARSE_STATUS_SUCCESS){
+    std::cout << "error in cusparse" << std::endl;
+    exit(-1);
+  }
+
+  cudaMemcpy(CSCval, dCSCval, sizeof(double)*NNZ, cudaMemcpyDeviceToHost);
+  cudaMemcpy(CSCrow, dCSCrow, sizeof(int)*NNZ, cudaMemcpyDeviceToHost);
+  cudaMemcpy(CSCptr, dCSCptr, sizeof(int)*(N+1), cudaMemcpyDeviceToHost);
+
+  cudaFree(dCSRval);
+  cudaFree(dCSRcol);
+  cudaFree(dCSRptr);
+
+  cudaFree(dCSCval);
+  cudaFree(dCSCrow);
+  cudaFree(dCSCptr);
+
+}

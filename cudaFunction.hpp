@@ -52,7 +52,9 @@ class cuda {
     void Reset();
 
     //--------------------------------------
-    void add(double* in1, double* in2, double* out, int size);
+    void CSR2CSC(double *dCSRval, int *dCSRcol, int *dCSRptr, double *CSCval, int *CSCrow, int *CSCptr, double *dCSCval, int *dCSCrow, int *dCSCptr, int N, int NNZ);
+
+    void CSR2CSC(double *CSRval, int *CSRcol, int *CSRptr, double *CSCval, int *CSCrow, int *CSCptr, int N, int NNZ);
 
     void MtxVec_mult(double *in, double *out, int size, double *val, int *col, int *ptr);
 

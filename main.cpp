@@ -12,9 +12,9 @@ int main(int argc, char* argv[])
   col.checkCRSMatrix();
   col.CRSAlloc();
   col.readMatrix();
+  col.CudaCopy();
   col.transposeMatrix();
   col.setOpenmpThread();
-  col.CudaCopy();
 
   col.showCMD();
   method.outerSelect(col.outerSolver);

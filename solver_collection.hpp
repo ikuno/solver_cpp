@@ -99,6 +99,10 @@ class collection {
     int* Ccol;
     int* Cptr;
 
+    double* CTval;
+    int* CTcol;
+    int* CTptr;
+
 };
 
 
