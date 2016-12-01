@@ -8,6 +8,7 @@
 kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll);
+  cu = new cuda(this->coll->N);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -26,24 +27,22 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
   }
 
   N = this->coll->N;
-  rvec = new double [N];
-  pvec = new double [N];
-  r_vec = new double [N];
-  p_vec = new double [N];
-  Av = new double [N];
-  x_0 = new double [N];
-  theta = new double [2*kskip];
-  eta = new double [2*kskip+1];
-  rho = new double [2*kskip+1];
-  phi = new double [2*kskip+2];
+  if(isCUDA){
 
-  Ar = new double* [2*kskip+1];
-  Ap = new double* [2*kskip+2];
-  for(int i=0; i<2*kskip+1; i++){
-    Ar[i] = new double [N];
-  }
-  for(int i=0; i<2*kskip+2; i++){
-    Ap[i] = new double [N];
+  }else{
+    rvec = new double [N];
+    pvec = new double [N];
+    r_vec = new double [N];
+    p_vec = new double [N];
+    Av = new double [N];
+    x_0 = new double [N];
+    theta = new double [2*kskip];
+    eta = new double [2*kskip+1];
+    rho = new double [2*kskip+1];
+    phi = new double [2*kskip+2];
+
+    Ar = new double [(2*kskip+1)*N];
+    Ap = new double [(2*kskip+2)*N];
   }
 
   this->xvec = xvec;
@@ -61,12 +60,8 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
   std::memset(rho, 0, sizeof(double)*(2*kskip+1));
   std::memset(phi, 0, sizeof(double)*(2*kskip+2));
 
-  for(int i=0; i<2*kskip+1; i++){
-    std::memset(Ar[i], 0, sizeof(double)*N);
-  }
-  for(int i=0; i<2*kskip+2; i++){
-    std::memset(Ap[i], 0, sizeof(double)*N);
-  }
+  std::memset(Ar, 0, sizeof(double)*(2*kskip+1)*N);
+  std::memset(Ap, 0, sizeof(double)*(2*kskip+2)*N);
 
   if(!isInner){
     f_his.open("./output/KSKIPBICG_his.txt");
@@ -86,24 +81,21 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
 
 kskipBicg::~kskipBicg(){
   delete this->bs;
-  delete[] rvec;
-  delete[] pvec;
-  delete[] r_vec;
-  delete[] p_vec;
-  delete[] Av;
-  delete[] x_0;
-  delete[] theta;
-  delete[] eta;
-  delete[] rho;
-  delete[] phi;
-  for(int i=0; i<2*kskip+1; i++){
-    delete[] Ar[i];
+  if(isCUDA){
+    delete[] rvec;
+    delete[] pvec;
+    delete[] r_vec;
+    delete[] p_vec;
+    delete[] Av;
+    delete[] x_0;
+    delete[] theta;
+    delete[] eta;
+    delete[] rho;
+    delete[] phi;
+    delete[] Ar;
+    delete[] Ap;
   }
-  for(int i=0; i<2*kskip+2; i++){
-    delete[] Ap[i];
-  }
-  delete[] Ar;
-  delete[] Ap;
+  delete cu;
   f_his.close();
   f_x.close();
 }

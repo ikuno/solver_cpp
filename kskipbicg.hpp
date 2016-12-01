@@ -5,18 +5,21 @@
 #include "solver_collection.hpp"
 #include "blas.hpp"
 #include "times.hpp"
+#include "cudaFunction.hpp"
 
 class kskipBicg {
   private:
     collection *coll;
     blas *bs;
+    cuda *cu;
+
     times time;
     
     long int nloop, iloop, jloop;
     double *xvec, *bvec;
     double *rvec, *r_vec, *pvec, *p_vec, *Av, *x_0, error;
     double *theta, *eta, *rho, *phi, bnorm, rnorm, alpha, beta, gamma;
-    double **Ap, **Ar;
+    double *Ap, *Ar;
 
     int maxloop;
     double eps;

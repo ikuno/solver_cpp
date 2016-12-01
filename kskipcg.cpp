@@ -36,14 +36,9 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner){
   eta = new double [2*kskip+1];
   zeta = new double [2*kskip+2];
 
-  Ar = new double* [(2*kskip+1)];
-  Ap = new double* [(2*kskip+2)];
-  for(int i=0; i<2*kskip+1; i++){
-    Ar[i] = new double[N];
-  }
-  for(int i=0; i<2*kskip+2; i++){
-    Ap[i] = new double[N];
-  }
+  Ar = new double [(2*kskip+1)*N];
+  Ap = new double [(2*kskip+2)*N];
+
   this->xvec = xvec;
   this->bvec = bvec;
 
@@ -56,13 +51,8 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner){
   std::memset(delta, 0, sizeof(double)*(2*kskip));
   std::memset(eta, 0, sizeof(double)*(2*kskip+1));
   std::memset(zeta, 0, sizeof(double)*(2*kskip+2));
-
-  for(int i=0; i<2*kskip+1; i++){
-    std::memset(Ar[i], 0, sizeof(double)*N);
-  }
-  for(int i=0; i<2*kskip+2; i++){
-    std::memset(Ap[i], 0, sizeof(double)*N);
-  }
+  std::memset(Ar, 0, sizeof(double)*(2*kskip+1)*N);
+  std::memset(Ap, 0, sizeof(double)*(2*kskip+2)*N);
 
   if(!isInner){
     f_his.open("./output/KSKIPCG_his.txt");
@@ -89,12 +79,6 @@ kskipcg::~kskipcg(){
   delete[] delta;
   delete[] eta;
   delete[] zeta;
-  for(int i=0; i<2*kskip+1; i++){
-    delete[] Ar[i];
-  }
-  for(int i=0; i<2*kskip+2; i++){
-    delete[] Ap[i];
-  }
   delete[] Ar;
   delete[] Ap;
   f_his.close();
@@ -164,52 +148,26 @@ int kskipcg::solve(){
 
     for(iloop=nloop; iloop<=nloop+kskip; iloop++){
       //alpha = gamma/zeta_1
-      if(this->coll->isInnerNow){
-        alpha = static_cast<float>(gamma) / static_cast<float>(zeta[0]);
-      }else{
-        alpha = gamma / zeta[0];
-      }
+      alpha = gamma / zeta[0];
 
       //beta = (alpha * zeta_2 / zeta_1) - 1
-      if(this->coll->isInnerNow){
-        beta = static_cast<float>(alpha) * zeta[1] / zeta[0] - 1.0;
-      }else{
-        beta = alpha * zeta[1] / zeta[0] - 1.0;
-      }
+      beta = alpha * zeta[1] / zeta[0] - 1.0;
 
       //fix
       if(fix == 1){
-        if(this->coll->isInnerNow){
-          gamma = static_cast<float>(beta) * static_cast<float>(gamma);
-        }else{
-          gamma = beta * gamma;
-        }
+        gamma = beta * gamma;
       }else if(fix == 2){
-        if(this->coll->isInnerNow){
-          double tmp0 = static_cast<float>(gamma) - static_cast<float>(alpha) * eta[0];
-          double tmp1 = eta[0] - static_cast<float>(alpha) * zeta[1];
-          gamma = static_cast<float>(tmp0) - static_cast<float>(alpha) * static_cast<float>(tmp1);
-        }else{
-          double tmp0 = gamma - alpha * eta[0];
-          double tmp1 = eta[0] - alpha * zeta[1];
-          gamma = tmp0 - alpha * tmp1;
-
-        }
+        double tmp0 = gamma - alpha * eta[0];
+        double tmp1 = eta[0] - alpha * zeta[1];
+        gamma = tmp0 - alpha * tmp1;
       }
 
       //update delta eta zeta
       for(jloop=0; jloop<2*kskip-2*(iloop-nloop); jloop++){
-        if(this->coll->isInnerNow){
-          delta[jloop] = delta[jloop] - 2*static_cast<float>(alpha)*eta[jloop+1] + static_cast<float>(alpha)*static_cast<float>(alpha)*eta[jloop+2];
-          double eta_old = eta[jloop];
-          eta[jloop] = delta[jloop] + static_cast<float>(beta)*zeta[jloop+1] - static_cast<float>(alpha)*static_cast<float>(beta)*zeta[jloop+1];
-          zeta[jloop] = eta[jloop+1] + static_cast<float>(beta)*static_cast<float>(eta_old) + static_cast<float>(beta)*static_cast<float>(beta)*zeta[jloop] - static_cast<float>(alpha)*static_cast<float>(beta)*zeta[jloop+1];
-        }else{
-          delta[jloop] = delta[jloop] - 2*alpha*eta[jloop+1] + alpha*alpha*eta[jloop+2];
-          double eta_old = eta[jloop];
-          eta[jloop] = delta[jloop] + beta*zeta[jloop+1] - alpha*beta*zeta[jloop+1];
-          zeta[jloop] = eta[jloop+1] + beta*eta_old + beta*beta*zeta[jloop] - alpha*beta*zeta[jloop+1];
-        }
+        delta[jloop] = delta[jloop] - 2*alpha*eta[jloop+1] + alpha*alpha*eta[jloop+2];
+        double eta_old = eta[jloop];
+        eta[jloop] = delta[jloop] + beta*zeta[jloop+1] - alpha*beta*zeta[jloop+1];
+        zeta[jloop] = eta[jloop+1] + beta*eta_old + beta*beta*zeta[jloop] - alpha*beta*zeta[jloop+1];
       }
 
       //Ap

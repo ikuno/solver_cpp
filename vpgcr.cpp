@@ -38,12 +38,14 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
   Av = new double [N];
   x_0 = new double [N];
   qq = new double [restart];
-  qvec = new double* [restart];
-  pvec = new double* [restart];
-  for(long int i=0; i<restart; i++){
-    qvec[i] = new double [N];
-    pvec[i] = new double [N];
-  }
+  // qvec = new double* [restart];
+  // pvec = new double* [restart];
+  // for(long int i=0; i<restart; i++){
+  //   qvec[i] = new double [N];
+  //   pvec[i] = new double [N];
+  // }
+  qvec = new double [restart * N];
+  pvec = new double [restart * N];
 
   
   std::memset(rvec, 0, sizeof(double)*N);
@@ -51,15 +53,14 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
   std::memset(xvec, 0, sizeof(double)*N);
   std::memset(zvec, 0, sizeof(double)*N);
 
-  for(long int i=0; i<restart; i++){
-    qq[i] = 0.0;
-  }
   std::memset(qq, 0, sizeof(double)*restart);
 
-  for(int i=0; i<restart; i++){
-    std::memset(qvec[i], 0, sizeof(double)*N);
-    std::memset(pvec[i], 0, sizeof(double)*N);
-  }
+  // for(int i=0; i<restart; i++){
+  //   std::memset(qvec[i], 0, sizeof(double)*N);
+  //   std::memset(pvec[i], 0, sizeof(double)*N);
+  // }
+  std::memset(qvec, 0, sizeof(double)*restart*N);
+  std::memset(pvec, 0, sizeof(double)*restart*N);
 
   f_his.open("./output/VPGCR_his.txt");
   if(!f_his.is_open()){
@@ -84,10 +85,10 @@ vpgcr::~vpgcr(){
   delete[] Av;
   delete[] qq;
   delete[] x_0;
-  for(int i=0; i<restart; i++){
-    delete[] qvec[i];
-    delete[] pvec[i];
-  }
+  // for(int i=0; i<restart; i++){
+  //   delete[] qvec[i];
+  //   delete[] pvec[i];
+  // }
   delete[] qvec;
   delete[] pvec;
   delete[] zvec;
@@ -116,7 +117,10 @@ int vpgcr::solve(){
     //r=b-Ax
     bs->Vec_sub(bvec, Av, rvec);
 
-    std::memset(pvec[0], 0, sizeof(double)*N);
+    // std::memset(pvec[0], 0, sizeof(double)*N);
+    for(int i=0; i<N; i++){
+      pvec[0*N+i] = 0.0;
+    }
 
     //Ap p = r
     in->innerSelect(this->coll, this->coll->innerSolver, rvec, pvec[0]);

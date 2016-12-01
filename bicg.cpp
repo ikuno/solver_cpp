@@ -119,8 +119,8 @@ int bicg::solve(){
 
   //r * r*
   if(isCUDA){
-    rr = cu->dot(r_vec, rvec);
-    // rr = bs->dot(r_vec, rvec);
+    // rr = cu->dot(r_vec, rvec);
+    rr = bs->dot(r_vec, rvec);
   }else{
     rr = bs->dot(r_vec, rvec);
   }
@@ -150,8 +150,8 @@ int bicg::solve(){
 
     //alpha = (r*,r) / (p*,ap)
     if(isCUDA){
-      dot = cu->dot(p_vec, mv);
-      // dot = bs->dot(p_vec, mv);
+      // dot = cu->dot(p_vec, mv);
+      dot = bs->dot(p_vec, mv);
     }else{
       dot = bs->dot(p_vec, mv);
     }
@@ -175,8 +175,8 @@ int bicg::solve(){
 
     //r * r*
     if(isCUDA){
-      rr2 = cu->dot(r_vec, rvec);
-      // rr2 = bs->dot(r_vec, rvec);
+      // rr2 = cu->dot(r_vec, rvec);
+      rr2 = bs->dot(r_vec, rvec);
     }else{
       rr2 = bs->dot(r_vec, rvec);
     }

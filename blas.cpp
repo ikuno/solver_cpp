@@ -82,6 +82,26 @@ void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec){
   this->MV_proc_time += this->time->getTime();
 }
 
+void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec, int yindex, int ysize){
+  double tmp = 0.0;
+  double *val=this->coll->val;
+  int *ptr=this->coll->ptr;
+  int *col=this->coll->col;
+  long int N = this->coll->N;
+
+  this->time->start();
+#pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
+  for(long int i=0; i<N; i++){
+    tmp = 0.0;
+    for(long int j=ptr[i]; j<ptr[i+1]; j++){
+      tmp += val[j] * in_vec[xindex*xsize+col[j]];
+    }
+    out_vec[yindex*ysize+i] = tmp;
+  }
+  this->time->end();
+  this->MV_proc_time += this->time->getTime();
+}
+
 void blas::MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, double *out_vec){
   double tmp = 0.0;
   long int N = this->coll->N;
@@ -111,6 +131,11 @@ void blas::Vec_add(double *x, double *y, double *out){
     out[i] = x[i] + y[i];
   }
 }
+void blas::Vec_add(double *x, double *y, int yindex, int ysize, double *out, int zindex, int zsize){
+  for(long int i=0; i<this->coll->N; i++){
+    out[zindex*zsize+i] = x[i] + y[yindex*ysize+i];
+  }
+}
 
 double blas::dot(double *x, double *y){
   double tmp = 0.0;
@@ -137,13 +162,26 @@ double blas::dot(double *x, double *y, const long int size){
   return tmp;
 }
 
-double blas::dot(double *x, double *y, int xindex, int xsize){
+double blas::dot(double *x, double *y, int yindex, int ysize){
   double tmp = 0.0;
   int N = this->coll->N;
   this->time->start();
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
-    tmp += x[i] * y[xindex*xsize+i];
+    tmp += x[i] * y[yindex*ysize+i];
+  }
+  this->time->end();
+  this->dot_proc_time += this->time->getTime();
+  return tmp;
+}
+
+double blas::dot(double *x, int xindex, int xsize, double *y, int yindex, int ysize){
+  double tmp = 0.0;
+  int N = this->coll->N;
+  this->time->start();
+#pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
+  for(long int i=0; i<N; i++){
+    tmp += x[xindex*xsize+i] * y[yindex*ysize+i];
   }
   this->time->end();
   this->dot_proc_time += this->time->getTime();
@@ -168,6 +206,22 @@ void blas::Scalar_axy(double a, double *x, double *y, double *out){
   for(long int i=0; i<this->coll->N; i++){
     tmp = y[i];
     out[i] = (a * x[i]) + tmp;
+  }
+}
+
+void blas::Scalar_axy(double a, double *x, int xindex, int xsize, double *y, double *out){
+  double tmp;
+  for(long int i=0; i<this->coll->N; i++){
+    tmp = y[i];
+    out[i] = (a * x[xindex*xsize+i]) + tmp;
+  }
+}
+
+void blas::Scalar_axy(double a, double *x, int xindex, int xsize, double *y, int yindex, int ysize, double *out, int zindex, int zsize){
+  double tmp;
+  for(long int i=0; i<this->coll->N; i++){
+    tmp = y[yindex*ysize+i];
+    out[zindex*zsize+i] = (a * x[xindex*xsize+i]) + tmp;
   }
 }
 
@@ -245,7 +299,7 @@ void blas::Vec_copy(double *in, double *out, int xindex, int xsize){
   }
 }
 
-void blas::Kskip_cg_base(double **Ar, double **Ap, double *rvec, double *pvec, const int kskip){
+void blas::Kskip_cg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip){
   double tmp1 = 0.0;
   double tmp2 = 0.0;
 
@@ -262,8 +316,8 @@ void blas::Kskip_cg_base(double **Ar, double **Ap, double *rvec, double *pvec, c
       tmp1 += val[j] * rvec[col[j]];
       tmp2 += val[j] * pvec[col[j]];
     }
-    Ar[0][i] = tmp1;
-    Ap[0][i] = tmp2;
+    Ar[0*N+i] = tmp1;
+    Ap[0*N+i] = tmp2;
   }
   for(int ii=1; ii<2*kskip+2; ii++){
 #pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
@@ -272,20 +326,20 @@ void blas::Kskip_cg_base(double **Ar, double **Ap, double *rvec, double *pvec, c
       tmp2 = 0.0;
       for(int j=ptr[i]; j<ptr[i+1]; j++){
         if(ii<2*kskip){
-          tmp1 += val[j] * Ar[(ii-1)][col[j]];
+          tmp1 += val[j] * Ar[(ii-1)*N+col[j]];
         }
-        tmp2 += val[j] * Ap[(ii-1)][col[j]];
+        tmp2 += val[j] * Ap[(ii-1)*N+col[j]];
       }
       if(ii<2*kskip){
-        Ar[(ii)][i] = tmp1;
+        Ar[(ii)*N+i] = tmp1;
       }
-      Ap[(ii)][i] = tmp2;
+      Ap[(ii)*N+i] = tmp2;
     }
   }
 
 }
 
-void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, double **Ar, double **Ap, double *rvec, double *pvec, const int kskip){
+void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, double *Ar, double *Ap, double *rvec, double *pvec, const int kskip){
   double tmp1=0.0;
   double tmp2=0.0;
   double tmp3=0.0;
@@ -298,12 +352,12 @@ void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
     tmp3=0.0;
     for(long int j=0; j<N; j++){
       if(i<2*kskip){
-        tmp1 += rvec[j] * Ar[i][j];
+        tmp1 += rvec[j] * Ar[i*N+j];
       }
       if(i<2*kskip+1){
-        tmp2 += rvec[j] * Ap[i][j];
+        tmp2 += rvec[j] * Ap[i*N+j];
       }
-      tmp3 += pvec[j] * Ap[i][j];
+      tmp3 += pvec[j] * Ap[i*N+j];
     }
     if(i<2*kskip){
       delta[i] = tmp1;
@@ -315,7 +369,7 @@ void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
   }
 }
 
-void blas::Kskip_kskipBicg_base(double **Ar, double **Ap, double *rvec, double *pvec, const int kskip){
+void blas::Kskip_kskipBicg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip){
   double tmp1 = 0.0;
   double tmp2 = 0.0;
   double *val=this->coll->val;
@@ -331,8 +385,8 @@ void blas::Kskip_kskipBicg_base(double **Ar, double **Ap, double *rvec, double *
       tmp1 += val[j] * rvec[col[j]];
       tmp2 += val[j] * pvec[col[j]];
     }
-    Ar[0][i] = tmp1;
-    Ap[0][i] = tmp2;
+    Ar[0*N+i] = tmp1;
+    Ap[0*N+i] = tmp2;
   }
 
   for(int ii=1; ii<2*kskip+2; ii++){
@@ -342,20 +396,20 @@ void blas::Kskip_kskipBicg_base(double **Ar, double **Ap, double *rvec, double *
       tmp2 = 0.0;
       for(int j=ptr[i]; j<ptr[i+1]; j++){
         if(ii<2*kskip+1){
-          tmp1 += val[j] * Ar[(ii-1)][col[j]];
+          tmp1 += val[j] * Ar[(ii-1)*N+col[j]];
         }
-        tmp2 += val[j] * Ap[(ii-1)][col[j]];
+        tmp2 += val[j] * Ap[(ii-1)*N+col[j]];
       }
       if(ii<2*kskip+1){
-        Ar[(ii)][i] = tmp1;
+        Ar[(ii)*N+i] = tmp1;
       }
-      Ap[(ii)][i] = tmp2;
+      Ap[(ii)*N+i] = tmp2;
     }
   }
 
 }
 
-void blas::Kskip_kskipBicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double **Ar, double **Ap, double *rvec, double *pvec, double *r_vec, double *p_vec, const int kskip){
+void blas::Kskip_kskipBicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *rvec, double *pvec, double *r_vec, double *p_vec, const int kskip){
   double tmp1=0.0;
   double tmp2=0.0;
   double tmp3=0.0;
@@ -370,13 +424,13 @@ void blas::Kskip_kskipBicg_innerProduce(double *theta, double *eta, double *rho,
     tmp4=0.0;
     for(long int j=0; j<N; j++){
       if(i<2*kskip){
-        tmp1 += r_vec[j] * Ar[i][j];
+        tmp1 += r_vec[j] * Ar[i*N+j];
       }
       if(i<2*kskip+1){
-        tmp2 += r_vec[j] * Ap[i][j];
-        tmp3 += p_vec[j] * Ar[i][j];
+        tmp2 += r_vec[j] * Ap[i*N+j];
+        tmp3 += p_vec[j] * Ar[i*N+j];
       }
-      tmp4 += p_vec[j] * Ap[i][j];
+      tmp4 += p_vec[j] * Ap[i*N+j];
     }
     if(i<2*kskip){
       theta[i] = tmp1;

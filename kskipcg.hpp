@@ -16,7 +16,7 @@ class kskipcg {
     double *xvec, *bvec;
     double *rvec, *pvec, *Av, *x_0, error;
     double *delta, *eta, *zeta;
-    double **Ap, **Ar;
+    double *Ap, *Ar;
     double alpha, beta, gamma, bnorm, rnorm;
 
     int maxloop;
