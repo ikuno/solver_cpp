@@ -7,13 +7,13 @@
 gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll);
+  cu = new cuda(this->coll->N);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
   isInner = inner;
-
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -32,12 +32,21 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner){
   this->xvec = xvec;
   this->bvec = bvec;
 
-  rvec = new double [N];
-  Av = new double [N];
-  x_0 = new double [N];
-  qq = new double [restart];
-  qvec = new double [restart * N];
-  pvec = new double [restart * N];
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    Av = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+    qq = cu->d_MallocHost(restart);
+    qvec = cu->d_MallocHost(restart * N);
+    pvec = cu->d_MallocHost(restart * N);
+  }else{
+    rvec = new double [N];
+    Av = new double [N];
+    x_0 = new double [N];
+    qq = new double [restart];
+    qvec = new double [restart * N];
+    pvec = new double [restart * N];
+  }
 
   
   std::memset(rvec, 0, sizeof(double)*N);
@@ -66,12 +75,22 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner){
 
 gcr::~gcr(){
   delete this->bs;
-  delete[] rvec;
-  delete[] Av;
-  delete[] qq;
-  delete[] x_0;
-  delete[] qvec;
-  delete[] pvec;
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(Av);
+    cu->FreeHost(qq);
+    cu->FreeHost(x_0);
+    cu->FreeHost(qvec);
+    cu->FreeHost(pvec);
+  }else{
+    delete[] rvec;
+    delete[] Av;
+    delete[] qq;
+    delete[] x_0;
+    delete[] qvec;
+    delete[] pvec;
+  }
+  delete cu;
   f_his.close();
   f_x.close();
 }
@@ -89,7 +108,7 @@ int gcr::solve(){
   while(loop<maxloop){
     //Ax
     if(isCUDA){
-
+      cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(xvec, Av);
     }
@@ -102,7 +121,7 @@ int gcr::solve(){
 
     //Ap
     if(isCUDA){
-
+      cu->MtxVec_mult(pvec, 0, N, qvec, 0, N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(pvec, 0, N, qvec, 0, N);
     }
@@ -129,7 +148,8 @@ int gcr::solve(){
 
       //(q, q)
       if(isCUDA){
-
+        // dot_tmp = cu->dot(qvec, kloop, N, qvec, kloop, N);
+        dot_tmp = bs->dot(qvec, kloop, N, qvec, kloop, N);
       }else{
         dot_tmp = bs->dot(qvec, kloop, N, qvec, kloop, N);
       }
@@ -137,7 +157,8 @@ int gcr::solve(){
 
       //alpha = (r, q)/(q, q)
       if(isCUDA){
-
+        // dot_tmp = cu->dot(rvec, qvec, kloop, N);
+        dot_tmp = bs->dot(rvec, qvec, kloop, N);
       }else{
         dot_tmp = bs->dot(rvec, qvec, kloop, N);
       }
@@ -154,7 +175,7 @@ int gcr::solve(){
 
       //Ar
       if(isCUDA){
-
+        cu->MtxVec_mult(rvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       }else{
         bs->MtxVec_mult(rvec, Av);
       }
@@ -169,7 +190,8 @@ int gcr::solve(){
       for(iloop=0; iloop<=kloop; iloop++){
         //beta = -(Av, qvec) / (q, q)
         if(isCUDA){
-
+          // dot_tmp = cu->dot(Av, qvec, iloop, N);
+          dot_tmp = bs->dot(Av, qvec, iloop, N);
         }else{
           dot_tmp = bs->dot(Av, qvec, iloop, N);
         }

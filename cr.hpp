@@ -5,11 +5,14 @@
 #include "solver_collection.hpp"
 #include "blas.hpp"
 #include "times.hpp"
+#include "cudaFunction.hpp"
 
 class cr {
   private:
     collection *coll;
     blas *bs;
+    cuda *cu;
+
     times time;
     
     long int loop;

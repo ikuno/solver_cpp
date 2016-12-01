@@ -7,16 +7,7 @@
 cr::cr(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll);
-
-  N = this->coll->N;
-  rvec = new double [N];
-  pvec = new double [N];
-  qvec = new double [N];
-  svec = new double [N];
-  x_0 = new double [N];
-
-  this->xvec = xvec;
-  this->bvec = bvec;
+  cu = new cuda(this->coll->N);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -24,6 +15,25 @@ cr::cr(collection *coll, double *bvec, double *xvec, bool inner){
   isCUDA = this->coll->isCUDA;
   isInner = inner;
 
+  N = this->coll->N;
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    pvec = cu->d_MallocHost(N);
+    qvec = cu->d_MallocHost(N);
+    svec = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+  }else{
+    rvec = new double [N];
+    pvec = new double [N];
+    qvec = new double [N];
+    svec = new double [N];
+    x_0 = new double [N];
+  }
+
+  this->xvec = xvec;
+  this->bvec = bvec;
+
+  
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
@@ -56,11 +66,20 @@ cr::cr(collection *coll, double *bvec, double *xvec, bool inner){
 
 cr::~cr(){
   delete this->bs;
-  delete[] rvec;
-  delete[] pvec;
-  delete[] qvec;
-  delete[] svec;
-  delete[] x_0;
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(pvec);
+    cu->FreeHost(qvec);
+    cu->FreeHost(svec);
+    cu->FreeHost(x_0);
+  }else{
+    delete[] rvec;
+    delete[] pvec;
+    delete[] qvec;
+    delete[] svec;
+    delete[] x_0;
+  }
+  delete cu;
   f_his.close();
   f_x.close();
 }
@@ -77,7 +96,7 @@ int cr::solve(){
 
   //qvec = Ax
   if(isCUDA){
-
+    cu->MtxVec_mult(xvec, qvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(xvec, qvec);
   }
@@ -91,7 +110,7 @@ int cr::solve(){
 
   //qvec = Ap
   if(isCUDA){
-
+    cu->MtxVec_mult(pvec, qvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(pvec, qvec);
   }
@@ -101,7 +120,8 @@ int cr::solve(){
 
   //(r, s)
   if(isCUDA){
-
+    // rs = cu->dot(rvec, svec);
+    rs = bs->dot(rvec, svec);
   }else{
     rs = bs->dot(rvec, svec);
   }
@@ -124,6 +144,8 @@ int cr::solve(){
 
     //alpha = (r,s) / (q,q)
     if(isCUDA){
+      // dot = cu->dot(qvec, qvec);
+      dot = bs->dot(qvec, qvec);
     }else{
       dot = bs->dot(qvec, qvec);
     }
@@ -137,14 +159,15 @@ int cr::solve(){
 
     //s=Ar
     if(isCUDA){
-
+      cu->MtxVec_mult(rvec, svec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(rvec, svec);
     }
 
     //r2=(r, s)
     if(isCUDA){
-
+      // rs2 = cu->dot(rvec, svec);
+      rs2 = bs->dot(rvec, svec);
     }else{
       rs2 = bs->dot(rvec, svec);
     }

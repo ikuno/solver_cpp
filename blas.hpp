@@ -38,7 +38,7 @@ class blas {
 
     double dot(double *x, double *y, const long int size);
 
-    double dot(double *x, double *y, int xindex, int xsize);
+    double dot(double *x, double *y, int yindex, int ysize);
 
     double dot(double *x, int xindex, int xsize, double *y, int yindex, int ysize);
 

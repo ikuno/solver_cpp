@@ -58,9 +58,17 @@ class cuda {
 
     void MtxVec_mult(double *in, double *out, double *val, int *col, int *ptr);
 
+    void MtxVec_mult(double *in, int inindex, int insize, double *out, int outindex, int outsize, double *val, int *col, int *ptr);
+
     double dot(double *in1, double *in2, int size);
 
     double dot(double *in1, double *in2);
+
+    double dot(double *in1, int in1index, int in1size, double *in2, int in2index, int in2size);
+
+    double dot(double *in1, double *in2, int in2index, int in2size);
+
+    double dot(double *in1, int in1index, int in1size, double *in2);
 };
 #endif //CUDAFUNCTION_HPP_INCLUDED__
 

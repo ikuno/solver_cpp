@@ -8,10 +8,13 @@ Solver
 Linear Solver
 
 ## ISSUE & TODO
-- [x]gcr->done, kskipcg->done, kskipbicg->done, vpgcr[need fix innerSelect], には二次元配列で格納したデータがあります，それを全部一次元配列に統一することを考えている．
-- [o]vpcrのアルゴリズムがおかしい．
+- [x]vpcrのアルゴリズムがおかしい．
+- [o]gcr->done, kskipcg->done, kskipbicg->done, vpgcr->done, には二次元配列で格納したデータがあります，それを全部一次元配列に統一することを考えている．
 - [o]gmresの並列化
 - [o]SolverName not found
+
+## MEMO
+CG, CR, GCR, BICG
 
 ## 未実装
   KSKIPCR, VPBICG, VPCR
