@@ -325,12 +325,12 @@ void blas::Kskip_cg_base(double *Ar, double *Ap, double *rvec, double *pvec, con
       tmp1 = 0.0;
       tmp2 = 0.0;
       for(int j=ptr[i]; j<ptr[i+1]; j++){
-        if(ii<2*kskip){
+        if(ii<2*kskip+1){
           tmp1 += val[j] * Ar[(ii-1)*N+col[j]];
         }
         tmp2 += val[j] * Ap[(ii-1)*N+col[j]];
       }
-      if(ii<2*kskip){
+      if(ii<2*kskip+1){
         Ar[(ii)*N+i] = tmp1;
       }
       Ap[(ii)*N+i] = tmp2;

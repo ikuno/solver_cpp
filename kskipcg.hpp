@@ -10,6 +10,8 @@ class kskipcg {
   private:
     collection *coll;
     blas *bs;
+    cuda *cu;
+
     times time;
     
     long int nloop, iloop, jloop;

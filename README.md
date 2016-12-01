@@ -14,7 +14,7 @@ Linear Solver
 - [o]SolverName not found
 
 ## MEMO
-CG, CR, GCR, BICG
+CG, CR, GCR, BICG, GMRES
 
 ## 未実装
   KSKIPCR, VPBICG, VPCR

@@ -8,6 +8,7 @@
 gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll);
+  cu = new cuda(this->coll->N);
 
   exit_flag = 2;
   over_flag = 0;
@@ -27,21 +28,39 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner){
   }
 
   N = this->coll->N;
-  rvec = new double [N];
-  axvec = new double [N];
-  evec = new double [restart];
-  vvec = new double [N];
-  vmtx = new double [N*(restart+1)];
-  hmtx = new double [N*(restart+1)];
-  yvec = new double [restart];
-  wvec = new double [N];
-  avvec = new double [N];
-  hvvec = new double [restart*(restart+1)];
-  cvec = new double [restart];
-  svec = new double [restart];
-  x0vec = new double [N];
-  tmpvec = new double [N];
-  x_0 = new double [N];
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    axvec = cu->d_MallocHost(N);
+    evec = cu->d_MallocHost(restart);
+    vvec = cu->d_MallocHost(N);
+    vmtx = cu->d_MallocHost(N*(restart+1));
+    hmtx = cu->d_MallocHost(N*(restart+1));
+    yvec = cu->d_MallocHost(restart);
+    wvec = cu->d_MallocHost(N);
+    avvec = cu->d_MallocHost(N);
+    hvvec = cu->d_MallocHost(restart*(restart+1));
+    cvec = cu->d_MallocHost(restart);
+    svec = cu->d_MallocHost(restart);
+    x0vec = cu->d_MallocHost(N);
+    tmpvec = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+  }else{
+    rvec = new double [N];
+    axvec = new double [N];
+    evec = new double [restart];
+    vvec = new double [N];
+    vmtx = new double [N*(restart+1)];
+    hmtx = new double [N*(restart+1)];
+    yvec = new double [restart];
+    wvec = new double [N];
+    avvec = new double [N];
+    hvvec = new double [restart*(restart+1)];
+    cvec = new double [restart];
+    svec = new double [restart];
+    x0vec = new double [N];
+    tmpvec = new double [N];
+    x_0 = new double [N];
+  }
 
   this->xvec = xvec;
   this->bvec = bvec;
@@ -81,21 +100,40 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner){
 
 gmres::~gmres(){
   delete this->bs;
-  delete[] rvec;
-  delete[] axvec;
-  delete[] evec;
-  delete[] vvec;
-  delete[] vmtx;
-  delete[] hmtx;
-  delete[] yvec;
-  delete[] wvec;
-  delete[] avvec;
-  delete[] hvvec;
-  delete[] cvec;
-  delete[] svec;
-  delete[] x0vec;
-  delete[] tmpvec;
-  delete[] x_0;
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(axvec);
+    cu->FreeHost(evec);
+    cu->FreeHost(vvec);
+    cu->FreeHost(vmtx);
+    cu->FreeHost(hmtx);
+    cu->FreeHost(yvec);
+    cu->FreeHost(wvec);
+    cu->FreeHost(avvec);
+    cu->FreeHost(hvvec);
+    cu->FreeHost(cvec);
+    cu->FreeHost(svec);
+    cu->FreeHost(x0vec);
+    cu->FreeHost(tmpvec);
+    cu->FreeHost(x_0);
+  }else{
+    delete[] rvec;
+    delete[] axvec;
+    delete[] evec;
+    delete[] vvec;
+    delete[] vmtx;
+    delete[] hmtx;
+    delete[] yvec;
+    delete[] wvec;
+    delete[] avvec;
+    delete[] hvvec;
+    delete[] cvec;
+    delete[] svec;
+    delete[] x0vec;
+    delete[] tmpvec;
+    delete[] x_0;
+  }
+  delete cu;
   f_his.close();
   f_x.close();
 }
@@ -114,7 +152,7 @@ int gmres::solve(){
   {
     //Ax0
     if(isCUDA){
-
+      cu->MtxVec_mult(xvec, axvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(xvec, axvec);
     }
@@ -185,7 +223,7 @@ int gmres::solve(){
 
       //Av & w
       if(isCUDA){
-
+        cu->MtxVec_mult(vmtx, k, N, avvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       }else{
         bs->MtxVec_mult(vmtx, k, N, avvec);
       }
@@ -194,7 +232,12 @@ int gmres::solve(){
 
       //h_i_k & w update
       for(int i=0; i<=k; i++){
-        wv_ip = bs->dot(wvec, vmtx, i, N);
+        if(isCUDA){
+          // wv_ip = cu->dot(wvec, vmtx, i, N);
+          wv_ip = bs->dot(wvec, vmtx, i, N);
+        }else{
+          wv_ip = bs->dot(wvec, vmtx, i, N);
+        }
         hmtx[i*N+k] = wv_ip;
       }
 

@@ -26,18 +26,31 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner){
     fix = this->coll->outerFix;
   }
 
+  cu = new cuda(this->coll->N, this->kskip);
+
   N = this->coll->N;
-  rvec = new double [N];
-  pvec = new double [N];
-  Av = new double [N];
-  x_0 = new double [N];
 
-  delta = new double [2*kskip];
-  eta = new double [2*kskip+1];
-  zeta = new double [2*kskip+2];
-
-  Ar = new double [(2*kskip+1)*N];
-  Ap = new double [(2*kskip+2)*N];
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    pvec = cu->d_MallocHost(N);
+    Av = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+    delta = cu->d_MallocHost(2*kskip);
+    eta = cu->d_MallocHost(2*kskip+1);
+    zeta = cu->d_MallocHost(2*kskip+2);
+    Ar = cu->d_MallocHost((2*kskip+1)*N);
+    Ap = cu->d_MallocHost((2*kskip+2)*N);
+  }else{
+    rvec = new double [N];
+    pvec = new double [N];
+    Av = new double [N];
+    x_0 = new double [N];
+    delta = new double [2*kskip];
+    eta = new double [2*kskip+1];
+    zeta = new double [2*kskip+2];
+    Ar = new double [(2*kskip+1)*N];
+    Ap = new double [(2*kskip+2)*N];
+  }
 
   this->xvec = xvec;
   this->bvec = bvec;
@@ -72,15 +85,28 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner){
 
 kskipcg::~kskipcg(){
   delete this->bs;
-  delete[] rvec;
-  delete[] pvec;
-  delete[] Av;
-  delete[] x_0;
-  delete[] delta;
-  delete[] eta;
-  delete[] zeta;
-  delete[] Ar;
-  delete[] Ap;
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(pvec);
+    cu->FreeHost(Av);
+    cu->FreeHost(x_0);
+    cu->FreeHost(delta);
+    cu->FreeHost(eta);
+    cu->FreeHost(zeta);
+    cu->FreeHost(Ar);
+    cu->FreeHost(Ap);
+  }else{
+    delete[] rvec;
+    delete[] pvec;
+    delete[] Av;
+    delete[] x_0;
+    delete[] delta;
+    delete[] eta;
+    delete[] zeta;
+    delete[] Ar;
+    delete[] Ap;
+  }
+  delete cu;
   f_his.close();
   f_x.close();
 }
@@ -93,7 +119,7 @@ int kskipcg::solve(){
 
   //Ax
   if(isCUDA){
-
+    cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(xvec, Av);
   }
@@ -125,14 +151,16 @@ int kskipcg::solve(){
     //Ar-> Ar^2k
     //Ap-> Ap^2k+2
     if(isCUDA){
-
+      // bs->Kskip_cg_base(Ar, Ap, rvec, pvec, kskip);
+      cu->Kskip_cg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->Kskip_cg_base(Ar, Ap, rvec, pvec, kskip);
     }
 
     //gamma=(r, r)
     if(isCUDA){
-
+      // gamma = cu->dot(rvec, rvec);
+      gamma = bs->dot(rvec, rvec);
     }else{
       gamma = bs->dot(rvec, rvec);
     }
@@ -141,7 +169,8 @@ int kskipcg::solve(){
     //eta=(r,Ap)
     //zeta=(p,Ap)
     if(isCUDA){
-
+      // bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
+      cu->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
     }
@@ -172,7 +201,7 @@ int kskipcg::solve(){
 
       //Ap
       if(isCUDA){
-
+        cu->MtxVec_mult(pvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       }else{
         bs->MtxVec_mult(pvec, Av);
       }

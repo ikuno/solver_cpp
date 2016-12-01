@@ -6,8 +6,11 @@
 
 class cuda { 
   private:
-    double *cu_d1, *cu_d2, *cu_d3, *cu_h1;
+    double *cu_d1, *cu_d2;//MV
+    double *cu_d3, *cu_h1;//dot
+    double *cu_d4, *cu_d5, *cu_d6, *cu_d7, *cu_d8, *cu_h2, *cu_h3, *cu_h4;//kskipcg
     int size;
+    int k;
 
   public:
     times *time;
@@ -24,6 +27,7 @@ class cuda {
 
     cuda();
     cuda(int size);
+    cuda(int size, int k);
     ~cuda();
 
     //--------------------------------------
@@ -60,6 +64,8 @@ class cuda {
 
     void MtxVec_mult(double *in, int inindex, int insize, double *out, int outindex, int outsize, double *val, int *col, int *ptr);
 
+    void MtxVec_mult(double *in, int inindex, int insize, double *out, double *val, int *col, int *ptr);
+
     double dot(double *in1, double *in2, int size);
 
     double dot(double *in1, double *in2);
@@ -69,6 +75,11 @@ class cuda {
     double dot(double *in1, double *in2, int in2index, int in2size);
 
     double dot(double *in1, int in1index, int in1size, double *in2);
+
+    void Kskip_cg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip, double *val, int *col, int *ptr);
+
+    void Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, double *Ar, double *Ap, double *rvec, double *pvec, int kskip, double *val, int *col, int *ptr);
+
 };
 #endif //CUDAFUNCTION_HPP_INCLUDED__
 
