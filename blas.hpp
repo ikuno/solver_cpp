@@ -66,13 +66,11 @@ class blas {
 
     //-----------------------------------
 
-    void Kskip_cg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip);
+    void Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip);
 
     void Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, double *Ar, double *Ap, double *rvec, double *pvec, const int kskip);
 
-    void Kskip_kskipBicg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip);
-
-    void Kskip_kskipBicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *rvec, double *pvec, double *r_vec, double *p_vec, const int kskip);
+    void Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *rvec, double *pvec, double *r_vec, double *p_vec, const int kskip);
 
     void Gmres_sp_1(int k, double *x, double *y, double *out);
 

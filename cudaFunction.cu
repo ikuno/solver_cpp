@@ -227,6 +227,15 @@ cuda::cuda(){
   this->cu_d6 = NULL;
   this->cu_d7 = NULL;
   this->cu_d8 = NULL;
+  
+  this->cu_d9 = NULL;
+
+  this->cu_h2 = NULL;
+  this->cu_h3 = NULL;
+  this->cu_h4 = NULL;
+
+  this->cu_h5 = NULL;
+
 
   this->dot_copy_time = 0.0;
   this->dot_proc_time = 0.0;
@@ -271,6 +280,9 @@ cuda::cuda(int size, int k) : cuda::cuda(size){
   this->cu_h3 = new double [tmp * (2*this->k + 1)];
   this->cu_h4 = new double [tmp * (2*this->k + 2)];
 
+  this->cu_d9 = d_Malloc(tmp * (2*this->k + 1));
+  this->cu_h5 = new double [tmp * (2*this->k + 1)];
+
   this->time->end();
   this->All_malloc_time += this->time->getTime();
 }
@@ -285,10 +297,12 @@ cuda::~cuda(){
   Free(cu_d6);
   Free(cu_d7);
   Free(cu_d8);
+  Free(cu_d9);
   delete[] cu_h1;
   delete[] cu_h2;
   delete[] cu_h3;
   delete[] cu_h4;
+  delete[] cu_h5;
 
   delete this->time;
 }
@@ -824,7 +838,7 @@ void cuda::CSR2CSC(double *CSRval, int *CSRcol, int *CSRptr, double *CSCval, int
   cudaFree(dCSCptr);
 }
 
-void cuda::Kskip_cg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip, double *val, int *col, int *ptr){
+void cuda::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip, double *val, int *col, int *ptr){
   int ThreadPerBlock=128;
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
@@ -951,3 +965,94 @@ void cuda::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
   }
 }
 
+void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *r_vec, double *p_vec, int kskip, double *val, int *col, int *ptr){
+
+  int ThreadPerBlock=128;
+  int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
+
+  this->time->start();
+  Memset(this->cu_d6, 0, BlockPerGrid * (2*kskip));
+  Memset(this->cu_d7, 0, BlockPerGrid * (2*kskip+1));
+  Memset(this->cu_d9, 0, BlockPerGrid * (2*kskip+1));
+  Memset(this->cu_d8, 0, BlockPerGrid * (2*kskip+2));
+  this->time->end();
+  this->All_malloc_time += this->time->getTime();
+
+
+  this->time->start();
+  H2D(r_vec, cu_d1, this->size);
+  H2D(p_vec, cu_d2, this->size);
+  this->time->end();
+  this->dot_copy_time += this->time->getTime();
+
+  //d1 -> *r
+  //d2 -> *p
+  //d4 -> Ar
+  //d5 -> Ap
+
+  //d6 -> theta
+  //d7 -> eta
+  //d9 -> rho
+  //d8 -> phi
+
+  if(ThreadPerBlock*8 >= 49152){
+    std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
+  }
+
+  this->time->start();
+  for(int i=0; i<2*kskip+2; i++){
+    if(i<2*kskip){
+      kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
+    }
+    if(i<2*kskip+1){
+      kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d5, i, this->size, cu_d1, cu_d7, i, BlockPerGrid);
+      kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d4, i, this->size, cu_d2, cu_d9, i, BlockPerGrid);
+    }
+    kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
+  }
+  this->time->end();
+  this->dot_proc_time += this->time->getTime();
+
+  //d6 -> theta -> h2
+  //d7 -> eta -> h3
+  //d9 -> rho -> h5
+  //d8 -> phi -> h4
+
+  this->time->start();
+  D2H(cu_d6, cu_h2, BlockPerGrid * (2*kskip));
+  D2H(cu_d7, cu_h3, BlockPerGrid * (2*kskip+1));
+  D2H(cu_d9, cu_h5, BlockPerGrid * (2*kskip+1));
+  D2H(cu_d8, cu_h4, BlockPerGrid * (2*kskip+2));
+  this->time->end();
+  this->dot_copy_time += this->time->getTime();
+
+  double tmp1 = 0.0;
+  double tmp2 = 0.0;
+  double tmp3 = 0.0;
+  double tmp4 = 0.0;
+#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3, tmp4) schedule(static) firstprivate(theta, eta, rho, phi, cu_h2, cu_h3, cu_h4, cu_h5) lastprivate(theta, eta, rho, phi)
+  for(int i=0; i<2*kskip+2; i++){
+    tmp1 = 0.0;
+    tmp2 = 0.0;
+    tmp3 = 0.0;
+    tmp4 = 0.0;
+    if(i<2*kskip){
+      for(int j=0; j<BlockPerGrid; j++){
+        tmp1 += cu_h2[i*BlockPerGrid+j];
+      }
+      theta[i] = tmp1;
+    }
+    if(i<2*kskip+1){
+      for(int j=0; j<BlockPerGrid; j++){
+        tmp2 += cu_h3[i*BlockPerGrid+j];
+        tmp3 += cu_h5[i*BlockPerGrid+j];
+      }
+      eta[i] = tmp2;
+      rho[i] = tmp3;
+    }
+    for(int j=0; j<BlockPerGrid; j++){
+      tmp4 += cu_h4[i*BlockPerGrid+j];
+    }
+    phi[i] = tmp4;
+  }
+}

@@ -299,7 +299,7 @@ void blas::Vec_copy(double *in, double *out, int xindex, int xsize){
   }
 }
 
-void blas::Kskip_cg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip){
+void blas::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip){
   double tmp1 = 0.0;
   double tmp2 = 0.0;
 
@@ -369,47 +369,7 @@ void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
   }
 }
 
-void blas::Kskip_kskipBicg_base(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip){
-  double tmp1 = 0.0;
-  double tmp2 = 0.0;
-  double *val=this->coll->val;
-  int *ptr=this->coll->ptr;
-  int *col=this->coll->col;
-  long int N = this->coll->N;
-
-#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
-  for(long int i=0; i<N; i++){
-    tmp1 = 0.0;
-    tmp2 = 0.0;
-    for(int j=ptr[i]; j<ptr[i+1]; j++){
-      tmp1 += val[j] * rvec[col[j]];
-      tmp2 += val[j] * pvec[col[j]];
-    }
-    Ar[0*N+i] = tmp1;
-    Ap[0*N+i] = tmp2;
-  }
-
-  for(int ii=1; ii<2*kskip+2; ii++){
-#pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
-    for(long int i=0; i<N; i++){
-      tmp1 = 0.0;
-      tmp2 = 0.0;
-      for(int j=ptr[i]; j<ptr[i+1]; j++){
-        if(ii<2*kskip+1){
-          tmp1 += val[j] * Ar[(ii-1)*N+col[j]];
-        }
-        tmp2 += val[j] * Ap[(ii-1)*N+col[j]];
-      }
-      if(ii<2*kskip+1){
-        Ar[(ii)*N+i] = tmp1;
-      }
-      Ap[(ii)*N+i] = tmp2;
-    }
-  }
-
-}
-
-void blas::Kskip_kskipBicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *rvec, double *pvec, double *r_vec, double *p_vec, const int kskip){
+void blas::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *rvec, double *pvec, double *r_vec, double *p_vec, const int kskip){
   double tmp1=0.0;
   double tmp2=0.0;
   double tmp3=0.0;

@@ -5,6 +5,7 @@
 #include "solver_collection.hpp"
 #include "blas.hpp"
 #include "times.hpp"
+#include "cudaFunction.hpp"
 
 class kskipcg {
   private:

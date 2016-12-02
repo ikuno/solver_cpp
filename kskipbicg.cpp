@@ -8,7 +8,6 @@
 kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll);
-  cu = new cuda(this->coll->N);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -25,10 +24,22 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
     eps = this->coll->outerEps;
     kskip = this->coll->outerKskip;
   }
+  cu = new cuda(this->coll->N, this->kskip);
 
   N = this->coll->N;
   if(isCUDA){
-
+    rvec = cu->d_MallocHost(N);
+    pvec = cu->d_MallocHost(N);
+    r_vec = cu->d_MallocHost(N);
+    p_vec = cu->d_MallocHost(N);
+    Av = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+    theta = cu->d_MallocHost(2*kskip);
+    eta = cu->d_MallocHost(2*kskip+1);
+    rho = cu->d_MallocHost(2*kskip+1);
+    phi = cu->d_MallocHost(2*kskip+2);
+    Ar = cu->d_MallocHost((2*kskip+1)*N);
+    Ap = cu->d_MallocHost((2*kskip+2)*N);
   }else{
     rvec = new double [N];
     pvec = new double [N];
@@ -82,6 +93,19 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
 kskipBicg::~kskipBicg(){
   delete this->bs;
   if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(pvec);
+    cu->FreeHost(r_vec);
+    cu->FreeHost(p_vec);
+    cu->FreeHost(Av);
+    cu->FreeHost(x_0);
+    cu->FreeHost(theta);
+    cu->FreeHost(eta);
+    cu->FreeHost(rho);
+    cu->FreeHost(phi);
+    cu->FreeHost(Ar);
+    cu->FreeHost(Ap);
+  }else{
     delete[] rvec;
     delete[] pvec;
     delete[] r_vec;
@@ -109,7 +133,7 @@ int kskipBicg::solve(){
 
 //Ax
   if(isCUDA){
-
+    cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(xvec, Av);
   }
@@ -148,14 +172,15 @@ int kskipBicg::solve(){
     //Ar-> Ar^2k+1
     //Ap-> Ap^2k+2
     if(isCUDA){
-
+      cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
-      bs->Kskip_kskipBicg_base(Ar, Ap, rvec, pvec, kskip);
+      bs->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip);
     }
 
     //gamma=(r*,r)
     if(isCUDA){
-
+      // gamma = cu->dot(r_vec, rvec);
+      gamma = bs->dot(r_vec, rvec);
     }else{
       gamma = bs->dot(r_vec, rvec);
     }
@@ -169,9 +194,10 @@ int kskipBicg::solve(){
     //rho = (p*, Ar)
     //phi = (p*, Ap)
     if(isCUDA){
-
+      // bs->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
+      cu->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
-      bs->Kskip_kskipBicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
+      bs->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
     }
 
     for(iloop=nloop; iloop<=nloop+kskip; iloop++){
@@ -194,7 +220,7 @@ int kskipBicg::solve(){
 
       //Ap
       if(isCUDA){
-
+        cu->MtxVec_mult(pvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       }else{
         bs->MtxVec_mult(pvec, Av);
       }
@@ -207,7 +233,7 @@ int kskipBicg::solve(){
 
       //A^Tp*
       if(isCUDA){
-
+        cu->MtxVec_mult(p_vec, Av, this->coll->CTval, this->coll->CTcol, this->coll->CTptr);
       }else{
         bs->MtxVec_mult(this->coll->Tval, this->coll->Tcol, this->coll->Tptr, p_vec, Av);
       }
