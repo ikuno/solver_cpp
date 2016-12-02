@@ -6,8 +6,8 @@
 
 bicg::bicg(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
-  bs = new blas(this->coll);
-  cu = new cuda(this->coll->N);
+  bs = new blas(this->coll, this->coll->time);
+  cu = new cuda(this->coll->time, this->coll->N);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -199,29 +199,17 @@ int bicg::solve(){
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
+
     if(this->coll->isCUDA){
-      double dot_t = cu->dot_copy_time + cu->dot_proc_time + cu->dot_reduce_time;
-      double mv_t = cu->MV_copy_time + cu->MV_proc_time;
-      double malloc_t = cu->All_malloc_time;
-      double all_t = dot_t + mv_t + malloc_t;
-      std::cout << "\tdot copy time   = " << std::setprecision(6) << cu->dot_copy_time << ", " << std::setprecision(2) << cu->dot_copy_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tdot proc time   = " << std::setprecision(6) << cu->dot_proc_time <<  ", " << std::setprecision(2) << cu->dot_proc_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tdot reduce time = " << std::setprecision(6) << cu->dot_reduce_time <<  ", " << std::setprecision(2) << cu->dot_reduce_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\t                = " << std::setprecision(6) << dot_t <<  ", " << std::setprecision(2) << dot_t/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tMV copy time    = " << std::setprecision(6) << cu->MV_copy_time <<  ", " << std::setprecision(2) << cu->MV_copy_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tMV proc time    = " << std::setprecision(6) << cu->MV_proc_time <<  ", " << std::setprecision(2) << cu->MV_proc_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\t                = " << std::setprecision(6) << mv_t <<  ", " << std::setprecision(2) << mv_t/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tAll malloc time = " << std::setprecision(6) << cu->All_malloc_time <<  ", " << std::setprecision(2) << cu->All_malloc_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tother time      = " << std::setprecision(6) << time.getTime()-all_t <<  ", " << std::setprecision(2) << (time.getTime()-all_t)/time.getTime()*100 << "%" << std::endl;
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
     }else{
-      double all_t = bs->dot_proc_time + bs->MV_proc_time;
-      std::cout << "\tdot proc time   = " << std::setprecision(6) << bs->dot_proc_time << ", " << std::setprecision(2) << bs->dot_proc_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tMV proc time    = " << std::setprecision(6) << bs->MV_proc_time <<  ", " << std::setprecision(2) << bs->MV_proc_time/time.getTime()*100 << "%" << std::endl;
-      std::cout << "\tother time      = " << std::setprecision(6) << time.getTime()-all_t <<  ", " << std::setprecision(2) << (time.getTime()-all_t)/time.getTime()*100 << "%" << std::endl;
+      this->coll->time->showTimeOnCPU(time.getTime());
     }
+
     for(long int i=0; i<N; i++){
-      f_x << i << " " << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
+      f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
+
   }else{
     if(isVerbose){
       if(exit_flag==0){

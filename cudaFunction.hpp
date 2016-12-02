@@ -15,20 +15,10 @@ class cuda {
 
   public:
     times *time;
-    double dot_copy_time;
-    double dot_proc_time;
-    double dot_malloc_time;
-    double dot_reduce_time;
 
-    double MV_copy_time;
-    double MV_proc_time;
-    double MV_malloc_time;
-
-    double All_malloc_time;
-
-    cuda();
-    cuda(int size);
-    cuda(int size, int k);
+    cuda(times *t);
+    cuda(times *t, int size);
+    cuda(times *t, int size, int k);
     ~cuda();
 
     //--------------------------------------

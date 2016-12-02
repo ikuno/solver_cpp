@@ -103,6 +103,8 @@ class collection {
     int* CTcol;
     int* CTptr;
 
+    times *time;
+
 };
 
 

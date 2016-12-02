@@ -6,15 +6,15 @@
 #include "blas.hpp"
 #include "times.hpp"
 #include "cudaFunction.hpp"
+#include "times.hpp"
 
 class cr {
   private:
     collection *coll;
     blas *bs;
     cuda *cu;
-
     times time;
-    
+
     long int loop;
     double *xvec, *bvec;
     double *rvec, *pvec, *qvec, *svec, *x_0, dot, error;

@@ -1,8 +1,12 @@
 #ifndef TIMES_HPP_INCLUDED__
 #define TIMES_HPP_INCLUDED__
 
+#include <iostream>
+#include <iomanip>
+#include <cstring>
+#include <cstdlib>
 #include <chrono>
-#include <string>
+#include "color.hpp"
 #ifdef _OPENMP
 #include <omp.h>
 #endif
@@ -10,37 +14,29 @@
 
 class times {
   public:
+    double cu_dot_copy_time;
+    double cu_dot_proc_time;
+    double cu_dot_malloc_time;
+    double cu_dot_reduce_time;
+
+    double cu_MV_copy_time;
+    double cu_MV_proc_time;
+    double cu_MV_malloc_time;
+
+    double cpu_dot_proc_time;
+    double cpu_MV_proc_time;
+    double cpu_all_malloc_time;
+
     std::chrono::system_clock::time_point c_start, c_end;
     double o_start, o_end;
     double e_start, e_end;
 
-    std::string get_date_time(){
-      struct tm *date;
-      time_t now;
-      int month, day;
-      int hour, minute, second;
-      std::string date_time;
+    times();
+    ~times();
 
-      time(&now);
-      date = localtime(&now);
+    std::string get_date_time();
 
-      month = date->tm_mon + 1;
-      day = date->tm_mday;
-      hour = date->tm_hour;
-      minute = date->tm_min;
-      second = date->tm_sec;
-
-      date_time=std::to_string(month)+"-"+std::to_string(day)+"-"+std::to_string(hour)+"_"+std::to_string(minute)+"_"+std::to_string(second);
-
-      return date_time;
-    }
-
-    double getEtime(){
-      struct timeval tv;
-      gettimeofday(&tv, NULL);
-      return tv.tv_sec + (double)tv.tv_usec*1e-6;
-    }
-
+  
     void start(){
       c_start = std::chrono::system_clock::now();
 #ifdef _OPENMP
@@ -63,6 +59,12 @@ class times {
       return tmp;
     }
 
+    double getEtime(){
+      struct timeval tv;
+      gettimeofday(&tv, NULL);
+      return tv.tv_sec + (double)tv.tv_usec*1e-6;
+    }
+
     double getTime_o(){
       return o_end-o_start;
     }
@@ -70,6 +72,11 @@ class times {
     double getTime_e(){
       return e_end-e_start;
     }
+
+    double showTimeOnCPU(double total, bool hasGPU = false);
+
+    void showTimeOnGPU(double total, double timeCPU);
+    
 
 };
 

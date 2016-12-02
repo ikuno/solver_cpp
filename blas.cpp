@@ -8,19 +8,16 @@
 #endif
 #include "blas.hpp"
 
-blas::blas(collection *col){
-  time = new times();
-  dot_proc_time = 0.0;
-  MV_proc_time = 0.0;
+blas::blas(collection *col, times *t){
 
   coll = col;
 #ifdef _OPENMP
   omp_set_num_threads(this->coll->OMPThread);
 #endif
+  this->time = t;
 }
 
 blas::~blas(){
-  delete time;
 }
 
 double blas::norm_1(double *v){
@@ -59,7 +56,7 @@ void blas::MtxVec_mult(double *in_vec, double *out_vec){
     out_vec[i] = tmp;
   }
   this->time->end();
-  this->MV_proc_time += this->time->getTime();
+  this->time->cpu_MV_proc_time += this->time->getTime();
 }
 
 void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec){
@@ -79,7 +76,8 @@ void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec){
     out_vec[i] = tmp;
   }
   this->time->end();
-  this->MV_proc_time += this->time->getTime();
+  this->time->cpu_MV_proc_time += this->time->getTime();
+
 }
 
 void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec, int yindex, int ysize){
@@ -99,7 +97,7 @@ void blas::MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec, i
     out_vec[yindex*ysize+i] = tmp;
   }
   this->time->end();
-  this->MV_proc_time += this->time->getTime();
+  this->time->cpu_MV_proc_time += this->time->getTime();
 }
 
 void blas::MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, double *out_vec){
@@ -116,7 +114,7 @@ void blas::MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, doubl
     out_vec[i] = tmp;
   }
   this->time->end();
-  this->MV_proc_time += this->time->getTime();
+  this->time->cpu_MV_proc_time += this->time->getTime();
 }
 
 
@@ -146,7 +144,7 @@ double blas::dot(double *x, double *y){
     tmp += x[i] * y[i];
   }
   this->time->end();
-  this->dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_proc_time += this->time->getTime();
   return tmp;
 }
 
@@ -158,7 +156,8 @@ double blas::dot(double *x, double *y, const long int size){
     tmp += x[i] * y[i];
   }
   this->time->end();
-  this->dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_proc_time += this->time->getTime();
+
   return tmp;
 }
 
@@ -171,7 +170,8 @@ double blas::dot(double *x, double *y, int yindex, int ysize){
     tmp += x[i] * y[yindex*ysize+i];
   }
   this->time->end();
-  this->dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_proc_time += this->time->getTime();
+
   return tmp;
 }
 
@@ -184,7 +184,8 @@ double blas::dot(double *x, int xindex, int xsize, double *y, int yindex, int ys
     tmp += x[xindex*xsize+i] * y[yindex*ysize+i];
   }
   this->time->end();
-  this->dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_proc_time += this->time->getTime();
+
   return tmp;
 }
 
@@ -308,6 +309,7 @@ void blas::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec
   int *col=this->coll->col;
   long int N = this->coll->N;
 
+  this->time->start();
 #pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
   for(long int i=0; i<N; i++){
     tmp1 = 0.0;
@@ -336,6 +338,9 @@ void blas::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec
       Ap[(ii)*N+i] = tmp2;
     }
   }
+  this->time->end();
+  this->time->cpu_MV_proc_time += this->time->getTime();
+
 
 }
 
@@ -345,6 +350,7 @@ void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
   double tmp3=0.0;
   long int N = this->coll->N;
 
+  this->time->start();
 #pragma omp parallel for reduction(+:tmp1, tmp2, tmp3) schedule(static) firstprivate(delta, eta, zeta, Ar, rvec, Ap, pvec) lastprivate(delta, eta, zeta) num_threads(this->coll->OMPThread)
   for(int i=0; i<2*kskip+2; i++){
     tmp1=0.0;
@@ -367,6 +373,9 @@ void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
     }
     zeta[i] = tmp3;
   }
+  this->time->end();
+  this->time->cpu_dot_proc_time += this->time->getTime();
+
 }
 
 void blas::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *rvec, double *pvec, double *r_vec, double *p_vec, const int kskip){
@@ -376,6 +385,7 @@ void blas::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
   double tmp4=0.0;
   long int N = this->coll->N;
 
+  this->time->start();
 #pragma omp parallel for reduction(+:tmp1, tmp2, tmp3, tmp4) schedule(static) firstprivate(theta, eta, rho, phi, Ar, rvec, Ap, pvec, r_vec, p_vec) lastprivate(theta, eta, rho, phi) num_threads(this->coll->OMPThread)
   for(int i=0; i<2*kskip+2; i++){
     tmp1=0.0;
@@ -401,6 +411,8 @@ void blas::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
     }
     phi[i] = tmp4;
   }
+  this->time->end();
+  this->time->cpu_dot_proc_time += this->time->getTime();
 
 }
 

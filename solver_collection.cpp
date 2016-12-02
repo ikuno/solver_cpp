@@ -13,7 +13,8 @@
 #include "color.hpp"
 
 collection::collection() {
-  cu = new cuda();
+  time = new times(); 
+  cu = new cuda(time);
 
   isVP = false;
   isCUDA = false;
@@ -104,6 +105,7 @@ collection::~collection() {
 
   cu->Reset();
   delete cu;
+  delete time;
 }
 
 std::string collection::enum2string(SOLVERS_NAME id){
@@ -658,6 +660,7 @@ void collection::readMatrix(){
 }
 
 void collection::CRSAlloc(){
+  this->time->start();
   if(isCUDA){
     std::cout << "Allocing Matrix pinned.........."<< std::flush;
     this->val = cu->d_MallocHost(this->NNZ);
@@ -702,6 +705,8 @@ void collection::CRSAlloc(){
       std::cout << GREEN << "[○] Done" << RESET << std::endl;
     }
   }
+  this->time->end();
+  this->time->cpu_all_malloc_time += this->time->getTime();
 }
 
 void collection::transpose(){

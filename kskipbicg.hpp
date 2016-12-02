@@ -12,9 +12,8 @@ class kskipBicg {
     collection *coll;
     blas *bs;
     cuda *cu;
-
     times time;
-    
+
     long int nloop, iloop, jloop;
     double *xvec, *bvec;
     double *rvec, *r_vec, *pvec, *p_vec, *Av, *x_0, error;

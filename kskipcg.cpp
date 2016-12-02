@@ -7,7 +7,7 @@
 
 kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
-  bs = new blas(this->coll);
+  bs = new blas(this->coll, this->coll->time);
 
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
@@ -26,7 +26,7 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner){
     fix = this->coll->outerFix;
   }
 
-  cu = new cuda(this->coll->N, this->kskip);
+  cu = new cuda(this->coll->time, this->coll->N, this->kskip);
 
   N = this->coll->N;
 
@@ -223,6 +223,12 @@ int kskipcg::solve(){
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << nloop-kskip+1 << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
+
+    if(this->coll->isCUDA){
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
+    }else{
+      this->coll->time->showTimeOnCPU(time.getTime());
+    }
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;

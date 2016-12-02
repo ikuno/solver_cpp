@@ -7,8 +7,8 @@
 
 gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
-  bs = new blas(this->coll);
-  cu = new cuda(this->coll->N);
+  bs = new blas(this->coll, this->coll->time);
+  cu = new cuda(this->coll->time, this->coll->N);
 
   exit_flag = 2;
   over_flag = 0;

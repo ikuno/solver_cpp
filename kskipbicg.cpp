@@ -7,7 +7,7 @@
 
 kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
-  bs = new blas(this->coll);
+  bs = new blas(this->coll, this->coll->time);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -24,7 +24,7 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
     eps = this->coll->outerEps;
     kskip = this->coll->outerKskip;
   }
-  cu = new cuda(this->coll->N, this->kskip);
+  cu = new cuda(this->coll->time, this->coll->N, this->kskip);
 
   N = this->coll->N;
   if(isCUDA){
@@ -254,6 +254,12 @@ int kskipBicg::solve(){
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << nloop+1 << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
+
+    if(this->coll->isCUDA){
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
+    }else{
+      this->coll->time->showTimeOnCPU(time.getTime());
+    }
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;

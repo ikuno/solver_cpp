@@ -7,13 +7,10 @@
 
 class blas {
   public:
-    times *time;
     collection *coll;
+    times *time;
 
-    double dot_proc_time;
-    double MV_proc_time;
-
-    blas(collection *col);
+    blas(collection *colm, times *t);
     ~blas();
 
     double norm_1(double *v);

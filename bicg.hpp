@@ -12,9 +12,8 @@ class bicg {
     collection *coll;
     blas *bs;
     cuda *cu;
-
     times time;
-    
+
     long int loop;
     double *xvec, *bvec;
     double *rvec, *r_vec, *pvec, *p_vec, *mv, *x_0, dot, error;

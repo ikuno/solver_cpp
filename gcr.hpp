@@ -11,7 +11,6 @@ class gcr {
     collection *coll;
     blas *bs;
     cuda *cu;
-
     times time;
 
     long int loop, iloop, kloop;

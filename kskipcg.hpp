@@ -12,9 +12,8 @@ class kskipcg {
     collection *coll;
     blas *bs;
     cuda *cu;
-
     times time;
-    
+
     long int nloop, iloop, jloop;
     double *xvec, *bvec;
     double *rvec, *pvec, *Av, *x_0, error;

@@ -6,8 +6,8 @@
 
 cr::cr(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
-  bs = new blas(this->coll);
-  cu = new cuda(this->coll->N);
+  bs = new blas(this->coll, this->coll->time);
+  cu = new cuda(this->coll->time, this->coll->N);
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -190,6 +190,13 @@ int cr::solve(){
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
+
+    if(this->coll->isCUDA){
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
+    }else{
+      this->coll->time->showTimeOnCPU(time.getTime());
+    }
+
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;

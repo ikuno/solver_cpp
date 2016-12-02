@@ -6,7 +6,7 @@
 
 vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
-  bs = new blas(this->coll);
+  bs = new blas(this->coll, this->coll->time);
   in = new innerMethods(this->coll);
 
   exit_flag = 2;
