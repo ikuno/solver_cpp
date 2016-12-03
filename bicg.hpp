@@ -33,7 +33,8 @@ class bicg {
     std::ofstream f_x;
 
   public:
-    bicg(collection *coll, double *bvec, double *xvec, bool inner);
+
+    bicg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *cu = NULL, blas *bs = NULL);
     ~bicg();
     int solve();
 };

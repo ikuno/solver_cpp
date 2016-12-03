@@ -7,18 +7,12 @@
 vpcr::vpcr(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll, this->coll->time);
-  in = new innerMethods(this->coll);
-
-  N = this->coll->N;
-  rvec = new double [N];
-  pvec = new double [N];
-  zvec = new double [N];
-  Av = new double [N];
-  Ap = new double [N];
-  x_0 = new double [N];
-
-  this->xvec = xvec;
-  this->bvec = bvec;
+  in = new innerMethods(this->coll, cu, bs);
+  if(this->coll->isInnerKskip){
+    cu = new cuda(this->coll->time, this->coll->N, this->coll->innerKskip);
+  }else{
+    cu = new cuda(this->coll->time, this->coll->N);
+  }
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -26,6 +20,27 @@ vpcr::vpcr(collection *coll, double *bvec, double *xvec, bool inner){
   isCUDA = this->coll->isCUDA;
   isInner = inner;
 
+  N = this->coll->N;
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    pvec = cu->d_MallocHost(N);
+    zvec = cu->d_MallocHost(N);
+    Av = cu->d_MallocHost(N);
+    Ap = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+  }else{
+    rvec = new double [N];
+    pvec = new double [N];
+    zvec = new double [N];
+    Av = new double [N];
+    Ap = new double [N];
+    x_0 = new double [N];
+  }
+
+  this->xvec = xvec;
+  this->bvec = bvec;
+
+  
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
     eps = this->coll->innerEps;
@@ -58,14 +73,26 @@ vpcr::vpcr(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 vpcr::~vpcr(){
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(pvec);
+    cu->FreeHost(zvec);
+    cu->FreeHost(Av);
+    cu->FreeHost(Ap);
+    cu->FreeHost(x_0);
+  }else{
+    delete[] rvec;
+    delete[] pvec;
+    delete[] zvec;
+    delete[] Av;
+    delete[] Ap;
+    delete[] x_0;
+  }
+
   delete this->bs;
   delete this->in;
-  delete[] rvec;
-  delete[] pvec;
-  delete[] zvec;
-  delete[] Av;
-  delete[] Ap;
-  delete[] x_0;
+  delete this->cu;
+
   f_his.close();
   f_x.close();
 }
@@ -82,7 +109,7 @@ int vpcr::solve(){
 
   //Ax
   if(isCUDA){
-
+    cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(xvec, Av);
   }
@@ -91,14 +118,14 @@ int vpcr::solve(){
   bs->Vec_sub(bvec, Av, rvec);
 
   //Az=r
-  in->innerSelect(this->coll, this->coll->innerSolver, rvec, zvec);
+  in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, rvec, zvec);
 
   //p = z
   bs->Vec_copy(zvec, pvec);
 
   //Az(Av)
   if(isCUDA){
-
+    cu->MtxVec_mult(zvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(zvec, Av);
   }
@@ -108,7 +135,8 @@ int vpcr::solve(){
 
   //(z, Az(Av))
   if(isCUDA){
-
+    // zaz = cu->dot(zvec, Av);
+    zaz = bs->dot(zvec, Av);
   }else{
     zaz = bs->dot(zvec, Av);
   }
@@ -131,6 +159,8 @@ int vpcr::solve(){
 
     //alpha = (z,Az) / (Ap,Ap)
     if(isCUDA){
+      // tmp = cu->dot(Ap, Ap);
+      tmp = bs->dot(Ap, Ap);
     }else{
       tmp = bs->dot(Ap, Ap);
     }
@@ -145,18 +175,19 @@ int vpcr::solve(){
     std::memset(zvec, 0, sizeof(double)*N);
 
     //Az = r
-    in->innerSelect(this->coll, this->coll->innerSolver, rvec, zvec);
+    in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, rvec, zvec);
 
     //Az
     if(isCUDA){
-
+      cu->MtxVec_mult(zvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(zvec, Av);
     }
 
     //(z, Az)
     if(isCUDA){
-
+      // zaz2 = cu->dot(zvec, Av);
+      zaz2 = bs->dot(zvec, Av);
     }else{
       zaz2 = bs->dot(zvec, Av);
     }
@@ -179,6 +210,12 @@ int vpcr::solve(){
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
+
+    if(this->coll->isCUDA){
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
+    }else{
+      this->coll->time->showTimeOnCPU(time.getTime());
+    }
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;

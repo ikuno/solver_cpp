@@ -34,7 +34,7 @@ class cr {
     std::ofstream f_x;
 
   public:
-    cr(collection *coll, double *bvec, double *xvec, bool inner);
+    cr(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *cu = NULL, blas *bs = NULL);
     ~cr();
     int solve();
 };

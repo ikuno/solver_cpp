@@ -20,6 +20,7 @@ collection::collection() {
   isCUDA = false;
   isVerbose = false;
   isInnerNow = false;
+  isInnerKskip = false;
   OMPThread = 8;
 
   outerSolver = NONE;
@@ -263,6 +264,10 @@ void collection::readCMD(int argc, char* argv[]){
 
   if(this->innerSolver != NONE){
     isVP = true;
+  }
+
+  if(this->innerSolver == KSKIPCG || this->innerSolver == KSKIPBICG){
+    isInnerKskip = true;
   }
 
   if(cmd.exist("verbose")) this->isVerbose=true;
@@ -660,7 +665,6 @@ void collection::readMatrix(){
 }
 
 void collection::CRSAlloc(){
-  this->time->start();
   if(isCUDA){
     std::cout << "Allocing Matrix pinned.........."<< std::flush;
     this->val = cu->d_MallocHost(this->NNZ);
@@ -705,8 +709,6 @@ void collection::CRSAlloc(){
       std::cout << GREEN << "[○] Done" << RESET << std::endl;
     }
   }
-  this->time->end();
-  this->time->cpu_all_malloc_time += this->time->getTime();
 }
 
 void collection::transpose(){

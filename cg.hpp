@@ -34,7 +34,7 @@ class cg {
     std::ofstream f_x;
 
   public:
-    cg(collection *coll, double *bvec, double *xvec, bool inner);
+    cg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *cu = NULL, blas *bs = NULL);
     ~cg();
     int solve();
 };

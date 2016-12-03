@@ -7,23 +7,37 @@
 vpcg::vpcg(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll, this->coll->time);
-  in = new innerMethods(this->coll);
-
-  N = this->coll->N;
-  rvec = new double [N];
-  pvec = new double [N];
-  zvec = new double [N];
-  mv = new double [N];
-  x_0 = new double [N];
-
-  this->xvec = xvec;
-  this->bvec = bvec;
+  in = new innerMethods(this->coll, cu, bs);
+  if(this->coll->isInnerKskip){
+    cu = new cuda(this->coll->time, this->coll->N, this->coll->innerKskip);
+  }else{
+    cu = new cuda(this->coll->time, this->coll->N);
+  }
 
   exit_flag = 2;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
   isInner = inner;
+
+  N = this->coll->N;
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    pvec = cu->d_MallocHost(N);
+    zvec = cu->d_MallocHost(N);
+    mv = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+  }else{
+    rvec = new double [N];
+    pvec = new double [N];
+    zvec = new double [N];
+    mv = new double [N];
+    x_0 = new double [N];
+  }
+
+  this->xvec = xvec;
+  this->bvec = bvec;
+
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -54,13 +68,24 @@ vpcg::vpcg(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 vpcg::~vpcg(){
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(pvec);
+    cu->FreeHost(zvec);
+    cu->FreeHost(mv);
+    cu->FreeHost(x_0);
+  }else{
+    delete[] rvec;
+    delete[] pvec;
+    delete[] zvec;
+    delete[] mv;
+    delete[] x_0;
+  }
+
   delete this->bs;
   delete this->in;
-  delete[] rvec;
-  delete[] pvec;
-  delete[] zvec;
-  delete[] mv;
-  delete[] x_0;
+  delete this->cu;
+
   f_his.close();
   f_x.close();
 }
@@ -77,7 +102,7 @@ int vpcg::solve(){
 
   //mv = Ax
   if(isCUDA){
-
+    cu->MtxVec_mult(xvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
   }else{
     bs->MtxVec_mult(xvec, mv);
   }
@@ -86,14 +111,15 @@ int vpcg::solve(){
   bs->Vec_sub(bvec, mv, rvec);
 
   // inner->innerSelect(this->coll->innerSolver, rvec, zvec);
-  in->innerSelect(this->coll, this->coll->innerSolver, rvec, zvec);
+  in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, rvec, zvec);
 
   //p = z
   bs->Vec_copy(zvec, pvec);
 
   //r,z dot
   if(isCUDA){
-
+    // rr = cu->dot(rvec, zvec);
+    rr = bs->dot(rvec, zvec);
   }else{
     rr = bs->dot(rvec, zvec);
   }
@@ -115,13 +141,15 @@ int vpcg::solve(){
 
     //mv = Ap
     if(isCUDA){
-
+      cu->MtxVec_mult(pvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(pvec, mv);
     }
 
     //alpha = (r,r) / (p,ap)
     if(isCUDA){
+      // dot = cu->dot(pvec, mv);
+      dot = bs->dot(pvec, mv);
     }else{
       dot = bs->dot(pvec, mv);
     }
@@ -136,11 +164,12 @@ int vpcg::solve(){
     std::memset(zvec, 0, sizeof(double)*N);
 
     // inner->innerSelect(this->coll->innerSolver, rvec, zvec);
-    in->innerSelect(this->coll, this->coll->innerSolver, rvec, zvec);
+    in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, rvec, zvec);
 
     //z, r  dot
     if(isCUDA){
-
+      // rr2 = cu->dot(rvec, zvec);
+      rr2 = bs->dot(rvec, zvec);
     }else{
       rr2 = bs->dot(rvec, zvec);
     }
@@ -161,6 +190,12 @@ int vpcg::solve(){
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << loop << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
+
+    if(this->coll->isCUDA){
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
+    }else{
+      this->coll->time->showTimeOnCPU(time.getTime());
+    }
 
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;

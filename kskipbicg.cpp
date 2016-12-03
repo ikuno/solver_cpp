@@ -5,15 +5,14 @@
 #include "color.hpp"
 #include "kskipbicg.hpp"
 
-kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
+kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, cuda *cu, blas *bs){
   this->coll = coll;
-  bs = new blas(this->coll, this->coll->time);
+  isInner = inner;
 
   exit_flag = 2;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = inner;
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -24,7 +23,14 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
     eps = this->coll->outerEps;
     kskip = this->coll->outerKskip;
   }
-  cu = new cuda(this->coll->time, this->coll->N, this->kskip);
+
+  if(isInner){
+    this->bs = bs;
+    this->cu = cu;
+  }else{
+    bs = new blas(this->coll, this->coll->time);
+    cu = new cuda(this->coll->time, this->coll->N, this->kskip);
+  }
 
   N = this->coll->N;
   if(isCUDA){
@@ -91,7 +97,6 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 kskipBicg::~kskipBicg(){
-  delete this->bs;
   if(isCUDA){
     cu->FreeHost(rvec);
     cu->FreeHost(pvec);
@@ -119,7 +124,10 @@ kskipBicg::~kskipBicg(){
     delete[] Ar;
     delete[] Ap;
   }
-  delete cu;
+  if(!isInner){
+    delete this->bs;
+    delete cu;
+  }
   f_his.close();
   f_x.close();
 }

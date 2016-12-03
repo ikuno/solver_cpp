@@ -37,7 +37,7 @@ class gmres {
     std::ofstream f_x;
 
   public:
-    gmres(collection *coll, double *bvec, double *xvec, bool inner);
+    gmres(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *cu = NULL, blas *bs = NULL);
     ~gmres();
     int solve();
 };

@@ -6,11 +6,13 @@
 #include "times.hpp"
 #include "blas.hpp"
 #include "innerMethods.hpp"
+#include "cudaFunction.hpp"
 
 class vpcr {
   private:
     collection *coll;
     blas *bs;
+    cuda *cu;
     innerMethods *in;
     times time;
     
@@ -34,7 +36,7 @@ class vpcr {
     std::ofstream f_x;
 
   public:
-    vpcr(collection *coll, double *bvec, double *xvec, bool inner);
+    vpcr(collection *coll, double *bvec, double *xvec, bool inner = false);
     ~vpcr();
     int solve();
 };

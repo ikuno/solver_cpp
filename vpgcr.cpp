@@ -7,7 +7,12 @@
 vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll, this->coll->time);
-  in = new innerMethods(this->coll);
+  in = new innerMethods(this->coll, cu, bs);
+  if(this->coll->isInnerKskip){
+    cu = new cuda(this->coll->time, this->coll->N, this->coll->innerKskip);
+  }else{
+    cu = new cuda(this->coll->time, this->coll->N);
+  }
 
   exit_flag = 2;
   isVP = this->coll->isVP;
@@ -32,14 +37,24 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
 
   this->xvec = xvec;
   this->bvec = bvec;
-
-  rvec = new double [N];
-  zvec = new double [N];
-  Av = new double [N];
-  x_0 = new double [N];
-  qq = new double [restart];
-  qvec = new double [restart * N];
-  pvec = new double [restart * N];
+  
+  if(isCUDA){
+    rvec = cu->d_MallocHost(N);
+    zvec = cu->d_MallocHost(N);
+    Av = cu->d_MallocHost(N);
+    x_0 = cu->d_MallocHost(N);
+    qq = cu->d_MallocHost(restart);
+    qvec = cu->d_MallocHost(restart * N);
+    pvec = cu->d_MallocHost(restart * N);
+  }else{
+    rvec = new double [N];
+    zvec = new double [N];
+    Av = new double [N];
+    x_0 = new double [N];
+    qq = new double [restart];
+    qvec = new double [restart * N];
+    pvec = new double [restart * N];
+  }
 
   
   std::memset(rvec, 0, sizeof(double)*N);
@@ -69,15 +84,27 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 vpgcr::~vpgcr(){
+  if(isCUDA){
+    cu->FreeHost(rvec);
+    cu->FreeHost(Av);
+    cu->FreeHost(qq);
+    cu->FreeHost(x_0);
+    cu->FreeHost(qvec);
+    cu->FreeHost(pvec);
+    cu->FreeHost(zvec);
+  }else{
+    delete[] rvec;
+    delete[] Av;
+    delete[] qq;
+    delete[] x_0;
+    delete[] qvec;
+    delete[] pvec;
+    delete[] zvec;
+  }
   delete this->bs;
   delete this->in;
-  delete[] rvec;
-  delete[] Av;
-  delete[] qq;
-  delete[] x_0;
-  delete[] qvec;
-  delete[] pvec;
-  delete[] zvec;
+  delete this->cu;
+
   f_his.close();
   f_x.close();
 }
@@ -95,7 +122,7 @@ int vpgcr::solve(){
   while(loop<maxloop){
     //Ax
     if(isCUDA){
-
+      cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(xvec, Av);
     }
@@ -109,7 +136,7 @@ int vpgcr::solve(){
     }
 
     //Ap p = r
-    in->innerSelect(this->coll, this->coll->innerSolver, rvec, Av);
+    in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, rvec, Av);
 
     //copy  Av -> pvec[0]
     bs->Vec_copy(Av, pvec, 0, N);
@@ -117,7 +144,7 @@ int vpgcr::solve(){
 
     //q[0*ndata+x]=A*p[0*ndata+x]
     if(isCUDA){
-
+      cu->MtxVec_mult(pvec, 0, N, qvec, 0, N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->MtxVec_mult(pvec, 0, N, qvec, 0, N);
     }
@@ -144,7 +171,8 @@ int vpgcr::solve(){
 
       //(q, q)
       if(isCUDA){
-
+        // dot_tmp = cu->dot(qvec, kloop, N, qvec, kloop, N);
+        dot_tmp = bs->dot(qvec, kloop, N, qvec, kloop, N);
       }else{
         dot_tmp = bs->dot(qvec, kloop, N, qvec, kloop, N);
       }
@@ -152,7 +180,8 @@ int vpgcr::solve(){
 
       //alpha = (r, q)/(q, q)
       if(isCUDA){
-
+        // dot_tmp = cu->dot(rvec, qvec, kloop, N);
+        dot_tmp = bs->dot(rvec, qvec, kloop, N);
       }else{
         dot_tmp = bs->dot(rvec, qvec, kloop, N);
       }
@@ -171,11 +200,11 @@ int vpgcr::solve(){
       std::memset(zvec, 0, sizeof(double)*N);
 
       //Az = r
-      in->innerSelect(this->coll, this->coll->innerSolver, rvec, zvec);
+      in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, rvec, zvec);
 
       //Az = r
       if(isCUDA){
-
+        cu->MtxVec_mult(zvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       }else{
         bs->MtxVec_mult(zvec, Av);
       }
@@ -189,7 +218,8 @@ int vpgcr::solve(){
       for(iloop=0; iloop<=kloop; iloop++){
         //beta = -(Av, qvec) / (q, q)
         if(isCUDA){
-
+          // dot_tmp = cu->dot(Av, qvec, iloop, N);
+          dot_tmp = bs->dot(Av, qvec, iloop, N);
         }else{
           dot_tmp = bs->dot(Av, qvec, iloop, N);
         }

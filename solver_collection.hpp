@@ -32,6 +32,7 @@ class collection {
     bool isVerbose;
     bool isInnerNow;
     bool isMixPrecision;
+    bool isInnerKskip;
     int OMPThread;
 
     std::string L1_Dir_Name;

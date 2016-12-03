@@ -4,16 +4,21 @@
 #include "color.hpp"
 #include "gcr.hpp"
 
-gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner){
+gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *cu, blas *bs){
   this->coll = coll;
-  bs = new blas(this->coll, this->coll->time);
-  cu = new cuda(this->coll->time, this->coll->N);
+  isInner = inner;
+  if(isInner){
+    this->bs = bs;
+    this->cu = cu;
+  }else{
+    bs = new blas(this->coll, this->coll->time);
+    cu = new cuda(this->coll->time, this->coll->N);
+  }
 
   exit_flag = 2;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = inner;
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -74,7 +79,6 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 gcr::~gcr(){
-  delete this->bs;
   if(isCUDA){
     cu->FreeHost(rvec);
     cu->FreeHost(Av);
@@ -90,7 +94,10 @@ gcr::~gcr(){
     delete[] qvec;
     delete[] pvec;
   }
-  delete cu;
+  if(!isInner){
+    delete this->bs;
+    delete cu;
+  }
   f_his.close();
   f_x.close();
 }

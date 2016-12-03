@@ -6,11 +6,13 @@
 #include "times.hpp"
 #include "blas.hpp"
 #include "innerMethods.hpp"
+#include "cudaFunction.hpp"
 
 class vpgmres {
   private:
     collection *coll;
     blas *bs;
+    cuda *cu;
     innerMethods *in;
     times time;
     
@@ -36,7 +38,7 @@ class vpgmres {
     std::ofstream f_x;
 
   public:
-    vpgmres(collection *coll, double *bvec, double *xvec, bool inner);
+    vpgmres(collection *coll, double *bvec, double *xvec, bool inner = false);
     ~vpgmres();
     int solve();
 };

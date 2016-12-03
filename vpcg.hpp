@@ -6,11 +6,13 @@
 #include "times.hpp"
 #include "blas.hpp"
 #include "innerMethods.hpp"
+#include "cudaFunction.hpp"
 
 class vpcg {
   private:
     collection *coll;
     blas *bs;
+    cuda *cu;
     innerMethods *in;
     times time;
 
@@ -34,7 +36,7 @@ class vpcg {
     std::ofstream f_x;
 
   public:
-    vpcg(collection *coll, double *bvec, double *xvec, bool inner);
+    vpcg(collection *coll, double *bvec, double *xvec, bool inner = false);
     ~vpcg();
     int solve();
 };

@@ -4,16 +4,21 @@
 #include "color.hpp"
 #include "cg.hpp"
 
-cg::cg(collection *coll, double *bvec, double *xvec, bool inner){
+cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *cu, blas *bs){
   this->coll = coll;
-  bs = new blas(this->coll, this->coll->time);
-  cu = new cuda(this->coll->time, this->coll->N);
+  isInner = inner;
+  if(isInner){
+    this->bs = bs;
+    this->cu = cu;
+  }else{
+    bs = new blas(this->coll, this->coll->time);
+    cu = new cuda(this->coll->time, this->coll->N);
+  }
 
   exit_flag = 2;
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
-  isInner = inner;
 
   N = this->coll->N;
   if(isCUDA){
@@ -62,7 +67,6 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner){
 }
 
 cg::~cg(){
-  delete this->bs;
 
   if(isCUDA){
     cu->FreeHost(rvec);
@@ -76,7 +80,10 @@ cg::~cg(){
     delete[] x_0;
   }
 
-  delete cu;
+  if(!isInner){
+    delete this->bs;
+    delete this->cu;
+  }
   f_his.close();
   f_x.close();
 }
