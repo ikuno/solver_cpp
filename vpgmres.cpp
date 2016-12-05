@@ -78,8 +78,8 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
   std::memset(axvec, 0, sizeof(double)*N);
   std::memset(evec, 0, sizeof(double)*restart);
   std::memset(vvec, 0, sizeof(double)*N);
-  std::memset(vmtx, 0, sizeof(double)*(N*restart+1));
-  std::memset(hmtx, 0, sizeof(double)*(N*restart+1));
+  std::memset(vmtx, 0, sizeof(double)*(N*(restart+1)));
+  std::memset(hmtx, 0, sizeof(double)*(N*(restart+1)));
   std::memset(yvec, 0, sizeof(double)*restart);
   std::memset(wvec, 0, sizeof(double)*N);
   std::memset(avvec, 0, sizeof(double)*N);
@@ -88,7 +88,7 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
   std::memset(svec, 0, sizeof(double)*restart);
   std::memset(x0vec, 0, sizeof(double)*N);
   std::memset(tmpvec, 0, sizeof(double)*N);
-  std::memset(zmtx, 0, sizeof(double)*(N*restart+1));
+  std::memset(zmtx, 0, sizeof(double)*(N*(restart+1)));
   std::memset(zvec, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
 
