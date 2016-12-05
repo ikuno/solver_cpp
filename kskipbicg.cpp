@@ -5,7 +5,7 @@
 #include "color.hpp"
 #include "kskipbicg.hpp"
 
-kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, cuda *cu, blas *bs){
+kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
   this->coll = coll;
   isInner = inner;
 
@@ -25,8 +25,8 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, c
   }
 
   if(isInner){
-    this->bs = bs;
-    this->cu = cu;
+    this->bs = a_bs;
+    this->cu = a_cu;
   }else{
     bs = new blas(this->coll, this->coll->time);
     cu = new cuda(this->coll->time, this->coll->N, this->kskip);

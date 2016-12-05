@@ -36,7 +36,7 @@ class kskipcg {
     std::ofstream f_x;
 
   public:
-    kskipcg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *cu = NULL, blas *bs = NULL);
+    kskipcg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL);
     ~kskipcg();
     int solve();
 };

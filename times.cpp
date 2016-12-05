@@ -59,8 +59,8 @@ void times::showTimeOnGPU(double total, double timeCPU){
   std::cout << CYAN << "Execution time on GPU" << RESET << std::endl;
   std::cout << "\tDot malloc time  = " << std::setprecision(6) << cu_dot_malloc_time << ", " << std::setprecision(2) << cu_dot_malloc_time/total*100 << "%" << std::endl;
   std::cout << "\tDot copy time    = " << std::setprecision(6) << cu_dot_copy_time << ", " << std::setprecision(2) << cu_dot_copy_time/total*100 << "%" << std::endl;
-  std::cout << "\tDot process time = " << std::setprecision(6) << cu_dot_proc_time << ", " << std::setprecision(2) << cpu_dot_proc_time/total*100 << "%" << std::endl;
-  std::cout << "\tDot reduce time  = " << std::setprecision(6) << cu_dot_proc_time << ", " << std::setprecision(2) << cpu_dot_proc_time/total*100 << "%" << std::endl;
+  std::cout << "\tDot process time = " << std::setprecision(6) << cu_dot_proc_time << ", " << std::setprecision(2) << cu_dot_proc_time/total*100 << "%" << std::endl;
+  std::cout << "\tDot reduce time  = " << std::setprecision(6) << cu_dot_reduce_time << ", " << std::setprecision(2) << cu_dot_reduce_time/total*100 << "%" << std::endl;
   std::cout << "\tMV malloc time   = " << std::setprecision(6) << cu_MV_malloc_time << ", " << std::setprecision(2) << cu_MV_malloc_time/total*100 << "%" << std::endl;
   std::cout << "\tMV copy time     = " << std::setprecision(6) << cu_MV_copy_time << ", " << std::setprecision(2) << cu_MV_copy_time/total*100 << "%" << std::endl;
   std::cout << "\tMV process time  = " << std::setprecision(6) << cu_MV_proc_time << ", " << std::setprecision(2) << cu_MV_proc_time/total*100 << "%" << std::endl;

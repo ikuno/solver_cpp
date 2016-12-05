@@ -34,7 +34,7 @@ class bicg {
 
   public:
 
-    bicg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *cu = NULL, blas *bs = NULL);
+    bicg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL);
     ~bicg();
     int solve();
 };

@@ -35,7 +35,7 @@ class gcr {
     std::ofstream f_x;
 
   public:
-    gcr(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *cu = NULL, blas *bs = NULL);
+    gcr(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL);
     ~gcr();
     int solve();
 };
