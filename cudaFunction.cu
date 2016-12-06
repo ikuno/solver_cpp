@@ -407,6 +407,7 @@ void cuda::MtxVec_mult(double *in, double *out, double *val, int *col, int *ptr)
   int ThreadPerBlock=128;
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
+
   Memset(this->cu_d2, 0, size);
 
   //d1 -> in

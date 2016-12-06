@@ -269,17 +269,35 @@ double blas::Check_error(double *x_last, double *x_0){
   return tmp3;
 }
 
+// void blas::Hye(double *h, double *y, double *e, const long int size){
+//   double tmp;
+//   std::memset(y, 0, sizeof(double)*size);
+//   for(long int i=size-1; i>=0; i--){
+//     tmp = 0.0;
+//     for(long int j=i+1; j<size; j++){
+//       tmp += y[j] * h[i*(this->coll->N)+j];
+//     }
+//     y[i] = (e[i] - tmp) / h[i*(this->coll->N)+i];
+//   }
+// }
+
 void blas::Hye(double *h, double *y, double *e, const long int size){
   double tmp;
   std::memset(y, 0, sizeof(double)*size);
-  for(long int i=size-1; i>=0; i--){
+
+  int i, j;
+
+#pragma omp parallel private(i, j) shared(y, e, h, tmp) num_threads(this->coll->OMPThread)
+  for(i=size-1; i>=0; i--){
+#pragma omp single
     tmp = 0.0;
-    for(long int j=i+1; j<size; j++){
+#pragma omp for reduction(+:tmp) schedule(static)
+    for(j=i+1; j<size; j++){
       tmp += y[j] * h[i*(this->coll->N)+j];
     }
+#pragma omp single
     y[i] = (e[i] - tmp) / h[i*(this->coll->N)+i];
   }
-
 }
 
 void blas::Vec_copy(double *in, double *out){
