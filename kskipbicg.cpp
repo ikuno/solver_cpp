@@ -180,7 +180,8 @@ int kskipBicg::solve(){
     //Ar-> Ar^2k+1
     //Ap-> Ap^2k+2
     if(isCUDA){
-      cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->Kskip_cg_bicg_base2(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip);
     }
@@ -203,7 +204,8 @@ int kskipBicg::solve(){
     //phi = (p*, Ap)
     if(isCUDA){
       // bs->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
-      cu->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->Kskip_bicg_innerProduce2(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
     }
