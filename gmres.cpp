@@ -44,7 +44,6 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
     yvec = cu->d_MallocHost(restart);
     wvec = cu->d_MallocHost(N);
     avvec = cu->d_MallocHost(N);
-    hvvec = cu->d_MallocHost(restart*(restart+1));
     cvec = cu->d_MallocHost(restart);
     svec = cu->d_MallocHost(restart);
     x0vec = cu->d_MallocHost(N);
@@ -60,7 +59,6 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
     yvec = new double [restart];
     wvec = new double [N];
     avvec = new double [N];
-    hvvec = new double [restart*(restart+1)];
     cvec = new double [restart];
     svec = new double [restart];
     x0vec = new double [N];
@@ -75,12 +73,11 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
   std::memset(axvec, 0, sizeof(double)*N);
   std::memset(evec, 0, sizeof(double)*restart);
   std::memset(vvec, 0, sizeof(double)*N);
-  std::memset(vmtx, 0, sizeof(double)*(N*restart+1));
-  std::memset(hmtx, 0, sizeof(double)*(N*restart+1));
+  // std::memset(vmtx, 0, sizeof(double)*(N*(restart+1)));
+  // std::memset(hmtx, 0, sizeof(double)*(N*(restart+1)));
   std::memset(yvec, 0, sizeof(double)*restart);
   std::memset(wvec, 0, sizeof(double)*N);
   std::memset(avvec, 0, sizeof(double)*N);
-  std::memset(hvvec, 0, sizeof(double)*(restart*(restart+1)));
   std::memset(cvec, 0, sizeof(double)*restart);
   std::memset(svec, 0, sizeof(double)*restart);
   std::memset(x0vec, 0, sizeof(double)*N);
@@ -115,7 +112,6 @@ gmres::~gmres(){
     cu->FreeHost(yvec);
     cu->FreeHost(wvec);
     cu->FreeHost(avvec);
-    cu->FreeHost(hvvec);
     cu->FreeHost(cvec);
     cu->FreeHost(svec);
     cu->FreeHost(x0vec);
@@ -131,7 +127,6 @@ gmres::~gmres(){
     delete[] yvec;
     delete[] wvec;
     delete[] avvec;
-    delete[] hvvec;
     delete[] cvec;
     delete[] svec;
     delete[] x0vec;
@@ -240,14 +235,13 @@ int gmres::solve(){
       bs->Vec_copy(avvec, wvec);
 
       //h_i_k & w update
-      for(int i=0; i<=k; i++){
-        if(isCUDA){
-          // wv_ip = cu->dot(wvec, vmtx, i, N);
+      if(isCUDA){
+        cu->dot_gmres(wvec, vmtx, hmtx, k, N);
+      }else{
+        for(int i=0; i<=k; i++){
           wv_ip = bs->dot(wvec, vmtx, i, N);
-        }else{
-          wv_ip = bs->dot(wvec, vmtx, i, N);
+          hmtx[i*N+k] = wv_ip;
         }
-        hmtx[i*N+k] = wv_ip;
       }
 
       bs->Gmres_sp_1(k, hmtx, vmtx, wvec);

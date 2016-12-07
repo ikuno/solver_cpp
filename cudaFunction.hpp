@@ -6,12 +6,14 @@
 
 class cuda { 
   private:
-    double *cu_d1, *cu_d2;//MV
-    double *cu_d3, *cu_h1;//dot
-    double *cu_d4, *cu_d5, *cu_d6, *cu_d7, *cu_d8, *cu_h2, *cu_h3, *cu_h4;//kskipcg
-    double *cu_d9, *cu_h5;//kskipbicg
+    double *cu_d1, *cu_d2;//MV N, N
+    double *cu_d3, *cu_h1;//dot blocks blocks
+    double *cu_d4, *cu_d5, *cu_d6, *cu_d7, *cu_d8, *cu_h2, *cu_h3, *cu_h4;//kskipcg N*(2*k+1) N*(2*k+1) Blocks*(2*k) Blocks*(2*k+1) Blocks*(2*k+2) Blocks*(2*k) Blocks*(2*k+1) Blocks*(2*k+2)
+    double *cu_d9, *cu_h5;//kskipbicg Blocks*(2*k+1) Blocks*(2*k+1)
+    double *cu_d10, *cu_h6, *cu_d11, *cu_h7;//gmres vpgmres restart*N restart*N, blocks, blocks
     int size;
     int k;
+    int restart;
 
   public:
     times *time;
@@ -19,6 +21,8 @@ class cuda {
     cuda(times *t);
     cuda(times *t, int size);
     cuda(times *t, int size, int k);
+    cuda(times *t, int size, double restart);
+    cuda(times *t, int size, int k, double restart);
     ~cuda();
 
     //--------------------------------------
@@ -79,6 +83,7 @@ class cuda {
 
     void Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *r_vec, double *p_vec, int kskip, double *val, int *col, int *ptr);
 
+    void dot_gmres(double *wvec, double *vmtx, double *hmtx, int k, int N);
 };
 #endif //CUDAFUNCTION_HPP_INCLUDED__
 

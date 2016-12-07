@@ -160,8 +160,8 @@ int kskipcg::solve(){
     //Ap-> Ap^2k+2
     if(isCUDA){
       // bs->Kskip_cg_base(Ar, Ap, rvec, pvec, kskip);
-      // cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      cu->Kskip_cg_bicg_base2(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->Kskip_cg_bicg_base2(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip);
     }
@@ -179,8 +179,8 @@ int kskipcg::solve(){
     //zeta=(p,Ap)
     if(isCUDA){
       // bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
-      // cu->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      cu->Kskip_cg_innerProduce2(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->Kskip_cg_innerProduce2(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
     }

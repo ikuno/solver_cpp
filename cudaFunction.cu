@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <helper_cuda.h>
 #include "cusparse.h"
+#include <cuda_profiler_api.h>
 
 #include "color.hpp"
 
@@ -238,6 +239,12 @@ cuda::cuda(times *t){
   this->cu_h4 = NULL;
 
   this->cu_h5 = NULL;
+
+  this->cu_d10 = NULL;
+  this->cu_d11 = NULL;
+  
+  this->cu_h6 = NULL;
+  this->cu_h7 = NULL;
 }
 
 cuda::cuda(times *t, int size) : cuda::cuda(t){
@@ -252,10 +259,10 @@ cuda::cuda(times *t, int size) : cuda::cuda(t){
 
   this->time->start();
   this->cu_d3 = d_Malloc(tmp);
-  this->cu_h1 = new double [tmp];
+  /* this->cu_h1 = new double [tmp]; */
+  this->cu_h1 = d_MallocHost(tmp);
   this->time->end();
   this->time->cu_MV_malloc_time += this->time->getTime();
-
 }
 
 cuda::cuda(times *t, int size, int k) : cuda::cuda(t, size){
@@ -274,15 +281,34 @@ cuda::cuda(times *t, int size, int k) : cuda::cuda(t, size){
   this->cu_d8 = d_Malloc(tmp * (2*this->k + 2));
  
 
-  this->cu_h2 = new double [tmp * (2*this->k)];
-  this->cu_h3 = new double [tmp * (2*this->k + 1)];
-  this->cu_h4 = new double [tmp * (2*this->k + 2)];
+  this->cu_h2 = d_MallocHost(tmp * (2*this->k));
+  this->cu_h3 = d_MallocHost(tmp * (2*this->k+1));
+  this->cu_h4 = d_MallocHost(tmp * (2*this->k+2));
 
   this->cu_d9 = d_Malloc(tmp * (2*this->k + 1));
-  this->cu_h5 = new double [tmp * (2*this->k + 1)];
+  this->cu_h5 = d_MallocHost(tmp * (2*this->k+1));
   this->time->end();
   this->time->cu_dot_malloc_time += this->time->getTime();
+}
 
+cuda::cuda(times *t, int size, double restart) : cuda::cuda(t, size){
+  int r = static_cast<int>(restart);
+  this->restart = r;
+  int tmp = ceil((double)this->size/(double)128);
+  this->cu_d10 = d_Malloc(r * size);
+  this->cu_d11 = d_Malloc(tmp);
+  this->cu_h6 = d_MallocHost(r * size);
+  this->cu_h6 = d_MallocHost(tmp);
+}
+
+cuda::cuda(times *t, int size, int k, double restart) : cuda::cuda(t, size, k){
+  int r = static_cast<int>(restart);
+  this->restart = r;
+  int tmp = ceil((double)this->size/(double)128);
+  this->cu_d10 = d_Malloc(r * size);
+  this->cu_d11 = d_Malloc(tmp);
+  this->cu_h6 = d_MallocHost(r * size);
+  this->cu_h6 = d_MallocHost(tmp);
 }
 
 cuda::~cuda(){
@@ -296,11 +322,15 @@ cuda::~cuda(){
   Free(cu_d7);
   Free(cu_d8);
   Free(cu_d9);
-  delete[] cu_h1;
-  delete[] cu_h2;
-  delete[] cu_h3;
-  delete[] cu_h4;
-  delete[] cu_h5;
+  Free(cu_d10);
+  Free(cu_d11);
+  FreeHost(cu_h1);
+  FreeHost(cu_h2);
+  FreeHost(cu_h3);
+  FreeHost(cu_h4);
+  FreeHost(cu_h5);
+  FreeHost(cu_h6);
+  FreeHost(cu_h7);
 
 }
 
@@ -365,6 +395,8 @@ void cuda::Memset(int *ptr, int val, int size){
 }
 
 void cuda::Reset(){
+  /* checkCudaErrors(cudaDeviceSynchronize()); */
+  /* checkCudaErrors(cudaProfilerStop()); */
   checkCudaErrors(cudaDeviceReset());
 }
 
@@ -980,9 +1012,9 @@ void cuda::Kskip_cg_innerProduce2(double *delta, double *eta, double *zeta, doub
   int ThreadPerBlock=128;
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
-  cudaMemsetAsync(cu_d6, 0, BlockPerGrid*(2*kskip), stream1);
-  cudaMemsetAsync(cu_d7, 0, BlockPerGrid*(2*kskip+1), stream2);
-  cudaMemsetAsync(cu_d8, 0, BlockPerGrid*(2*kskip+2), stream3);
+  cudaMemsetAsync(cu_d6, 0, sizeof(double)*BlockPerGrid*(2*kskip), stream1);
+  cudaMemsetAsync(cu_d7, 0, sizeof(double)*BlockPerGrid*(2*kskip+1), stream2);
+  cudaMemsetAsync(cu_d8, 0, sizeof(double)*BlockPerGrid*(2*kskip+2), stream3);
 
   //d1 -> r
   //d2 -> p
@@ -1004,6 +1036,7 @@ double tmp3 = 0.0;
     if(i<2*kskip){
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
       cudaMemcpyAsync((double*)(cu_h2+(i*BlockPerGrid)), (double*)(cu_d6+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream1);
+      cudaStreamSynchronize(stream1);
 
       for(int j=0; j<BlockPerGrid; j++){
         tmp1 += cu_h2[i*BlockPerGrid+j];
@@ -1014,6 +1047,7 @@ double tmp3 = 0.0;
     if(i<2*kskip+1){
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d5, i, this->size, cu_d1, cu_d7, i, BlockPerGrid);
       cudaMemcpyAsync((double*)(cu_h3+(i*BlockPerGrid)), (double*)(cu_d7+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream2);
+      cudaStreamSynchronize(stream2);
 
       for(int j=0; j<BlockPerGrid; j++){
         tmp2 += cu_h3[i*BlockPerGrid+j];
@@ -1023,6 +1057,7 @@ double tmp3 = 0.0;
     }
     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream3>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
     cudaMemcpyAsync((double*)(cu_h4+(i*BlockPerGrid)), (double*)(cu_d8+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream3);
+    cudaStreamSynchronize(stream3);
 
     for(int j=0; j<BlockPerGrid; j++){
       tmp3 += cu_h4[i*BlockPerGrid+j];
@@ -1152,10 +1187,11 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
   int ThreadPerBlock=128;
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
-  cudaMemsetAsync(cu_d6, 0, BlockPerGrid*(2*kskip), stream1);
-  cudaMemsetAsync(cu_d7, 0, BlockPerGrid*(2*kskip+1), stream2);
-  cudaMemsetAsync(cu_d9, 0, BlockPerGrid*(2*kskip+1), stream3);
-  cudaMemsetAsync(cu_d8, 0, BlockPerGrid*(2*kskip+2), stream4);
+  cudaMemsetAsync(cu_d6, 0, sizeof(double)*BlockPerGrid*(2*kskip), stream1);
+  cudaMemsetAsync(cu_d7, 0, sizeof(double)*BlockPerGrid*(2*kskip+1), stream2);
+  cudaMemsetAsync(cu_d9, 0, sizeof(double)*BlockPerGrid*(2*kskip+1), stream3);
+  cudaMemsetAsync(cu_d8, 0, sizeof(double)*BlockPerGrid*(2*kskip+2), stream4);
+
 
   cudaMemcpyAsync(cu_d1, r_vec, sizeof(double)*size, cudaMemcpyHostToDevice, stream1);
   cudaMemcpyAsync(cu_d2, p_vec, sizeof(double)*size, cudaMemcpyHostToDevice, stream2);
@@ -1172,6 +1208,7 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
     if(i<2*kskip){
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
       cudaMemcpyAsync((double*)(cu_h2+(i*BlockPerGrid)), (double*)(cu_d6+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream1);
+      cudaStreamSynchronize(stream1);
 #pragma omp parallel for reduction(+:tmp1) schedule(static)
       for(int j=0; j<BlockPerGrid; j++){
         tmp1 += cu_h2[i*BlockPerGrid+j];
@@ -1181,6 +1218,7 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
     if(i<2*kskip+1){
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d5, i, this->size, cu_d1, cu_d7, i, BlockPerGrid);
       cudaMemcpyAsync((double*)(cu_h3+(i*BlockPerGrid)), (double*)(cu_d7+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream2);
+      cudaStreamSynchronize(stream2);
 #pragma omp parallel for reduction(+:tmp2) schedule(static)
       for(int j=0; j<BlockPerGrid; j++){
         tmp2 += cu_h3[i*BlockPerGrid+j];
@@ -1188,6 +1226,7 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
       eta[i] = tmp2;
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream3>>>(this->size, cu_d4, i, this->size, cu_d2, cu_d9, i, BlockPerGrid);
       cudaMemcpyAsync((double*)(cu_h5+(i*BlockPerGrid)), (double*)(cu_d9+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream3);
+      cudaStreamSynchronize(stream3);
 #pragma omp parallel for reduction(+:tmp3) schedule(static)
       for(int j=0; j<BlockPerGrid; j++){
         tmp3 += cu_h5[i*BlockPerGrid+j];
@@ -1196,6 +1235,7 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
     }
     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream4>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
     cudaMemcpyAsync((double*)(cu_h4+(i*BlockPerGrid)), (double*)(cu_d8+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream4);
+    cudaStreamSynchronize(stream4);
 #pragma omp parallel for reduction(+:tmp4) schedule(static)
     for(int j=0; j<BlockPerGrid; j++){
       tmp4 += cu_h4[i*BlockPerGrid+j];
@@ -1209,3 +1249,172 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
   cudaStreamDestroy(stream4);
 
 }
+
+void cuda::dot_gmres(double *wvec, double *vmtx, double *hmtx, int k, int N){
+  for(int i=0; i<=k; i++){
+    hmtx[k+i*N] = dot(wvec, vmtx, i, N);
+  }
+}
+
+/* void cuda::dot_gmres(double *wvec, double *vmtx, double *hmtx, int k, int N){ */
+/*   int ThreadPerBlock=128; */
+/*   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock); */
+/*  */
+/*  */
+/*   cudaStream_t stream1, stream2, stream3; */
+/*   cudaStreamCreate(&stream1); */
+/*   cudaStreamCreate(&stream2); */
+/*   cudaStreamCreate(&stream3); */
+/*   double tmp1=0; */
+/*   double tmp2=0; */
+/*  */
+/*   cudaMemcpyAsync(cu_d1, wvec, sizeof(double)*size, cudaMemcpyHostToDevice, stream1); */
+/*   if(k==0){ */
+/*     //hmtx[0] = dot(wvec, vmtx); */
+/*     cudaMemsetAsync(cu_d3, 0, BlockPerGrid, stream1); */
+/*     cudaMemcpyAsync(cu_d2, (double*)(vmtx+(0*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream1); */
+/*     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*     cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream1); */
+/*     cudaStreamSynchronize(stream1); */
+/*     for(int i=0; i<BlockPerGrid; i++){ */
+/*       tmp1 += cu_h1[i]; */
+/*     } */
+/*     hmtx[0] = tmp1; */
+/*   }else if((k+1)%2 == 0){ */
+/*     //even */
+/*     for(int i=0; i<=k; i+=2){ */
+/*       tmp1 = 0.0; */
+/*       tmp2 = 0.0; */
+/*       cudaMemsetAsync(cu_d3, 0, BlockPerGrid, stream1); */
+/*       cudaMemcpyAsync(cu_d2, (double*)(vmtx+(i*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream1); */
+/*       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*       cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream1); */
+/*       cudaStreamSynchronize(stream1); */
+/* #pragma omp parallel for schedule(static) reduction(+:tmp1) */
+/*       for(int j=0; j<BlockPerGrid; j++){ */
+/*         tmp1 += cu_h1[j]; */
+/*       } */
+/*       hmtx[k+i*size] = tmp1; */
+/*  */
+/*       cudaMemsetAsync(cu_d3, 0, BlockPerGrid, stream2); */
+/*       cudaMemcpyAsync(cu_d2, (double*)(vmtx+((i+1)*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream2); */
+/*       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*       cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream2); */
+/*       cudaStreamSynchronize(stream1); */
+/* #pragma omp parallel for schedule(static) reduction(+:tmp2) */
+/*       for(int j=0; j<BlockPerGrid; j++){ */
+/*         tmp2 += cu_h1[j]; */
+/*       } */
+/*       hmtx[k+(i+1)*size] = tmp2; */
+/*     } */
+/*  */
+/*   }else{ */
+/*     //odd */
+/*     for(int i=0; i<=k; i++){ */
+/*       hmtx[k+i*size] = dot(wvec, vmtx, i, size); */
+/*     } */
+/*     for(int i=0; i<=k-1; i+=2){ */
+/*       tmp1 = 0.0; */
+/*       tmp2 = 0.0; */
+/*       cudaMemsetAsync(cu_d3, 0, BlockPerGrid, stream1); */
+/*       cudaMemcpyAsync(cu_d2, (double*)(vmtx+(i*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream1); */
+/*       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*       cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream1); */
+/*       cudaStreamSynchronize(stream1); */
+/* #pragma omp parallel for schedule(static) reduction(+:tmp1) */
+/*       for(int j=0; j<BlockPerGrid; j++){ */
+/*         tmp1 += cu_h1[j]; */
+/*       } */
+/*       hmtx[k+i*size] = tmp1; */
+/*  */
+/*       cudaMemsetAsync(cu_d3, 0, BlockPerGrid, stream2); */
+/*       cudaMemcpyAsync(cu_d2, (double*)(vmtx+((i+1)*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream2); */
+/*       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*       cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream2); */
+/*       cudaStreamSynchronize(stream1); */
+/* #pragma omp parallel for schedule(static) reduction(+:tmp2) */
+/*       for(int j=0; j<BlockPerGrid; j++){ */
+/*         tmp2 += cu_h1[j]; */
+/*       } */
+/*       hmtx[k+(i+1)*size] = tmp2; */
+/*     } */
+/*     tmp1 = 0.0; */
+/*     cudaMemsetAsync(cu_d3, 0, BlockPerGrid, stream3); */
+/*     cudaMemcpyAsync(cu_d2, (double*)(vmtx+(k*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream3); */
+/*     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream3>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*     cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream3); */
+/*     cudaStreamSynchronize(stream3); */
+/* #pragma omp parallel for schedule(static) reduction(+:tmp1) */
+/*     for(int j=0; j<BlockPerGrid; j++){ */
+/*       tmp1 += cu_h1[j]; */
+/*     } */
+/*     hmtx[k+k*size] = tmp1; */
+/*   } */
+/*  */
+/*   cudaStreamDestroy(stream1); */
+/*   cudaStreamDestroy(stream2); */
+/*   cudaStreamDestroy(stream3); */
+/* } */
+
+/* void cuda::dot_gmres(double *wvec, double *vmtx, double *hmtx, int k, int size){ */
+/*   int ThreadPerBlock=128; */
+/*   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock); */
+/*  */
+/*   cudaStream_t stream1, stream2, stream3; */
+/*   cudaStreamCreate(&stream1); */
+/*   cudaStreamCreate(&stream2); */
+/*   cudaStreamCreate(&stream3); */
+/*   double tmp1=0; */
+/*   double tmp2=0; */
+/*  */
+/*   cudaMemcpyAsync(cu_d1, wvec, sizeof(double)*size, cudaMemcpyHostToDevice, stream1); */
+/*   cudaMemsetAsync(cu_d10, 0, sizeof(double)*restart, stream2); */
+/*   cudaDeviceSynchronize(); */
+/*   if(k==0){ */
+/*     cudaMemcpyAsync(cu_d2, (double*)(vmtx+(0*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream1); */
+/*     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*     cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream1); */
+/*     cudaStreamSynchronize(stream1); */
+/*     for(int i=0; i<BlockPerGrid; i++){ */
+/*       tmp1 += cu_h1[i]; */
+/*     } */
+/*     hmtx[0] = tmp1; */
+/*   }else if((k+1)%2 == 0){ */
+/*     //even */
+/*     for(int i=0; i<=k; i+=2){ */
+/*       tmp1 = 0.0; */
+/*       tmp2 = 0.0; */
+/*       cudaMemsetAsync(cu_d3, 0, BlockPerGrid, stream1); */
+/*       cudaMemcpyAsync(cu_d2, (double*)(vmtx+(i*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream1); */
+/*       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*       cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream1); */
+/*       cudaStreamSynchronize(stream1); */
+/* #pragma omp parallel for schedule(static) reduction(+:tmp1) */
+/*       for(int j=0; j<BlockPerGrid; j++){ */
+/*         tmp1 += cu_h1[j]; */
+/*       } */
+/*       hmtx[k+i*size] = tmp1; */
+/*  */
+/*       cudaMemsetAsync(cu_d3, 0, BlockPerGrid, stream2); */
+/*       cudaMemcpyAsync(cu_d2, (double*)(vmtx+((i+1)*size)), sizeof(double)*size, cudaMemcpyHostToDevice, stream2); */
+/*       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d1, cu_d2, cu_d3); */
+/*       cudaMemcpyAsync(cu_h1, cu_d3, sizeof(double)*BlockPerGrid, cudaMemcpyDeviceToHost, stream2); */
+/*       cudaStreamSynchronize(stream1); */
+/* #pragma omp parallel for schedule(static) reduction(+:tmp2) */
+/*       for(int j=0; j<BlockPerGrid; j++){ */
+/*         tmp2 += cu_h1[j]; */
+/*       } */
+/*       hmtx[k+(i+1)*size] = tmp2; */
+/*     } */
+/*  */
+/*   }else{ */
+/*     //odd */
+/*     for(int i=0; i<=k; i++){ */
+/*       hmtx[k+i*size] = dot(wvec, vmtx, i, size); */
+/*     } */
+/*   } */
+/*  */
+/*   cudaStreamDestroy(stream1); */
+/*   cudaStreamDestroy(stream2); */
+/*   cudaStreamDestroy(stream3); */
+/* } */
