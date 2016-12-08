@@ -225,7 +225,9 @@ int gmres::solve(){
 
       //h_i_k & w update
       if(isCUDA){
-        cu->dot_gmres(wvec, vmtx, hmtx, k, N);
+        // cu->dot_gmres(wvec, vmtx, hmtx, k, N);
+        // cu->dot_gmres2(wvec, vmtx, hmtx, k, N);
+        cu->dot_gmres3(wvec, vmtx, hmtx, k, N);
       }else{
         for(int i=0; i<=k; i++){
           wv_ip = bs->dot(wvec, vmtx, i, N);

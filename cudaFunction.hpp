@@ -11,6 +11,8 @@ class cuda {
     double *cu_d4, *cu_d5, *cu_d6, *cu_d7, *cu_d8, *cu_h2, *cu_h3, *cu_h4;//kskipcg N*(2*k+1) N*(2*k+1) Blocks*(2*k) Blocks*(2*k+1) Blocks*(2*k+2) Blocks*(2*k) Blocks*(2*k+1) Blocks*(2*k+2)
     double *cu_d9, *cu_h5;//kskipbicg Blocks*(2*k+1) Blocks*(2*k+1)
     double *cu_d10, *cu_h6, *cu_d11, *cu_h7;//gmres vpgmres restart*N restart*N, blocks, blocks
+    double *cu_d100, *cu_d101; //test for gmres N, blocks
+    double *cu_d200, *cu_d201;
     unsigned long int size;
     int k;
     int restart;
@@ -88,6 +90,10 @@ class cuda {
     void Kskip_bicg_innerProduce3(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *r_vec, double *p_vec, int kskip, double *val, int *col, int *ptr);
 
     void dot_gmres(double *wvec, double *vmtx, double *hmtx, int k, unsigned long int N);
+
+    void dot_gmres2(double *wvec, double *vmtx, double *hmtx, int k, unsigned long int N);
+
+    void dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned long int N);
 };
 #endif //CUDAFUNCTION_HPP_INCLUDED__
 
