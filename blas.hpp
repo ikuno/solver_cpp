@@ -19,9 +19,9 @@ class blas {
 
     void MtxVec_mult(double *in_vec, double *out_vec);
 
-    void MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec);
+    void MtxVec_mult(double *in_vec, unsigned long int xindex, unsigned long int xsize, double *out_vec);
 
-    void MtxVec_mult(double *in_vec, int xindex, int xsize, double *out_vec, int yindex, int ysize);
+    void MtxVec_mult(double *in_vec, unsigned long int xindex, unsigned long int xsize, double *out_vec, unsigned long int yindex, unsigned long int ysize);
 
     void MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, double *out_vec);
 
@@ -29,37 +29,37 @@ class blas {
 
     void Vec_add(double *x, double *y, double *out);
 
-    void Vec_add(double *x, double *y, int yindex, int ysize, double *out, int zindex, int zsize);
+    void Vec_add(double *x, double *y, unsigned long int yindex, unsigned long int ysize, double *out, unsigned long int zindex, unsigned long int zsize);
 
     double dot(double *x, double *y);
 
-    double dot(double *x, double *y, const long int size);
+    double dot(double *x, double *y, unsigned long int size);
 
-    double dot(double *x, double *y, int yindex, int ysize);
+    double dot(double *x, double *y, unsigned long int yindex, unsigned long int ysize);
 
-    double dot(double *x, int xindex, int xsize, double *y, int yindex, int ysize);
+    double dot(double *x, unsigned long int xindex, unsigned long int xsize, double *y, unsigned long int yindex, unsigned long int ysize);
 
     void Scalar_ax(double a, double *x, double *out);
 
-    void Scalar_ax(double a, double *x, int xindex, int xsize, double *out);
+    void Scalar_ax(double a, double *x, unsigned long int xindex, unsigned long int xsize, double *out);
 
     void Scalar_axy(double a, double *x, double *y, double *out);
 
-    void Scalar_axy(double a, double *x, int xindex, int xsize, double *y, double *out);
+    void Scalar_axy(double a, double *x, unsigned long int xindex, unsigned long int xsize, double *y, double *out);
 
-    void Scalar_axy(double a, double *x, int xindex, int xsize, double *y, int yindex, int ysize, double *out, int zindex, int zsize);
+    void Scalar_axy(double a, double *x, unsigned long int xindex, unsigned long int xsize, double *y, unsigned long int yindex, unsigned long int ysize, double *out, unsigned long int zindex, unsigned long int zsize);
 
     void Scalar_x_div_a(double *x, double a, double *out);
 
     double Check_error(double *x_last, double *x_0);
 
-    void Hye(double *h, double *y, double *e, const long int size);
+    void Hye(double *h, double *y, double *e, unsigned long int size);
 
     void Vec_copy(double *in, double *out);
 
-    void Vec_copy(double *in, int xindex, int xsize, double *out);
+    void Vec_copy(double *in, unsigned long int xindex, unsigned long int xsize, double *out);
 
-    void Vec_copy(double *in, double *out, int xindex, int xsize);
+    void Vec_copy(double *in, double *out, unsigned long int xindex, unsigned long int xsize);
 
     //-----------------------------------
 

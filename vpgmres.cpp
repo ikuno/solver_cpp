@@ -35,14 +35,12 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
   N = this->coll->N;
   if(isCUDA){
     rvec = cu->d_MallocHost(N);
-    axvec = cu->d_MallocHost(N);
     evec = cu->d_MallocHost(restart);
     vvec = cu->d_MallocHost(N);
     vmtx = cu->d_MallocHost(N*(restart+1));
     hmtx = cu->d_MallocHost(N*(restart+1));
     yvec = cu->d_MallocHost(restart);
     wvec = cu->d_MallocHost(N);
-    avvec = cu->d_MallocHost(N);
     hvvec = cu->d_MallocHost(restart * (restart+1));
     cvec = cu->d_MallocHost(restart);
     svec = cu->d_MallocHost(restart);
@@ -53,14 +51,12 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
     x_0 = cu->d_MallocHost(N);
   }else{
     rvec = new double [N];
-    axvec = new double [N];
     evec = new double [restart];
     vvec = new double [N];
     vmtx = new double [N*(restart+1)];
     hmtx = new double [N*(restart+1)];
     yvec = new double [restart];
     wvec = new double [N];
-    avvec = new double [N];
     hvvec = new double [restart*(restart+1)];
     cvec = new double [restart];
     svec = new double [restart];
@@ -75,14 +71,12 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
   this->bvec = bvec;
 
   std::memset(rvec, 0, sizeof(double)*N);
-  std::memset(axvec, 0, sizeof(double)*N);
   std::memset(evec, 0, sizeof(double)*restart);
   std::memset(vvec, 0, sizeof(double)*N);
   std::memset(vmtx, 0, sizeof(double)*(N*(restart+1)));
   std::memset(hmtx, 0, sizeof(double)*(N*(restart+1)));
   std::memset(yvec, 0, sizeof(double)*restart);
   std::memset(wvec, 0, sizeof(double)*N);
-  std::memset(avvec, 0, sizeof(double)*N);
   std::memset(hvvec, 0, sizeof(double)*(restart*(restart+1)));
   std::memset(cvec, 0, sizeof(double)*restart);
   std::memset(svec, 0, sizeof(double)*restart);
@@ -110,14 +104,12 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
 vpgmres::~vpgmres(){
   if(isCUDA){
     cu->FreeHost(rvec);
-    cu->FreeHost(axvec);
     cu->FreeHost(evec);
     cu->FreeHost(vvec);
     cu->FreeHost(vmtx);
     cu->FreeHost(hmtx);
     cu->FreeHost(yvec);
     cu->FreeHost(wvec);
-    cu->FreeHost(avvec);
     cu->FreeHost(hvvec);
     cu->FreeHost(cvec);
     cu->FreeHost(svec);
@@ -128,14 +120,12 @@ vpgmres::~vpgmres(){
     cu->FreeHost(x_0);
   }else{
     delete[] rvec;
-    delete[] axvec;
     delete[] evec;
     delete[] vvec;
     delete[] vmtx;
     delete[] hmtx;
     delete[] yvec;
     delete[] wvec;
-    delete[] avvec;
     delete[] hvvec;
     delete[] cvec;
     delete[] svec;
@@ -167,13 +157,13 @@ int vpgmres::solve(){
   {
     //Ax0
     if(isCUDA){
-      cu->MtxVec_mult(xvec, axvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->MtxVec_mult(xvec, tmpvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
-      bs->MtxVec_mult(xvec, axvec);
+      bs->MtxVec_mult(xvec, tmpvec);
     }
 
     //r0=b-Ax0
-    bs->Vec_sub(bvec, axvec, rvec);
+    bs->Vec_sub(bvec, tmpvec, rvec);
 
     //2norm rvec
     tmp = bs->norm_2(rvec);

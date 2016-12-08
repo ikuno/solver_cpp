@@ -73,7 +73,7 @@ __global__ void kernel_dot (const int N, const double *__restrict__ a, const int
 }
 
 /* kernel_MtxVec_mult_old_1<<<BlockPerGrid, ThreadPerBlock>>>(size, val, col, ptr, D_in, D_out); */
-__global__ void kernel_MtxVec_mult_old_1(int n, double *val, int *col, int *ptr, double *b, double *c){
+__global__ void kernel_MtxVec_mult_old_1(unsigned long int n, double *val, int *col, int *ptr, double *b, double *c){
   long row=blockDim.x * blockIdx.x + threadIdx.x;
   long int i;
   if(row<n){
@@ -88,7 +88,7 @@ __global__ void kernel_MtxVec_mult_old_1(int n, double *val, int *col, int *ptr,
 }
 
   /* kernel_MtxVec_mult_old_2<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock+16)>>>(this->size, val, col, ptr, cu_d1, cu_d2); */
-__global__ void kernel_MtxVec_mult_old_2(int n, const double *val, const int *col, const int *ptr, const double *__restrict__ b, double *c){
+__global__ void kernel_MtxVec_mult_old_2(unsigned long int n, const double *val, const int *col, const int *ptr, const double *__restrict__ b, double *c){
   extern __shared__ volatile double vals[];
 
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
@@ -121,7 +121,7 @@ __global__ void kernel_MtxVec_mult_old_2(int n, const double *val, const int *co
 }
 
 /* kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock>>>(this->size, val, col, ptr, cu_d1, cu_d2); */
-__global__ void kernel_MtxVec_mult(int n, const double *val, const int *col, const int *ptr, const double *__restrict__ b, double *c){
+__global__ void kernel_MtxVec_mult(unsigned long int n, const double *val, const int *col, const int *ptr, const double *__restrict__ b, double *c){
 
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
   int warp_id = thread_id/32;
@@ -152,7 +152,7 @@ __global__ void kernel_MtxVec_mult(int n, const double *val, const int *col, con
   }
 }
 
-__global__ void kernel_MtxVec_mult(int n, const double *val, const int *col, const int *ptr, const double *__restrict__ b, double *c, const int cindex, const int csize){
+__global__ void kernel_MtxVec_mult(unsigned long int n, const double *val, const int *col, const int *ptr, const double *__restrict__ b, double *c, const int cindex, const int csize){
 
   int thread_id = blockDim.x * blockIdx.x + threadIdx.x;
   int warp_id = thread_id/32;
@@ -247,7 +247,7 @@ cuda::cuda(times *t){
   this->cu_h7 = NULL;
 }
 
-cuda::cuda(times *t, int size) : cuda::cuda(t){
+cuda::cuda(times *t, unsigned long int size) : cuda::cuda(t){
   this->size = size;
 
   this->time->start();
@@ -265,7 +265,7 @@ cuda::cuda(times *t, int size) : cuda::cuda(t){
   this->time->cu_MV_malloc_time += this->time->getTime();
 }
 
-cuda::cuda(times *t, int size, int k) : cuda::cuda(t, size){
+cuda::cuda(times *t, unsigned long int size, int k) : cuda::cuda(t, size){
   this->k = k;
   int tmp = ceil((double)this->size/(double)128);
 
@@ -291,7 +291,7 @@ cuda::cuda(times *t, int size, int k) : cuda::cuda(t, size){
   this->time->cu_dot_malloc_time += this->time->getTime();
 }
 
-cuda::cuda(times *t, int size, double restart) : cuda::cuda(t, size){
+cuda::cuda(times *t, unsigned long int size, double restart) : cuda::cuda(t, size){
   int r = static_cast<int>(restart);
   this->restart = r;
   int tmp = ceil((double)this->size/(double)128);
@@ -301,7 +301,7 @@ cuda::cuda(times *t, int size, double restart) : cuda::cuda(t, size){
   this->cu_h6 = d_MallocHost(tmp);
 }
 
-cuda::cuda(times *t, int size, int k, double restart) : cuda::cuda(t, size, k){
+cuda::cuda(times *t, unsigned long int size, int k, double restart) : cuda::cuda(t, size, k){
   int r = static_cast<int>(restart);
   this->restart = r;
   int tmp = ceil((double)this->size/(double)128);
@@ -342,55 +342,57 @@ void cuda::FreeHost(void* ptr){
   checkCudaErrors(cudaFreeHost(ptr));
 }
 
-void cuda::H2D(double *from, double *to, int size){
+void cuda::H2D(double *from, double *to, unsigned long int size){
   checkCudaErrors(cudaMemcpy(to, from, sizeof(double)*size, cudaMemcpyHostToDevice));
 }
 
-void cuda::D2H(double *from, double *to, int size){
+void cuda::D2H(double *from, double *to, unsigned long int size){
   checkCudaErrors(cudaMemcpy(to, from, sizeof(double)*size, cudaMemcpyDeviceToHost));
 }
 
-void cuda::H2D(int *from, int *to, int size){
+void cuda::H2D(int *from, int *to, unsigned long int size){
   checkCudaErrors(cudaMemcpy(to, from, sizeof(int)*size, cudaMemcpyHostToDevice));
 }
 
-void cuda::D2H(int *from, int *to, int size){
+void cuda::D2H(int *from, int *to, unsigned long int size){
   checkCudaErrors(cudaMemcpy(to, from, sizeof(int)*size, cudaMemcpyDeviceToHost));
 }
 
-double* cuda::d_Malloc(int size){
+double* cuda::d_Malloc(unsigned long int size){
   double *ptr = NULL;
-  const int s = sizeof(double) * size;
+  unsigned long int s = sizeof(double) * size;
   checkCudaErrors(cudaMalloc((void**)&ptr, s));
   return ptr;
 }
 
-double* cuda::d_MallocHost(int size){
+double* cuda::d_MallocHost(unsigned long int size){
   double *ptr = NULL;
-  const int s = sizeof(double) * size;
-  checkCudaErrors(cudaMallocHost((void**)&ptr, s));
+  unsigned long int  s = sizeof(double) * size;
+  /* checkCudaErrors(cudaMallocHost((void**)&ptr, s)); */
+  checkCudaErrors(cudaHostAlloc((void**)&ptr, s, cudaHostAllocPortable));
   return ptr;
 }
 
-int* cuda::i_Malloc(int size){
+
+int* cuda::i_Malloc(unsigned long int size){
   int *ptr = NULL;
-  const int s = sizeof(int) * size;
+  unsigned long int s = sizeof(int) * size;
   checkCudaErrors(cudaMalloc((void**)&ptr, s));
   return ptr;
 }
 
-int* cuda::i_MallocHost(int size){
+int* cuda::i_MallocHost(unsigned long int size){
   int *ptr = NULL;
-  const int s = sizeof(int) * size;
+  unsigned long int s = sizeof(int) * size;
   checkCudaErrors(cudaMallocHost((void**)&ptr, s));
   return ptr;
 }
 
-void cuda::Memset(double *ptr, double val, int size){
+void cuda::Memset(double *ptr, double val, unsigned long int size){
   checkCudaErrors(cudaMemset(ptr, val, sizeof(double)*size));
 }
 
-void cuda::Memset(int *ptr, int val, int size){
+void cuda::Memset(int *ptr, int val, unsigned long int size){
   checkCudaErrors(cudaMemset(ptr, val, sizeof(int)*size));
 }
 
@@ -400,7 +402,7 @@ void cuda::Reset(){
   checkCudaErrors(cudaDeviceReset());
 }
 
-void cuda::MtxVec_mult(double *in, double *out, int size, double *val, int *col, int *ptr){
+void cuda::MtxVec_mult(double *in, double *out, unsigned long size, double *val, int *col, int *ptr){
   double *D_in = NULL, *D_out = NULL;
 
   int ThreadPerBlock=128;
@@ -465,7 +467,7 @@ void cuda::MtxVec_mult(double *in, double *out, double *val, int *col, int *ptr)
   this->time->cu_MV_copy_time += this->time->getTime();
 }
 
-void cuda::MtxVec_mult(double *in, int inindex, int insize, double *out, int outindex, int outsize, double *val, int *col, int *ptr){
+void cuda::MtxVec_mult(double *in, unsigned long int inindex, unsigned long int insize, double *out, unsigned long int outindex, unsigned long int outsize, double *val, int *col, int *ptr){
   int ThreadPerBlock=128;
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
@@ -493,7 +495,7 @@ void cuda::MtxVec_mult(double *in, int inindex, int insize, double *out, int out
   this->time->cu_MV_copy_time += this->time->getTime();
 }
 
-void cuda::MtxVec_mult(double *in, int inindex, int insize, double *out, double *val, int *col, int *ptr){
+void cuda::MtxVec_mult(double *in, unsigned long int inindex, unsigned long int insize, double *out, double *val, int *col, int *ptr){
   int ThreadPerBlock=128;
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
@@ -522,7 +524,7 @@ void cuda::MtxVec_mult(double *in, int inindex, int insize, double *out, double 
 
 }
 
-double cuda::dot(double *in1, double *in2, int size){
+double cuda::dot(double *in1, double *in2, unsigned long int size){
   double *D_in1=NULL, *D_in2=NULL;
   double *H_out=NULL, *D_out=NULL, sum=0.0;
 
@@ -624,7 +626,7 @@ double cuda::dot(double *in1, double *in2){
 }
 
 
-double cuda::dot(double *in1, int in1index, int in1size, double *in2, int in2index, int in2size){
+double cuda::dot(double *in1, unsigned long int in1index, unsigned long int in1size, double *in2, unsigned long int in2index, unsigned long int in2size){
   double sum=0.0;
 
   int ThreadPerBlock=128;
@@ -671,7 +673,7 @@ double cuda::dot(double *in1, int in1index, int in1size, double *in2, int in2ind
 
 }
 
-double cuda::dot(double *in1, double *in2, int in2index, int in2size){
+double cuda::dot(double *in1, double *in2, unsigned long int in2index, unsigned long int in2size){
   double sum=0.0;
 
   int ThreadPerBlock=128;
@@ -718,7 +720,7 @@ double cuda::dot(double *in1, double *in2, int in2index, int in2size){
   return sum;
 }
 
-double cuda::dot(double *in1, int in1index, int in1size, double *in2){
+double cuda::dot(double *in1, unsigned long int in1index, unsigned long int in1size, double *in2){
   double sum=0.0;
 
   int ThreadPerBlock=128;
@@ -767,7 +769,7 @@ double cuda::dot(double *in1, int in1index, int in1size, double *in2){
   return sum;
 }
 
-void cuda::CSR2CSC(double *dCSRval, int *dCSRcol, int *dCSRptr, double *CSCval, int *CSCrow, int *CSCptr, double *dCSCval, int *dCSCrow, int *dCSCptr, int N, int NNZ){
+void cuda::CSR2CSC(double *dCSRval, int *dCSRcol, int *dCSRptr, double *CSCval, int *CSCrow, int *CSCptr, double *dCSCval, int *dCSCrow, int *dCSCptr, unsigned long int N, unsigned long int NNZ){
   cusparseHandle_t handle=0;
   cusparseCreate(&handle);
 
@@ -786,7 +788,7 @@ void cuda::CSR2CSC(double *dCSRval, int *dCSRcol, int *dCSRptr, double *CSCval, 
 
 }
 
-void cuda::CSR2CSC(double *CSRval, int *CSRcol, int *CSRptr, double *CSCval, int *CSCrow, int *CSCptr, int N, int NNZ){
+void cuda::CSR2CSC(double *CSRval, int *CSRcol, int *CSRptr, double *CSCval, int *CSCrow, int *CSCptr, unsigned long int N, unsigned long int NNZ){
 
   double *dCSRval;
   int *dCSRcol, *dCSRptr;
@@ -1250,7 +1252,7 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
 
 }
 
-void cuda::dot_gmres(double *wvec, double *vmtx, double *hmtx, int k, int N){
+void cuda::dot_gmres(double *wvec, double *vmtx, double *hmtx, int k, unsigned long int N){
   for(int i=0; i<=k; i++){
     hmtx[k+i*N] = dot(wvec, vmtx, i, N);
   }

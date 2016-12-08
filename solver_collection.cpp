@@ -539,9 +539,9 @@ void collection::checkCRSMatrix(){
     ptr_path = this->fullPath+"/Ptr.txt";
     bx_path = this->fullPath+"/bx.txt";
 
-    long int r_N[3];
-    long int r_M[3];
-    long int r_NNZ[3];
+    unsigned long int r_N[3];
+    unsigned long int r_M[3];
+    unsigned long int r_NNZ[3];
 
     std::ifstream valcol_file(valcol_path.c_str());
     if (valcol_file.fail())
@@ -609,8 +609,8 @@ void collection::readMatrix(){
     ptr_path = this->fullPath+"/Ptr.txt";
     bx_path = this->fullPath+"/bx.txt";
 
-    long int dammy;
-    long int counter[3]={0,0,0};
+    unsigned long int dammy;
+    unsigned long int counter[3]={0,0,0};
 
     std::ifstream valcol_file(valcol_path.c_str());
     if (valcol_file.fail())
@@ -712,16 +712,16 @@ void collection::CRSAlloc(){
 }
 
 void collection::transpose(){
-  long int col_counter = 0;
+  unsigned long int col_counter = 0;
 
   std::memset(this->Tptr, -1, sizeof(int)*(this->N+1));
 
   std::cout << "Transpose Matrix in CPU .........."<< std::flush;
 
-  for(long int i=0; i<N; i++){
-    for(long int j=0; j<N; j++){
-      for(long int k=this->ptr[j]; k<this->ptr[j+1]; k++){
-        if(this->col[k] == i){
+  for(unsigned long int i=0; i<N; i++){
+    for(unsigned long int j=0; j<N; j++){
+      for(int k=this->ptr[j]; k<this->ptr[j+1]; k++){
+        if(this->col[k] == (int)i){
           if(this->Tptr[i] == -1){
             this->Tptr[i] = col_counter;
           }

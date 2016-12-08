@@ -45,12 +45,12 @@ class collection {
 
     SOLVERS_NAME outerSolver;
     SOLVERS_NAME innerSolver;
-    long int outerMaxLoop;
-    long int innerMaxLoop;
+    unsigned long int outerMaxLoop;
+    unsigned long int innerMaxLoop;
     double outerEps;
     double innerEps;
-    long int outerRestart;
-    long int innerRestart;
+    unsigned long int outerRestart;
+    unsigned long int innerRestart;
     int outerKskip;
     int innerKskip;
     int outerFix;
@@ -61,8 +61,8 @@ class collection {
     std::string CRS_Matrix_Name;
     std::string MM_Matrix_Name;
     std::string fullPath; 
-    long int N; 
-    long int NNZ;
+    unsigned long int N; 
+    unsigned long int NNZ;
     int inputSource; //1->CRS, 2->MM
 
 

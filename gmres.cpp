@@ -36,14 +36,12 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
   N = this->coll->N;
   if(isCUDA){
     rvec = cu->d_MallocHost(N);
-    axvec = cu->d_MallocHost(N);
     evec = cu->d_MallocHost(restart);
     vvec = cu->d_MallocHost(N);
     vmtx = cu->d_MallocHost(N*(restart+1));
     hmtx = cu->d_MallocHost(N*(restart+1));
     yvec = cu->d_MallocHost(restart);
     wvec = cu->d_MallocHost(N);
-    avvec = cu->d_MallocHost(N);
     cvec = cu->d_MallocHost(restart);
     svec = cu->d_MallocHost(restart);
     x0vec = cu->d_MallocHost(N);
@@ -51,14 +49,12 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
     x_0 = cu->d_MallocHost(N);
   }else{
     rvec = new double [N];
-    axvec = new double [N];
     evec = new double [restart];
     vvec = new double [N];
     vmtx = new double [N*(restart+1)];
     hmtx = new double [N*(restart+1)];
     yvec = new double [restart];
     wvec = new double [N];
-    avvec = new double [N];
     cvec = new double [restart];
     svec = new double [restart];
     x0vec = new double [N];
@@ -70,20 +66,17 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
   this->bvec = bvec;
 
   std::memset(rvec, 0, sizeof(double)*N);
-  std::memset(axvec, 0, sizeof(double)*N);
   std::memset(evec, 0, sizeof(double)*restart);
   std::memset(vvec, 0, sizeof(double)*N);
-  // std::memset(vmtx, 0, sizeof(double)*(N*(restart+1)));
-  // std::memset(hmtx, 0, sizeof(double)*(N*(restart+1)));
+  std::memset(vmtx, 0, sizeof(double)*(N*(restart+1)));
+  std::memset(hmtx, 0, sizeof(double)*(N*(restart+1)));
   std::memset(yvec, 0, sizeof(double)*restart);
   std::memset(wvec, 0, sizeof(double)*N);
-  std::memset(avvec, 0, sizeof(double)*N);
   std::memset(cvec, 0, sizeof(double)*restart);
   std::memset(svec, 0, sizeof(double)*restart);
   std::memset(x0vec, 0, sizeof(double)*N);
   std::memset(tmpvec, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
-
 
   if(!isInner){
     f_his.open("./output/GMRES_his.txt");
@@ -104,14 +97,12 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
 gmres::~gmres(){
   if(isCUDA){
     cu->FreeHost(rvec);
-    cu->FreeHost(axvec);
     cu->FreeHost(evec);
     cu->FreeHost(vvec);
     cu->FreeHost(vmtx);
     cu->FreeHost(hmtx);
     cu->FreeHost(yvec);
     cu->FreeHost(wvec);
-    cu->FreeHost(avvec);
     cu->FreeHost(cvec);
     cu->FreeHost(svec);
     cu->FreeHost(x0vec);
@@ -119,14 +110,12 @@ gmres::~gmres(){
     cu->FreeHost(x_0);
   }else{
     delete[] rvec;
-    delete[] axvec;
     delete[] evec;
     delete[] vvec;
     delete[] vmtx;
     delete[] hmtx;
     delete[] yvec;
     delete[] wvec;
-    delete[] avvec;
     delete[] cvec;
     delete[] svec;
     delete[] x0vec;
@@ -141,7 +130,8 @@ gmres::~gmres(){
   f_his.close();
   f_x.close();
 }
-
+// delete axvec -> tmpvec
+// deleta avvec -> wvec
 int gmres::solve(){
 
   time.start();
@@ -156,18 +146,18 @@ int gmres::solve(){
   {
     //Ax0
     if(isCUDA){
-      cu->MtxVec_mult(xvec, axvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->MtxVec_mult(xvec, tmpvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
-      bs->MtxVec_mult(xvec, axvec);
+      bs->MtxVec_mult(xvec, tmpvec);
     }
 
     //r0=b-Ax0
-    bs->Vec_sub(bvec, axvec, rvec);
+    bs->Vec_sub(bvec, tmpvec, rvec);
 
     //2norm rvec
     tmp = bs->norm_2(rvec);
 
-    //
+    //v0 = r0/||r||2
     bs->Scalar_x_div_a(rvec, tmp, vvec);
 
     bs->Vec_copy(vvec, vmtx, 0, N);
@@ -227,12 +217,11 @@ int gmres::solve(){
 
       //Av & w
       if(isCUDA){
-        cu->MtxVec_mult(vmtx, k, N, avvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        cu->MtxVec_mult(vmtx, k, N, wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       }else{
-        bs->MtxVec_mult(vmtx, k, N, avvec);
+        bs->MtxVec_mult(vmtx, k, N, wvec);
       }
 
-      bs->Vec_copy(avvec, wvec);
 
       //h_i_k & w update
       if(isCUDA){
