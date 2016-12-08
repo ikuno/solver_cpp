@@ -980,6 +980,7 @@ void cuda::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
   double tmp1 = 0.0;
   double tmp2 = 0.0;
   double tmp3 = 0.0;
+#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3) schedule(static) firstprivate(delta, eta, zeta, cu_h2, cu_h3, cu_h4) lastprivate(delta, eta, zeta)
   for(int i=0; i<2*kskip+2; i++){
     tmp1 = 0.0;
     tmp2 = 0.0;
@@ -1069,6 +1070,79 @@ double tmp3 = 0.0;
   }
 }
 
+void cuda::Kskip_cg_innerProduce3(double *delta, double *eta, double *zeta, double *Ar, double *Ap, double *rvec, double *pvec, int kskip, double *val, int *col, int *ptr){
+  cudaStream_t stream1, stream2, stream3;
+  cudaStreamCreate(&stream1);
+  cudaStreamCreate(&stream2);
+  cudaStreamCreate(&stream3);
+
+  int ThreadPerBlock=128;
+  int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
+
+  cudaMemsetAsync(cu_d6, 0, sizeof(double)*BlockPerGrid*(2*kskip), stream1);
+  cudaMemsetAsync(cu_d7, 0, sizeof(double)*BlockPerGrid*(2*kskip+1), stream2);
+  cudaMemsetAsync(cu_d8, 0, sizeof(double)*BlockPerGrid*(2*kskip+2), stream3);
+
+  //d1 -> r
+  //d2 -> p
+  //d4 -> Ar
+  //d5 -> Ap
+
+  //d6 -> delta
+  //d7 -> eta
+  //d8 -> zeta
+
+  cudaDeviceSynchronize();
+  
+  double tmp1 = 0.0;
+  double tmp2 = 0.0;
+  double tmp3 = 0.0;
+
+  for(int i=0; i<2*kskip+2; i++){
+    tmp1 = 0.0;
+    tmp2 = 0.0;
+    tmp3 = 0.0;
+    if(i<2*kskip){
+      kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
+      if(i==2*kskip-1){
+        cudaMemcpyAsync(cu_h2, cu_d6, sizeof(double)*(BlockPerGrid)*(2*kskip), cudaMemcpyDeviceToHost, stream1);
+      }
+    }
+    if(i<2*kskip+1){
+      kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d5, i, this->size, cu_d1, cu_d7, i, BlockPerGrid);
+      if(i==2*kskip){
+        cudaMemcpyAsync(cu_h3, cu_d7, sizeof(double)*(BlockPerGrid)*(2*kskip+1), cudaMemcpyDeviceToHost, stream2);
+      }
+    }
+    kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream3>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
+    if(i==2*kskip+1){
+      cudaMemcpyAsync(cu_h4, cu_d8, sizeof(double)*(BlockPerGrid)*(2*kskip+2), cudaMemcpyDeviceToHost, stream3);
+    }
+    cudaDeviceSynchronize();
+  }
+#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3) schedule(static) firstprivate(delta, eta, zeta, cu_h2, cu_h3, cu_h4) lastprivate(delta, eta, zeta)
+  for(int i=0; i<2*kskip+2; i++){
+    tmp1 = 0.0;
+    tmp2 = 0.0;
+    tmp3 = 0.0;
+    if(i<2*kskip){
+      for(int j=0; j<BlockPerGrid; j++){
+        tmp1 += cu_h2[i*BlockPerGrid+j];
+      }
+      delta[i] = tmp1;
+    }
+    if(i<2*kskip+1){
+      for(int j=0; j<BlockPerGrid; j++){
+        tmp2 += cu_h3[i*BlockPerGrid+j];
+      }
+      eta[i] = tmp2;
+    }
+    for(int j=0; j<BlockPerGrid; j++){
+      tmp3 += cu_h4[i*BlockPerGrid+j];
+    }
+    zeta[i] = tmp3;
+  }
+}
 
 void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *r_vec, double *p_vec, int kskip, double *val, int *col, int *ptr){
 
@@ -1162,6 +1236,8 @@ void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
   }
   this->time->end();
   this->time->cu_dot_reduce_time += this->time->getTime();
+
+
 }
 
 void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *r_vec, double *p_vec, int kskip, double *val, int *col, int *ptr){
@@ -1245,6 +1321,102 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
     phi[i] = tmp4;
   }
 
+  cudaStreamDestroy(stream1);
+  cudaStreamDestroy(stream2);
+  cudaStreamDestroy(stream3);
+  cudaStreamDestroy(stream4);
+
+}
+
+void cuda::Kskip_bicg_innerProduce3(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *r_vec, double *p_vec, int kskip, double *val, int *col, int *ptr){
+  //d1 -> *r
+  //d2 -> *p
+  //d4 -> Ar
+  //d5 -> Ap
+
+  //d6 -> theta
+  //d7 -> eta
+  //d9 -> rho
+  //d8 -> phi
+
+  //d6 -> theta -> h2
+  //d7 -> eta -> h3
+  //d9 -> rho -> h5
+  //d8 -> phi -> h4
+
+  cudaStream_t stream1, stream2, stream3, stream4;
+  cudaStreamCreate(&stream1);
+  cudaStreamCreate(&stream2);
+  cudaStreamCreate(&stream3);
+  cudaStreamCreate(&stream4);
+
+  int ThreadPerBlock=128;
+  int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
+
+  cudaMemsetAsync(cu_d6, 0, sizeof(double)*BlockPerGrid*(2*kskip), stream1);
+  cudaMemsetAsync(cu_d7, 0, sizeof(double)*BlockPerGrid*(2*kskip+1), stream2);
+  cudaMemsetAsync(cu_d9, 0, sizeof(double)*BlockPerGrid*(2*kskip+1), stream3);
+  cudaMemsetAsync(cu_d8, 0, sizeof(double)*BlockPerGrid*(2*kskip+2), stream4);
+
+  cudaMemcpyAsync(cu_d1, r_vec, sizeof(double)*size, cudaMemcpyHostToDevice, stream1);
+  cudaMemcpyAsync(cu_d2, p_vec, sizeof(double)*size, cudaMemcpyHostToDevice, stream2);
+
+  cudaDeviceSynchronize();
+
+  double tmp1 = 0.0;
+  double tmp2 = 0.0;
+  double tmp3 = 0.0;
+  double tmp4 = 0.0;
+  for(int i=0; i<2*kskip+2; i++){
+    if(i<2*kskip){
+      kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
+      if(i==2*kskip-1){
+        cudaMemcpyAsync(cu_h2, cu_d6, sizeof(double)*(BlockPerGrid*(2*kskip)), cudaMemcpyDeviceToHost, stream1);
+      }
+    }
+    if(i<2*kskip+1){
+      kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d5, i, this->size, cu_d1, cu_d7, i, BlockPerGrid);
+      if(i==2*kskip){
+        cudaMemcpyAsync(cu_h3, cu_d7, sizeof(double)*(BlockPerGrid*(2*kskip+1)), cudaMemcpyDeviceToHost, stream2);
+      }
+      kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream3>>>(this->size, cu_d4, i, this->size, cu_d2, cu_d9, i, BlockPerGrid);
+      if(i==2*kskip){
+        cudaMemcpyAsync(cu_h5, cu_d9, sizeof(double)*(BlockPerGrid*(2*kskip+1)), cudaMemcpyDeviceToHost, stream3);
+      }
+    }
+    kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream4>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
+    if(i==2*kskip+1){
+      cudaMemcpyAsync(cu_h4, cu_d8, sizeof(double)*(BlockPerGrid*(2*kskip+2)), cudaMemcpyDeviceToHost, stream4);
+    }
+    cudaDeviceSynchronize();
+  }
+
+#pragma omp parallel for reduction(+:tmp1, tmp2, tmp3, tmp4) schedule(static) firstprivate(theta, eta, rho, phi, cu_h2, cu_h3, cu_h4, cu_h5) lastprivate(theta, eta, rho, phi)
+  for(int i=0; i<2*kskip+2; i++){
+    tmp1 = 0.0;
+    tmp2 = 0.0;
+    tmp3 = 0.0;
+    tmp4 = 0.0;
+    if(i<2*kskip){
+      for(int j=0; j<BlockPerGrid; j++){
+        tmp1 += cu_h2[i*BlockPerGrid+j];
+      }
+      theta[i] = tmp1;
+    }
+    if(i<2*kskip+1){
+      for(int j=0; j<BlockPerGrid; j++){
+        tmp2 += cu_h3[i*BlockPerGrid+j];
+        tmp3 += cu_h5[i*BlockPerGrid+j];
+      }
+      eta[i] = tmp2;
+      rho[i] = tmp3;
+    }
+    for(int j=0; j<BlockPerGrid; j++){
+      tmp4 += cu_h4[i*BlockPerGrid+j];
+    }
+    phi[i] = tmp4;
+  }
+  
   cudaStreamDestroy(stream1);
   cudaStreamDestroy(stream2);
   cudaStreamDestroy(stream3);

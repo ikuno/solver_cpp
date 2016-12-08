@@ -205,7 +205,8 @@ int kskipBicg::solve(){
     if(isCUDA){
       // bs->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
       // cu->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      cu->Kskip_bicg_innerProduce2(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->Kskip_bicg_innerProduce2(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->Kskip_bicg_innerProduce3(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
     }
