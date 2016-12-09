@@ -12,7 +12,7 @@ class cuda {
     double *cu_d9, *cu_h5;//kskipbicg Blocks*(2*k+1) Blocks*(2*k+1)
     double *cu_d10, *cu_h6, *cu_d11, *cu_h7;//gmres vpgmres restart*N restart*N, blocks, blocks
     double *cu_d100, *cu_d101; //test for gmres N, blocks
-    double *cu_d200, *cu_d201;
+    double *cu_d200, *cu_d201, *cu_h8; // test  for gmres N*(r+1) B*(r+1) B*(r+1)
     unsigned long int size;
     int k;
     int restart;
