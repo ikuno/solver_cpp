@@ -25,7 +25,7 @@ class gmres {
 
     int maxloop;
     double eps;
-    bool isVP, isVerbose, isCUDA, isInner;
+    bool isVP, isVerbose, isCUDA, isInner, isPinned;
     int restart;
 
     int exit_flag, over_flag;
@@ -35,6 +35,7 @@ class gmres {
 
     std::ofstream f_his;
     std::ofstream f_x;
+    std::ofstream f_in;
 
   public:
     gmres(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL);

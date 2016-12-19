@@ -441,6 +441,7 @@ void blas::Gmres_sp_1(int k, double *x, double *y, double *out){
 #pragma omp parallel for schedule(static) firstprivate(out, x, y) lastprivate(out) num_threads(this->coll->OMPThread)
   for(unsigned long int j=0; j<N; j++){
     for(int i=0; i<=k; i++){
+    // for(int i=0; i<k; i++){
       out[j] -= x[i*N+k] * y[i*N+j];
     }
   }

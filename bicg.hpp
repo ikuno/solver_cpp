@@ -22,7 +22,7 @@ class bicg {
 
     int maxloop;
     double eps;
-    bool isVP, isVerbose, isCUDA, isInner;
+    bool isVP, isVerbose, isCUDA, isInner, isPinned;
 
     int exit_flag;
     double test_error;
@@ -31,6 +31,7 @@ class bicg {
 
     std::ofstream f_his;
     std::ofstream f_x;
+    std::ofstream f_in;
 
   public:
 

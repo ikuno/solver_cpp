@@ -23,15 +23,25 @@ bicg::bicg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu,
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
+  isPinned = this->coll->isPinned;
 
   N = this->coll->N;
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    pvec = cu->d_MallocHost(N);
-    r_vec = cu->d_MallocHost(N);
-    p_vec = cu->d_MallocHost(N);
-    mv = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
+    if(isPinned){
+      rvec = new double [N];
+      pvec = cu->d_MallocHost(N);
+      r_vec = new double [N];
+      p_vec = cu->d_MallocHost(N);
+      mv = cu->d_MallocHost(N);
+      x_0 = new double [N];
+    }else{
+      rvec = new double [N];
+      pvec = new double [N];
+      r_vec = new double [N];
+      p_vec = new double [N];
+      mv = new double [N];
+      x_0 = new double [N];
+    }
   }else{
     rvec = new double [N];
     pvec = new double [N];
@@ -60,28 +70,45 @@ bicg::bicg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu,
   std::memset(mv, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
   
-  f_his.open("./output/BICG_his.txt");
-  if(!f_his.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
-  }
+  if(!isInner){
+    f_his.open("./output/BICG_his.txt");
+    if(!f_his.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
 
-  f_x.open("./output/BICG_xvec.txt");
-  if(!f_x.is_open()){
-    std::cerr << "File open error" << std::endl;
-    exit(-1);
+    f_x.open("./output/BICG_xvec.txt");
+    if(!f_x.is_open()){
+      std::cerr << "File open error" << std::endl;
+      exit(-1);
+    }
+  }else{
+    f_in.open("./output/BICG_inner.txt", std::ofstream::out | std::ofstream::app);
+    if(!f_in.is_open()){
+      std::cerr << "File open error inner" << std::endl;
+      std::exit(-1);
+    }
   }
 
 }
 
 bicg::~bicg(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(pvec);
-    cu->FreeHost(r_vec);
-    cu->FreeHost(p_vec);
-    cu->FreeHost(mv);
-    cu->FreeHost(x_0);
+    if(isPinned){
+      delete[] rvec;
+      cu->FreeHost(pvec);
+      delete[] r_vec;
+      cu->FreeHost(p_vec);
+      cu->FreeHost(mv);
+      delete[] x_0;
+    }else{
+      delete[] rvec;
+      delete[] pvec;
+      delete[] r_vec;
+      delete[] p_vec;
+      delete[] mv;
+      delete[] x_0;
+    }
   }else{
     delete[] rvec;
     delete[] pvec;
@@ -230,6 +257,7 @@ int bicg::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
+    f_in << loop << std::endl;
   }
 
   return exit_flag;

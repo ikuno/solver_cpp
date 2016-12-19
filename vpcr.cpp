@@ -19,15 +19,25 @@ vpcr::vpcr(collection *coll, double *bvec, double *xvec, bool inner){
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
   isInner = inner;
+  isPinned = this->coll->isPinned;
 
   N = this->coll->N;
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    pvec = cu->d_MallocHost(N);
-    zvec = cu->d_MallocHost(N);
-    Av = cu->d_MallocHost(N);
-    Ap = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
+    if(isPinned){
+      rvec = cu->d_MallocHost(N);
+      pvec = new double [N];
+      zvec = cu->d_MallocHost(N);
+      Av = cu->d_MallocHost(N);
+      Ap = cu->d_MallocHost(N);
+      x_0 = new double [N];
+    }else{
+      rvec = new double [N];
+      pvec = new double [N];
+      zvec = new double [N];
+      Av = new double [N];
+      Ap = new double [N];
+      x_0 = new double [N];
+    }
   }else{
     rvec = new double [N];
     pvec = new double [N];
@@ -70,16 +80,38 @@ vpcr::vpcr(collection *coll, double *bvec, double *xvec, bool inner){
     }
   }
 
+  if(isVP){
+    std::string name = this->coll->enum2string(this->coll->innerSolver);
+    name = "./output/" + name + "_inner.txt";
+    std::ifstream in(name.c_str());
+    if(in.good()){
+      std::cout << "Delete inner solver's loop file" << std::endl;
+      std::remove(name.c_str());
+    }else{
+      std::cout << "Has no inner solver's loop file yet" << std::endl;
+    }
+  }
+
+
 }
 
 vpcr::~vpcr(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(pvec);
-    cu->FreeHost(zvec);
-    cu->FreeHost(Av);
-    cu->FreeHost(Ap);
-    cu->FreeHost(x_0);
+    if(isPinned){
+      cu->FreeHost(rvec);
+      delete[] pvec;
+      cu->FreeHost(zvec);
+      cu->FreeHost(Av);
+      cu->FreeHost(Ap);
+      delete[] x_0;
+    }else{
+      delete[] rvec;
+      delete[] pvec;
+      delete[] zvec;
+      delete[] Av;
+      delete[] Ap;
+      delete[] x_0;
+    }
   }else{
     delete[] rvec;
     delete[] pvec;

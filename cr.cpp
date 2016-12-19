@@ -19,14 +19,23 @@ cr::cr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
+  isPinned = this->coll->isPinned;
 
   N = this->coll->N;
   if(isCUDA){
+    if(isPinned){
     rvec = cu->d_MallocHost(N);
     pvec = cu->d_MallocHost(N);
     qvec = cu->d_MallocHost(N);
     svec = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
+    x_0 = new double [N];
+    }else{
+      rvec = new double [N];
+      pvec = new double [N];
+      qvec = new double [N];
+      svec = new double [N];
+      x_0 = new double [N];
+    }
   }else{
     rvec = new double [N];
     pvec = new double [N];
@@ -65,17 +74,32 @@ cr::cr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
       std::cerr << "File open error" << std::endl;
       std::exit(-1);
     }
+  }else{
+    f_in.open("./output/CR_inner.txt", std::ofstream::out | std::ofstream::app);
+    if(!f_in.is_open()){
+      std::cerr << "File open error inner" << std::endl;
+      std::exit(-1);
+    }
   }
+
 
 }
 
 cr::~cr(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(pvec);
-    cu->FreeHost(qvec);
-    cu->FreeHost(svec);
-    cu->FreeHost(x_0);
+    if(isPinned){
+      cu->FreeHost(rvec);
+      cu->FreeHost(pvec);
+      cu->FreeHost(qvec);
+      cu->FreeHost(svec);
+      delete[] x_0;
+    }else{
+      delete[] rvec;
+      delete[] pvec;
+      delete[] qvec;
+      delete[] svec;
+      delete[] x_0;
+    }
   }else{
     delete[] rvec;
     delete[] pvec;
@@ -219,6 +243,7 @@ int cr::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
+    f_in << loop << std::endl;
   }
 
   return exit_flag;

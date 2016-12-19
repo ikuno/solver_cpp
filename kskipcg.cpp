@@ -12,6 +12,7 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda 
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
+  isPinned = this->coll->isPinned;
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -36,15 +37,27 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda 
   N = this->coll->N;
 
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    pvec = cu->d_MallocHost(N);
-    Av = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
-    delta = cu->d_MallocHost(2*kskip);
-    eta = cu->d_MallocHost(2*kskip+1);
-    zeta = cu->d_MallocHost(2*kskip+2);
-    Ar = cu->d_MallocHost((2*kskip+1)*N);
-    Ap = cu->d_MallocHost((2*kskip+2)*N);
+    if(isPinned){
+      rvec = cu->d_MallocHost(N);
+      pvec = cu->d_MallocHost(N);
+      Av = cu->d_MallocHost(N);
+      x_0 = new double [N];
+      delta = new double [2*kskip];
+      eta = new double [2*kskip+1];
+      zeta = new double [2*kskip+2];
+      Ar = cu->d_MallocHost((2*kskip+1)*N);
+      Ap = cu->d_MallocHost((2*kskip+2)*N);
+    }else{
+      rvec = new double [N];
+      pvec = new double [N];
+      Av = new double [N];
+      x_0 = new double [N];
+      delta = new double [2*kskip];
+      eta = new double [2*kskip+1];
+      zeta = new double [2*kskip+2];
+      Ar = new double [(2*kskip+1)*N];
+      Ap = new double [(2*kskip+2)*N];
+    }
   }else{
     rvec = new double [N];
     pvec = new double [N];
@@ -84,21 +97,40 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda 
       std::cerr << "File open error" << std::endl;
       exit(-1);
     }
+  }else{
+    f_in.open("./output/KSKIPCG_inner.txt", std::ofstream::out | std::ofstream::app);
+    if(!f_in.is_open()){
+      std::cerr << "File open error inner" << std::endl;
+      std::exit(-1);
+    }
   }
 
 }
 
 kskipcg::~kskipcg(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(pvec);
-    cu->FreeHost(Av);
-    cu->FreeHost(x_0);
-    cu->FreeHost(delta);
-    cu->FreeHost(eta);
-    cu->FreeHost(zeta);
-    cu->FreeHost(Ar);
-    cu->FreeHost(Ap);
+    if(isPinned){
+      cu->FreeHost(rvec);
+      cu->FreeHost(pvec);
+      cu->FreeHost(Av);
+      delete[] x_0;
+      delete[] delta;
+      delete[] eta;
+      delete[] zeta;
+
+      cu->FreeHost(Ar);
+      cu->FreeHost(Ap);
+    }else{
+      delete[] rvec;
+      delete[] pvec;
+      delete[] Av;
+      delete[] x_0;
+      delete[] delta;
+      delete[] eta;
+      delete[] zeta;
+      delete[] Ar;
+      delete[] Ap;
+    }
   }else{
     delete[] rvec;
     delete[] pvec;
@@ -254,6 +286,7 @@ int kskipcg::solve(){
         std::cout << RED << " ERROR " << nloop-kskip+1 << RESET << std::endl;
       }
     }
+    f_in << nloop-kskip+1 << std::endl;
   }
 
   return exit_flag;

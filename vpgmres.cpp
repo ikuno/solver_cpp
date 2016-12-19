@@ -21,6 +21,7 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
   isInner = inner;
+  isPinned = this->coll->isPinned;
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -34,21 +35,40 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
 
   N = this->coll->N;
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    evec = cu->d_MallocHost(restart);
-    vvec = cu->d_MallocHost(N);
-    vmtx = cu->d_MallocHost(N*(restart+1));
-    hmtx = cu->d_MallocHost(N*(restart+1));
-    yvec = cu->d_MallocHost(restart);
-    wvec = cu->d_MallocHost(N);
-    hvvec = cu->d_MallocHost(restart * (restart+1));
-    cvec = cu->d_MallocHost(restart);
-    svec = cu->d_MallocHost(restart);
-    x0vec = cu->d_MallocHost(N);
-    tmpvec = cu->d_MallocHost(N);
-    zmtx = cu->d_MallocHost(N*(restart+1));
-    zvec = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
+    if(isPinned){
+      vvec = cu->d_MallocHost(N);
+      wvec = cu->d_MallocHost(N);
+      tmpvec = cu->d_MallocHost(N);
+      zvec = cu->d_MallocHost(N);
+
+      rvec = new double [N];
+      evec = new double [restart];
+      vmtx = new double [N*(restart+1)];
+      hmtx = new double [N*(restart+1)];
+      yvec = new double [restart];
+      hvvec = new double [restart*(restart+1)];
+      cvec = new double [restart];
+      svec = new double [restart];
+      x0vec = new double [N];
+      zmtx = new double [N*(restart+1)];
+      x_0 = new double [N];
+    }else{
+      rvec = new double [N];
+      evec = new double [restart];
+      vvec = new double [N];
+      vmtx = new double [N*(restart+1)];
+      hmtx = new double [N*(restart+1)];
+      yvec = new double [restart];
+      wvec = new double [N];
+      hvvec = new double [restart*(restart+1)];
+      cvec = new double [restart];
+      svec = new double [restart];
+      x0vec = new double [N];
+      tmpvec = new double [N];
+      zmtx = new double [N*(restart+1)];
+      zvec = new double [N];
+      x_0 = new double [N];
+    }
   }else{
     rvec = new double [N];
     evec = new double [restart];
@@ -99,25 +119,56 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
     exit(-1);
   }
 
+  if(isVP){
+    std::string name = this->coll->enum2string(this->coll->innerSolver);
+    name = "./output/" + name + "_inner.txt";
+    std::ifstream in(name.c_str());
+    if(in.good()){
+      std::cout << "Delete inner solver's loop file" << std::endl;
+      std::remove(name.c_str());
+    }else{
+      std::cout << "Has no inner solver's loop file yet" << std::endl;
+    }
+  }
+
 }
 
 vpgmres::~vpgmres(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(evec);
-    cu->FreeHost(vvec);
-    cu->FreeHost(vmtx);
-    cu->FreeHost(hmtx);
-    cu->FreeHost(yvec);
-    cu->FreeHost(wvec);
-    cu->FreeHost(hvvec);
-    cu->FreeHost(cvec);
-    cu->FreeHost(svec);
-    cu->FreeHost(x0vec);
-    cu->FreeHost(tmpvec);
-    cu->FreeHost(zmtx);
-    cu->FreeHost(zvec);
-    cu->FreeHost(x_0);
+    if(isPinned){
+      cu->FreeHost(vvec);
+      cu->FreeHost(wvec);
+      cu->FreeHost(tmpvec);
+      cu->FreeHost(zvec);
+
+      delete[] rvec;
+      delete[] evec;
+      delete[] vmtx;
+      delete[] hmtx;
+      delete[] yvec;
+      delete[] hvvec;
+      delete[] cvec;
+      delete[] svec;
+      delete[] x0vec;
+      delete[] zmtx;
+      delete[] x_0;
+    }else{
+      delete[] rvec;
+      delete[] evec;
+      delete[] vvec;
+      delete[] vmtx;
+      delete[] hmtx;
+      delete[] yvec;
+      delete[] wvec;
+      delete[] hvvec;
+      delete[] cvec;
+      delete[] svec;
+      delete[] x0vec;
+      delete[] tmpvec;
+      delete[] zmtx;
+      delete[] zvec;
+      delete[] x_0;
+    }
   }else{
     delete[] rvec;
     delete[] evec;
@@ -158,6 +209,7 @@ int vpgmres::solve(){
     //Ax0
     if(isCUDA){
       cu->MtxVec_mult(xvec, tmpvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // bs->MtxVec_mult(xvec, tmpvec);
     }else{
       bs->MtxVec_mult(xvec, tmpvec);
     }
@@ -231,6 +283,7 @@ int vpgmres::solve(){
       /* //Av & W */
       if(isCUDA){
         cu->MtxVec_mult(zvec, wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        // bs->MtxVec_mult(zvec, wvec);
       }else{
         bs->MtxVec_mult(zvec, wvec);
       }
@@ -245,14 +298,20 @@ int vpgmres::solve(){
       //   }
       //   hmtx[i*N+k] = wv_ip;
       // }
-      for(int i=0; i<=k; i++){
-        if(isCUDA){
-          // wv_ip = cu->dot(wvec, vmtx, i, N);
+      //h_i_k & w update
+      if(isCUDA){
+        // cu->dot_gmres(wvec, vmtx, hmtx, k, N);
+        // cu->dot_gmres2(wvec, vmtx, hmtx, k, N);
+        // cu->dot_gmres3(wvec, vmtx, hmtx, k, N);
+        for(int i=0; i<=k; i++){
           wv_ip = bs->dot(wvec, vmtx, i, N);
-        }else{
-          wv_ip = bs->dot(wvec, vmtx, i, N);
+          hmtx[i*N+k] = wv_ip;
         }
-        hmtx[i*N+k] = wv_ip;
+      }else{
+        for(int i=0; i<=k; i++){
+          wv_ip = bs->dot(wvec, vmtx, i, N);
+          hmtx[i*N+k] = wv_ip;
+        }
       }
 
       // for(int i=0; i<=k; i++){
@@ -319,9 +378,17 @@ int vpgmres::solve(){
     std::cout << "|b-ax|2/|b|2 = " << std::fixed << std::setprecision(1) << test_error << std::endl;
     std::cout << "loop = " << count+1 << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
+    
+    if(this->coll->isCUDA){
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
+    }else{
+      this->coll->time->showTimeOnCPU(time.getTime());
+    }
+
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
+
   }else{
     if(exit_flag==0){
       std::cout << GREEN << "\t" <<  count+1 << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;

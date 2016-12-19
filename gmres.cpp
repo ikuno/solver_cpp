@@ -22,6 +22,7 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
+  isPinned = this->coll->isPinned;
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -35,18 +36,33 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
 
   N = this->coll->N;
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    evec = cu->d_MallocHost(restart);
-    vvec = cu->d_MallocHost(N);
-    vmtx = cu->d_MallocHost(N*(restart+1));
-    hmtx = cu->d_MallocHost(N*(restart+1));
-    yvec = cu->d_MallocHost(restart);
-    wvec = cu->d_MallocHost(N);
-    cvec = cu->d_MallocHost(restart);
-    svec = cu->d_MallocHost(restart);
-    x0vec = cu->d_MallocHost(N);
-    tmpvec = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
+    if(isPinned){
+      vmtx = cu->d_MallocHost(N*(restart+1));
+      wvec = cu->d_MallocHost(N);
+      tmpvec = cu->d_MallocHost(N);
+      rvec = new double [N];
+      evec = new double [restart];
+      vvec = new double [N];
+      hmtx = new double [N*(restart+1)];
+      yvec = new double [restart];
+      cvec = new double [restart];
+      svec = new double [restart];
+      x0vec = new double [N];
+      x_0 = new double [N];
+    }else{
+      rvec = new double [N];
+      evec = new double [restart];
+      vvec = new double [N];
+      vmtx = new double [N*(restart+1)];
+      hmtx = new double [N*(restart+1)];
+      yvec = new double [restart];
+      wvec = new double [N];
+      cvec = new double [restart];
+      svec = new double [restart];
+      x0vec = new double [N];
+      tmpvec = new double [N];
+      x_0 = new double [N];
+    }
   }else{
     rvec = new double [N];
     evec = new double [restart];
@@ -90,24 +106,47 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
       std::cerr << "File open error" << std::endl;
       exit(-1);
     }
+  }else{
+    f_in.open("./output/GMRES_inner.txt", std::ofstream::out | std::ofstream::app);
+    if(!f_in.is_open()){
+      std::cerr << "File open error inner" << std::endl;
+      std::exit(-1);
+    }
   }
 
 }
 
 gmres::~gmres(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(evec);
-    cu->FreeHost(vvec);
-    cu->FreeHost(vmtx);
-    cu->FreeHost(hmtx);
-    cu->FreeHost(yvec);
-    cu->FreeHost(wvec);
-    cu->FreeHost(cvec);
-    cu->FreeHost(svec);
-    cu->FreeHost(x0vec);
-    cu->FreeHost(tmpvec);
-    cu->FreeHost(x_0);
+    if(isPinned){
+      cu->FreeHost(vmtx);
+      cu->FreeHost(wvec);
+      cu->FreeHost(tmpvec);
+
+      delete[] rvec;
+      delete[] evec;
+      delete[] vvec;
+      delete[] hmtx;
+      delete[] yvec;
+      delete[] cvec;
+      delete[] svec;
+      delete[] x0vec;
+      delete[] x_0;
+    }else{
+      delete[] rvec;
+      delete[] evec;
+      delete[] vvec;
+      delete[] vmtx;
+      delete[] hmtx;
+      delete[] yvec;
+      delete[] wvec;
+      delete[] cvec;
+      delete[] svec;
+      delete[] x0vec;
+      delete[] tmpvec;
+      delete[] x_0;
+    }
+
   }else{
     delete[] rvec;
     delete[] evec;
@@ -147,6 +186,7 @@ int gmres::solve(){
     //Ax0
     if(isCUDA){
       cu->MtxVec_mult(xvec, tmpvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // bs->MtxVec_mult(xvec, tmpvec);
     }else{
       bs->MtxVec_mult(xvec, tmpvec);
     }
@@ -218,6 +258,7 @@ int gmres::solve(){
       //Av & w
       if(isCUDA){
         cu->MtxVec_mult(vmtx, k, N, wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        // bs->MtxVec_mult(vmtx, k, N, wvec);
       }else{
         bs->MtxVec_mult(vmtx, k, N, wvec);
       }
@@ -227,7 +268,11 @@ int gmres::solve(){
       if(isCUDA){
         // cu->dot_gmres(wvec, vmtx, hmtx, k, N);
         // cu->dot_gmres2(wvec, vmtx, hmtx, k, N);
-        cu->dot_gmres3(wvec, vmtx, hmtx, k, N);
+        // cu->dot_gmres3(wvec, vmtx, hmtx, k, N);
+        for(int i=0; i<=k; i++){
+          wv_ip = bs->dot(wvec, vmtx, i, N);
+          hmtx[i*N+k] = wv_ip;
+        }
       }else{
         for(int i=0; i<=k; i++){
           wv_ip = bs->dot(wvec, vmtx, i, N);
@@ -298,6 +343,9 @@ int gmres::solve(){
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
+
+    this->coll->time->showTimeOnCPU(time.getTime());
+
   }else{
     if(isVerbose){
       if(exit_flag==0){
@@ -308,6 +356,7 @@ int gmres::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
+    f_in << count+1 << std::endl;
   }
 
   return exit_flag;

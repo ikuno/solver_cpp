@@ -19,14 +19,23 @@ vpcg::vpcg(collection *coll, double *bvec, double *xvec, bool inner){
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
   isInner = inner;
+  isPinned = this->coll->isPinned;
 
   N = this->coll->N;
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    pvec = cu->d_MallocHost(N);
-    zvec = cu->d_MallocHost(N);
-    mv = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
+    if(isPinned){
+      rvec = cu->d_MallocHost(N);
+      pvec = cu->d_MallocHost(N);
+      zvec = cu->d_MallocHost(N);
+      mv = cu->d_MallocHost(N);
+      x_0 = new double [N];
+    }else{
+      rvec = new double [N];
+      pvec = new double [N];
+      zvec = new double [N];
+      mv = new double [N];
+      x_0 = new double [N];
+    }
   }else{
     rvec = new double [N];
     pvec = new double [N];
@@ -65,15 +74,35 @@ vpcg::vpcg(collection *coll, double *bvec, double *xvec, bool inner){
     exit(-1);
   }
 
+  if(isVP){
+    std::string name = this->coll->enum2string(this->coll->innerSolver);
+    name = "./output/" + name + "_inner.txt";
+    std::ifstream in(name.c_str());
+    if(in.good()){
+      std::cout << "Delete inner solver's loop file" << std::endl;
+      std::remove(name.c_str());
+    }else{
+      std::cout << "Has no inner solver's loop file yet" << std::endl;
+    }
+  }
+
 }
 
 vpcg::~vpcg(){
   if(isCUDA){
+    if(isPinned){
     cu->FreeHost(rvec);
     cu->FreeHost(pvec);
     cu->FreeHost(zvec);
     cu->FreeHost(mv);
-    cu->FreeHost(x_0);
+    delete[] x_0;
+    }else{
+      delete[] rvec;
+      delete[] pvec;
+      delete[] zvec;
+      delete[] mv;
+      delete[] x_0;
+    }
   }else{
     delete[] rvec;
     delete[] pvec;

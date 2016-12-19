@@ -19,6 +19,7 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
   isInner = inner;
+  isPinned = this->coll->isPinned;
 
 
   if(isVP && isInner ){
@@ -39,13 +40,23 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
   this->bvec = bvec;
   
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    zvec = cu->d_MallocHost(N);
-    Av = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
-    qq = cu->d_MallocHost(restart);
-    qvec = cu->d_MallocHost(restart * N);
-    pvec = cu->d_MallocHost(restart * N);
+    if(isPinned){
+      rvec = new double [N];
+      zvec = cu->d_MallocHost(N);
+      Av = cu->d_MallocHost(N);
+      x_0 = new double [N];
+      qq = new double [restart];
+      qvec = cu->d_MallocHost(restart * N);
+      pvec = cu->d_MallocHost(restart * N);
+    }else{
+      rvec = new double [N];
+      zvec = new double [N];
+      Av = new double [N];
+      x_0 = new double [N];
+      qq = new double [restart];
+      qvec = new double [restart * N];
+      pvec = new double [restart * N];
+    }
   }else{
     rvec = new double [N];
     zvec = new double [N];
@@ -81,17 +92,39 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
 
   out_flag = false;
 
+  if(isVP){
+    std::string name = this->coll->enum2string(this->coll->innerSolver);
+    name = "./output/" + name + "_inner.txt";
+    std::ifstream in(name.c_str());
+    if(in.good()){
+      std::cout << "Delete inner solver's loop file" << std::endl;
+      std::remove(name.c_str());
+    }else{
+      std::cout << "Has no inner solver's loop file yet" << std::endl;
+    }
+  }
+
 }
 
 vpgcr::~vpgcr(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(Av);
-    cu->FreeHost(qq);
-    cu->FreeHost(x_0);
-    cu->FreeHost(qvec);
-    cu->FreeHost(pvec);
-    cu->FreeHost(zvec);
+    if(isPinned){
+      delete[] rvec;
+      cu->FreeHost(Av);
+      delete[] qq;
+      delete[] x_0;
+      cu->FreeHost(qvec);
+      cu->FreeHost(pvec);
+      cu->FreeHost(zvec);
+    }else{
+      delete[] rvec;
+      delete[] Av;
+      delete[] qq;
+      delete[] x_0;
+      delete[] qvec;
+      delete[] pvec;
+      delete[] zvec;
+    }
   }else{
     delete[] rvec;
     delete[] Av;

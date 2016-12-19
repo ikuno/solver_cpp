@@ -19,6 +19,7 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, b
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
+  isPinned = this->coll->isPinned;
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -38,12 +39,21 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, b
   this->bvec = bvec;
 
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    Av = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
-    qq = cu->d_MallocHost(restart);
-    qvec = cu->d_MallocHost(restart * N);
-    pvec = cu->d_MallocHost(restart * N);
+    if(isPinned){
+      rvec = cu->d_MallocHost(N);
+      Av = cu->d_MallocHost(N);
+      x_0 = new double [N];
+      qq = new double [restart];
+      qvec = cu->d_MallocHost(restart * N);
+      pvec = cu->d_MallocHost(restart * N);
+    }else{
+      rvec = new double [N];
+      Av = new double [N];
+      x_0 = new double [N];
+      qq = new double [restart];
+      qvec = new double [restart * N];
+      pvec = new double [restart * N];
+    }
   }else{
     rvec = new double [N];
     Av = new double [N];
@@ -74,18 +84,34 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, b
       std::cerr << "File open error" << std::endl;
       exit(-1);
     }
+  }else{
+    f_in.open("./output/GCR_inner.txt", std::ofstream::out | std::ofstream::app);
+    if(!f_in.is_open()){
+      std::cerr << "File open error inner" << std::endl;
+      std::exit(-1);
+    }
   }
+
   out_flag = false;
 }
 
 gcr::~gcr(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(Av);
-    cu->FreeHost(qq);
-    cu->FreeHost(x_0);
-    cu->FreeHost(qvec);
-    cu->FreeHost(pvec);
+    if(isPinned){
+      cu->FreeHost(rvec);
+      cu->FreeHost(Av);
+      delete[] qq;
+      delete[] x_0;
+      cu->FreeHost(qvec);
+      cu->FreeHost(pvec);
+    }else{
+      delete[] rvec;
+      delete[] Av;
+      delete[] qq;
+      delete[] x_0;
+      delete[] qvec;
+      delete[] pvec;
+    }
   }else{
     delete[] rvec;
     delete[] Av;
@@ -247,6 +273,7 @@ int gcr::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
+    f_in << loop << std::endl;
   }
 
   return exit_flag;

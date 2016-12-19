@@ -270,14 +270,14 @@ cuda::cuda(times *t, unsigned long int size) : cuda::cuda(t){
   this->time->end();
   this->time->cu_MV_malloc_time += this->time->getTime();
 
-  this->cu_d100 = d_Malloc(this->size);
-  this->cu_d101 = d_Malloc(tmp);
-
-
-  this->cu_d200 = d_Malloc(this->size * (1000+1));
-  this->cu_d201 = d_Malloc(tmp * (1000+1));
-
   this->cu_h8 = d_MallocHost(tmp * (1000+1));
+  /* this->cu_d100 = d_Malloc(this->size); */
+  /* this->cu_d101 = d_Malloc(tmp); */
+  /*  */
+  /*  */
+  /* this->cu_d200 = d_Malloc(this->size * (1000+1)); */
+  /* this->cu_d201 = d_Malloc(tmp * (1000+1)); */
+
 }
 
 cuda::cuda(times *t, unsigned long int size, int k) : cuda::cuda(t, size){
@@ -347,10 +347,10 @@ cuda::~cuda(){
   FreeHost(cu_h6);
   FreeHost(cu_h7);
 
-  Free(cu_d100);
-  Free(cu_d101);
-  Free(cu_d200);
-  Free(cu_d201);
+  /* Free(cu_d100); */
+  /* Free(cu_d101); */
+  /* Free(cu_d200); */
+  /* Free(cu_d201); */
   FreeHost(cu_h8);
 
 }
@@ -389,8 +389,8 @@ double* cuda::d_Malloc(unsigned long int size){
 double* cuda::d_MallocHost(unsigned long int size){
   double *ptr = NULL;
   unsigned long int  s = sizeof(double) * size;
-  /* checkCudaErrors(cudaMallocHost((void**)&ptr, s)); */
-  checkCudaErrors(cudaHostAlloc((void**)&ptr, s, cudaHostAllocPortable));
+  checkCudaErrors(cudaMallocHost((void**)&ptr, s));
+  /* checkCudaErrors(cudaHostAlloc((void**)&ptr, s, cudaHostAllocPortable)); */
   return ptr;
 }
 
@@ -917,7 +917,6 @@ void cuda::Kskip_cg_bicg_base2(double *Ar, double *Ap, double *rvec, double *pve
   cudaStream_t stream1, stream2;
   cudaStreamCreate(&stream1);
   cudaStreamCreate(&stream2);
-
   cudaMemsetAsync(cu_d4, 0, size*(2*kskip+1), stream1);
 
   cudaMemcpyAsync(this->cu_d1, rvec, sizeof(double)*size, cudaMemcpyHostToDevice, stream1);
@@ -934,6 +933,7 @@ void cuda::Kskip_cg_bicg_base2(double *Ar, double *Ap, double *rvec, double *pve
 
   cudaMemcpyAsync((double*)(Ap+(0*this->size)), (double*)(cu_d5+(0*this->size)), sizeof(double)*size, cudaMemcpyDeviceToHost, stream2);
 
+  
   for(int i=1; i<2*kskip+2; i++){
     if(i<2*kskip+1){
       kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock, 0, stream1>>>(this->size, val, col, ptr, cu_d4, i-1, this->size, cu_d4, i, this->size);
@@ -1560,23 +1560,13 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
   for(int i=0; i<32; i++){
     cudaStreamCreate(&stream[i]);
   }
-  /* if(k+1 >= 2){ */
-  /*   if(k+1 <= 32){ */
-  /*     for(int i=0; i<k+1; i++){ */
-  /*       cudaStreamCreate(&stream[i]); */
-  /*     } */
-  /*   } */
-    /* else if(k+1 > 32){ */
-    /*   for(int i=0; i<32; i++){ */
-    /*     cudaStreamCreate(&stream[i]); */
-    /*   } */
-    /* } */
-    cudaMemcpyAsync(cu_d1, wvec, sizeof(double)*size, cudaMemcpyHostToDevice, stream[0]);
-    cudaMemsetAsync(cu_d201, 0, sizeof(double)*BlockPerGrid*(k+1), stream[1]);
-    cudaStreamSynchronize(stream[0]);
-    cudaStreamSynchronize(stream[1]);
 
-  
+  cudaMemcpyAsync(cu_d1, wvec, sizeof(double)*size, cudaMemcpyHostToDevice, stream[0]);
+  cudaMemsetAsync(cu_d201, 0, sizeof(double)*BlockPerGrid*(k+1), stream[1]);
+  cudaStreamSynchronize(stream[0]);
+  cudaStreamSynchronize(stream[1]);
+
+
   double tmp1=0.0;
 
 
@@ -1595,6 +1585,8 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
       cudaDeviceSynchronize();
       cudaMemcpyAsync(cu_h8, cu_d201, sizeof(double)*BlockPerGrid*(k+1), cudaMemcpyDeviceToHost, stream[0]);
       cudaDeviceSynchronize();
+
+#pragma omp parallel for reduction(+:tmp1) schedule(static) firstprivate(hmtx, eta, cu_h8) lastprivate(hmtx)
       for(int j=0; j<k+1; j++){
         tmp1 = 0.0;
         for(int q=0; q<BlockPerGrid; q++){
@@ -1613,6 +1605,8 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
         cudaDeviceSynchronize();
         cudaMemcpyAsync(cu_h8, cu_d201, sizeof(double)*BlockPerGrid*(k+1), cudaMemcpyDeviceToHost, stream[0]);
         cudaDeviceSynchronize();
+
+#pragma omp parallel for reduction(+:tmp1) schedule(static) firstprivate(hmtx, eta, cu_h8) lastprivate(hmtx)
         for(int j=offset; j<offset+32; j++){
           tmp1 = 0.0;
           for(int q=0; q<BlockPerGrid; q++){
@@ -1629,6 +1623,8 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
         cudaDeviceSynchronize();
         cudaMemcpyAsync(cu_h8, cu_d201, sizeof(double)*BlockPerGrid*(k+1), cudaMemcpyDeviceToHost, stream[0]);
         cudaDeviceSynchronize();
+
+#pragma omp parallel for reduction(+:tmp1) schedule(static) firstprivate(hmtx, eta, cu_h8) lastprivate(hmtx)
         for(int j=offset; j<offset+all; j++){
           tmp1 = 0.0;
           for(int q=0; q<BlockPerGrid; q++){
@@ -1651,6 +1647,8 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
       cudaDeviceSynchronize();
       cudaMemcpyAsync(cu_h8, cu_d201, sizeof(double)*BlockPerGrid*(k+1), cudaMemcpyDeviceToHost, stream[0]);
       cudaDeviceSynchronize();
+
+#pragma omp parallel for reduction(+:tmp1) schedule(static) firstprivate(hmtx, eta, cu_h8) lastprivate(hmtx)
       for(int j=0; j<k; j++){
         tmp1 = 0.0;
         for(int q=0; q<BlockPerGrid; q++){
@@ -1679,6 +1677,8 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
         cudaDeviceSynchronize();
         cudaMemcpyAsync(cu_h8, cu_d201, sizeof(double)*BlockPerGrid*(k+1), cudaMemcpyDeviceToHost, stream[0]);
         cudaDeviceSynchronize();
+
+#pragma omp parallel for reduction(+:tmp1) schedule(static) firstprivate(hmtx, eta, cu_h8) lastprivate(hmtx)
         for(int j=offset; j<offset+32; j++){
           tmp1 = 0.0;
           for(int q=0; q<BlockPerGrid; q++){
@@ -1695,6 +1695,8 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
         cudaDeviceSynchronize();
         cudaMemcpyAsync(cu_h8, cu_d201, sizeof(double)*BlockPerGrid*(k+1), cudaMemcpyDeviceToHost, stream[0]);
         cudaDeviceSynchronize();
+
+#pragma omp parallel for reduction(+:tmp1) schedule(static) firstprivate(hmtx, eta, cu_h8) lastprivate(hmtx)
         for(int j=offset; j<offset+all; j++){
           tmp1 = 0.0;
           for(int q=0; q<BlockPerGrid; q++){

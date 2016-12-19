@@ -21,6 +21,7 @@ collection::collection() {
   isVerbose = false;
   isInnerNow = false;
   isInnerKskip = false;
+  isPinned = false;
   OMPThread = 8;
 
   outerSolver = NONE;
@@ -70,26 +71,39 @@ collection::collection() {
 
 collection::~collection() {
   if(isCUDA){
-    cu->FreeHost(val);
-    cu->FreeHost(col);
-    cu->FreeHost(ptr);
-    cu->FreeHost(bvec);
-    cu->FreeHost(xvec);
+    if(isPinned){
+      cu->FreeHost(val);
+      cu->FreeHost(col);
+      cu->FreeHost(ptr);
+      delete[] bvec;
+      cu->FreeHost(xvec);
+    }else{
+      delete[] val;
+      delete[] col;
+      delete[] ptr;
+      delete[] bvec;
+      delete[] xvec;
+    }
 
     cu->Free(Cval);
     cu->Free(Ccol);
     cu->Free(Cptr);
 
     if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-      cu->FreeHost(Tval);
-      cu->FreeHost(Tcol);
-      cu->FreeHost(Tptr);
+      if(isPinned){
+        cu->FreeHost(Tval);
+        cu->FreeHost(Tcol);
+        cu->FreeHost(Tptr);
+      }else{
+        delete[] Tval;
+        delete[] Tcol;
+        delete[] Tptr;
+      }
 
       cu->Free(CTval);
       cu->Free(CTcol);
       cu->Free(CTptr);
     }
-
   }else{
     delete[] val;
     delete[] col;
@@ -210,6 +224,7 @@ void collection::readCMD(int argc, char* argv[]){
 
   cmd.add("verbose", 'v', "verbose mode will printout all detel ");
   cmd.add("cuda", 'c', "cuda");
+  cmd.add("pinned", 'x', "use pinned memory");
 
   cmd.parse_check(argc, argv);
 
@@ -272,6 +287,7 @@ void collection::readCMD(int argc, char* argv[]){
 
   if(cmd.exist("verbose")) this->isVerbose=true;
   if(cmd.exist("cuda")) this->isCUDA=true;
+  if(cmd.exist("pinned")) this->isPinned=true;
 
   this->setOpenmpThread();
 
@@ -666,12 +682,22 @@ void collection::readMatrix(){
 
 void collection::CRSAlloc(){
   if(isCUDA){
-    std::cout << "Allocing Matrix pinned.........."<< std::flush;
-    this->val = cu->d_MallocHost(this->NNZ);
-    this->col = cu->i_MallocHost(this->NNZ);
-    this->ptr = cu->i_MallocHost(this->N+1);
-    this->bvec = cu->d_MallocHost(this->N);
-    this->xvec = cu->d_MallocHost(this->N);
+    if(isPinned){
+      std::cout << "Allocing Matrix .........."<< std::flush;
+      this->val = cu->d_MallocHost(this->NNZ);
+      this->col = cu->i_MallocHost(this->NNZ);
+      this->ptr = cu->i_MallocHost(this->N+1);
+      this->bvec = new double [this->N];
+      this->xvec = cu->d_MallocHost(this->N);
+    }else{
+      std::cout << "Allocing Matrix pinned.........."<< std::flush;
+      this->val = new double [this->NNZ];
+      this->col = new int [this->NNZ];
+      this->ptr = new int [this->N+1];
+      this->bvec = new double [this->N];
+      this->xvec = new double [this->N];
+    }
+
     std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
     std::cout << "Allocing CUDA side Matrix .........."<< std::flush;
@@ -681,10 +707,18 @@ void collection::CRSAlloc(){
     std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
     if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-      std::cout << "Allocing Transpose Matrix pinned .........."<< std::flush;
-      this->Tval = cu->d_MallocHost(this->NNZ);
-      this->Tcol = cu->i_MallocHost(this->NNZ);
-      this->Tptr = cu->i_MallocHost(this->N+1);
+      if(isPinned){
+        std::cout << "Allocing Transpose Matrix .........."<< std::flush;
+        this->Tval = cu->d_MallocHost(this->NNZ);
+        this->Tcol = cu->i_MallocHost(this->NNZ);
+        this->Tptr = cu->i_MallocHost(this->N+1);
+      }else{
+        std::cout << "Allocing Transpose Matrix pinned .........."<< std::flush;
+        this->Tval = new double [this->NNZ];
+        this->Tcol = new int [this->NNZ];
+        this->Tptr = new int [this->N+1];
+      }
+
       std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
       std::cout << "Allocing Transpose CUDA side Matrix .........."<< std::flush;

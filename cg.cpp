@@ -19,13 +19,22 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
+  isPinned = this->coll->isPinned;
+  
 
   N = this->coll->N;
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    pvec = cu->d_MallocHost(N);
-    mv = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
+    if(isPinned){
+      rvec = new double [N];
+      pvec = cu->d_MallocHost(N);
+      mv = cu->d_MallocHost(N);
+      x_0 = new double [N];
+    }else{
+      rvec = new double [N];
+      pvec = new double [N];
+      mv = new double [N];
+      x_0 = new double [N];
+    }
   }else{
     rvec = new double [N];
     pvec = new double [N];
@@ -62,6 +71,12 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
       std::cerr << "File open error" << std::endl;
       std::exit(-1);
     }
+  }else{
+    f_in.open("./output/CG_inner.txt", std::ofstream::out | std::ofstream::app);
+    if(!f_in.is_open()){
+      std::cerr << "File open error inner" << std::endl;
+      std::exit(-1);
+    }
   }
 
 }
@@ -69,10 +84,18 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
 cg::~cg(){
 
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(pvec);
-    cu->FreeHost(mv);
-    cu->FreeHost(x_0);
+    if(isPinned){
+      delete[] rvec;
+      cu->FreeHost(pvec);
+      cu->FreeHost(mv);
+      delete[] x_0;
+    }else{
+      delete[] rvec;
+      delete[] pvec;
+      delete[] mv;
+      delete[] x_0;
+    }
+
   }else{
     delete[] rvec;
     delete[] pvec;
@@ -86,6 +109,7 @@ cg::~cg(){
   }
   f_his.close();
   f_x.close();
+  f_in.close();
 }
 
 int cg::solve(){
@@ -200,7 +224,7 @@ int cg::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
-
+    f_in << loop << std::endl;
   }
 
   return exit_flag;

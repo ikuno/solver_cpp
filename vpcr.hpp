@@ -25,7 +25,7 @@ class vpcr {
 
     int maxloop;
     double eps;
-    bool isVP, isVerbose, isCUDA, isInner;
+    bool isVP, isVerbose, isCUDA, isInner, isPinned;
 
     int exit_flag;
     double test_error;

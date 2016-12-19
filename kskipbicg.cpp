@@ -13,6 +13,7 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, c
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
   isCUDA = this->coll->isCUDA;
+  isPinned = this->coll->isPinned;
 
   if(isVP && isInner ){
     maxloop = this->coll->innerMaxLoop;
@@ -34,18 +35,35 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, c
 
   N = this->coll->N;
   if(isCUDA){
-    rvec = cu->d_MallocHost(N);
-    pvec = cu->d_MallocHost(N);
-    r_vec = cu->d_MallocHost(N);
-    p_vec = cu->d_MallocHost(N);
-    Av = cu->d_MallocHost(N);
-    x_0 = cu->d_MallocHost(N);
-    theta = cu->d_MallocHost(2*kskip);
-    eta = cu->d_MallocHost(2*kskip+1);
-    rho = cu->d_MallocHost(2*kskip+1);
-    phi = cu->d_MallocHost(2*kskip+2);
-    Ar = cu->d_MallocHost((2*kskip+1)*N);
-    Ap = cu->d_MallocHost((2*kskip+2)*N);
+    if(isPinned){
+      rvec = cu->d_MallocHost(N);
+      pvec = cu->d_MallocHost(N);
+      r_vec = cu->d_MallocHost(N);
+      p_vec = cu->d_MallocHost(N);
+      Av = cu->d_MallocHost(N);
+      phi = cu->d_MallocHost(2*kskip+2);
+      x_0 = new double [N];
+      theta = new double [2*kskip];
+      eta = new double [2*kskip+1];
+      rho = new double [2*kskip+1];
+      phi = new double [2*kskip+2];
+      Ar = cu->d_MallocHost((2*kskip+1)*N);
+      Ap = cu->d_MallocHost((2*kskip+2)*N);
+    }else{
+      rvec = new double [N];
+      pvec = new double [N];
+      r_vec = new double [N];
+      p_vec = new double [N];
+      Av = new double [N];
+      x_0 = new double [N];
+      theta = new double [2*kskip];
+      eta = new double [2*kskip+1];
+      rho = new double [2*kskip+1];
+      phi = new double [2*kskip+2];
+
+      Ar = new double [(2*kskip+1)*N];
+      Ap = new double [(2*kskip+2)*N];
+    }
   }else{
     rvec = new double [N];
     pvec = new double [N];
@@ -92,24 +110,45 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, c
       std::cerr << "File open error" << std::endl;
       exit(-1);
     }
+  }else{
+    f_in.open("./output/KSKIPBICG_inner.txt", std::ofstream::out | std::ofstream::app);
+    if(!f_in.is_open()){
+      std::cerr << "File open error inner" << std::endl;
+      std::exit(-1);
+    }
   }
 
 }
 
 kskipBicg::~kskipBicg(){
   if(isCUDA){
-    cu->FreeHost(rvec);
-    cu->FreeHost(pvec);
-    cu->FreeHost(r_vec);
-    cu->FreeHost(p_vec);
-    cu->FreeHost(Av);
-    cu->FreeHost(x_0);
-    cu->FreeHost(theta);
-    cu->FreeHost(eta);
-    cu->FreeHost(rho);
-    cu->FreeHost(phi);
-    cu->FreeHost(Ar);
-    cu->FreeHost(Ap);
+    if(isPinned){
+      cu->FreeHost(rvec);
+      cu->FreeHost(pvec);
+      cu->FreeHost(r_vec);
+      cu->FreeHost(p_vec);
+      cu->FreeHost(Av);
+      delete[] x_0;
+      delete[] theta;
+      delete[] eta;
+      delete[] rho;
+      delete[] phi;
+      cu->FreeHost(Ar);
+      cu->FreeHost(Ap);
+    }else{
+      delete[] rvec;
+      delete[] pvec;
+      delete[] r_vec;
+      delete[] p_vec;
+      delete[] Av;
+      delete[] x_0;
+      delete[] theta;
+      delete[] eta;
+      delete[] rho;
+      delete[] phi;
+      delete[] Ar;
+      delete[] Ap;
+    }
   }else{
     delete[] rvec;
     delete[] pvec;
@@ -142,6 +181,7 @@ int kskipBicg::solve(){
 //Ax
   if(isCUDA){
     cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+    // bs->MtxVec_mult(xvec, Av);
   }else{
     bs->MtxVec_mult(xvec, Av);
   }
@@ -180,8 +220,9 @@ int kskipBicg::solve(){
     //Ar-> Ar^2k+1
     //Ap-> Ap^2k+2
     if(isCUDA){
-      // cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      cu->Kskip_cg_bicg_base2(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->Kskip_cg_bicg_base2(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // bs->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip);
     }else{
       bs->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip);
     }
@@ -204,9 +245,9 @@ int kskipBicg::solve(){
     //phi = (p*, Ap)
     if(isCUDA){
       // bs->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
-      // cu->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      cu->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       // cu->Kskip_bicg_innerProduce2(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      cu->Kskip_bicg_innerProduce3(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->Kskip_bicg_innerProduce3(theta, eta, rho, phi, Ar, Ap, r_vec, p_vec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }else{
       bs->Kskip_bicg_innerProduce(theta, eta, rho, phi, Ar, Ap, rvec, pvec, r_vec, p_vec, kskip);
     }
@@ -232,6 +273,7 @@ int kskipBicg::solve(){
       //Ap
       if(isCUDA){
         cu->MtxVec_mult(pvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        // bs->MtxVec_mult(pvec, Av);
       }else{
         bs->MtxVec_mult(pvec, Av);
       }
@@ -245,6 +287,7 @@ int kskipBicg::solve(){
       //A^Tp*
       if(isCUDA){
         cu->MtxVec_mult(p_vec, Av, this->coll->CTval, this->coll->CTcol, this->coll->CTptr);
+        // bs->MtxVec_mult(this->coll->Tval, this->coll->Tcol, this->coll->Tptr, p_vec, Av);
       }else{
         bs->MtxVec_mult(this->coll->Tval, this->coll->Tcol, this->coll->Tptr, p_vec, Av);
       }
@@ -285,6 +328,7 @@ int kskipBicg::solve(){
         std::cout << RED << " ERROR " << nloop+1 << RESET << std::endl;
       }
     }
+    f_in << nloop+1 << std::endl;
   }
 
   return exit_flag;
