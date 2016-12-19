@@ -1,4 +1,4 @@
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
 Solver
 ====
@@ -6,6 +6,10 @@ Solver
 ## Overview
 
 Linear Solver
+
+## License
+
+These codes are licensed under Apache License 2.0.
 
 ## ISSUE & TODO
 - [x]vpcrのアルゴリズムがおかしい．
