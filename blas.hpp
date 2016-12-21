@@ -71,6 +71,8 @@ class blas {
 
     void Gmres_sp_1(int k, double *x, double *y, double *out);
 
+    void MtxVec_mult_Multi(double *in_vec, double *out_vec);
+
 };
 
 

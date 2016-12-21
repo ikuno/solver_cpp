@@ -22,7 +22,7 @@ class bicg {
 
     int maxloop;
     double eps;
-    bool isVP, isVerbose, isCUDA, isInner, isPinned;
+    bool isVP, isVerbose, isCUDA, isInner, isPinned, isMultiGPU;
 
     int exit_flag;
     double test_error;

@@ -246,41 +246,72 @@ cuda::cuda(times *t){
   this->cu_h6 = NULL;
   this->cu_h7 = NULL;
 
-  /* this->cu_h100 = NULL; */
-  /* this->cu_h101 = NULL; */
-  /* this->cu_h200 = NULL; */
-  /* this->cu_h201 = NULL; */
+  this->cu_d100 = NULL;
+  this->cu_d101 = NULL;
+  this->cu_d200 = NULL;
+  this->cu_d201 = NULL;
+
+
+  /* this->cu_d1_1 = NULL; */
+  /* this->cu_d1_2 = NULL; */
+  /* this->cu_d2_1 = NULL; */
+  /* this->cu_d2_2 = NULL; */
+  /*  */
+  /* this->cu_h1_1 = NULL; */
+  /* this->cu_h1_2 = NULL; */
 
 }
 
-cuda::cuda(times *t, unsigned long int size) : cuda::cuda(t){
-  this->size = size;
+cuda::cuda(times *t, unsigned long int size, unsigned long int size1, unsigned long int size2) : cuda::cuda(t){
+
+  if((size1 == size2) && size1 == 0){
+    isMulti = false;
+  }else{
+    isMulti = true;
+  }
+  
+  if(isMulti){
+    this->size1 = size1;
+    this->size2 = size2;
+    this->size = size;
+  }else{
+    this->size = size;
+  }
 
   this->time->start();
   int tmp = ceil((double)this->size/(double)128);
-  this->cu_d1 = d_Malloc(this->size);
-  this->cu_d2 = d_Malloc(this->size);
+  int tmp1 = ceil((double)this->size1/(double)128);
+  int tmp2 = ceil((double)this->size2/(double)128);
+  if(isMulti){
+    this->cu_d1_1 = d_Malloc(this->size, 0);
+    this->cu_d2_1 = d_Malloc(this->size1, 0);
+
+    this->cu_d1_2 = d_Malloc(this->size, 1);
+    this->cu_d2_2 = d_Malloc(this->size2, 1);
+  }else{
+    this->cu_d1 = d_Malloc(this->size);
+    this->cu_d2 = d_Malloc(this->size);
+  }
   this->time->end();
   this->time->cu_dot_malloc_time += this->time->getTime();
 
   this->time->start();
-  this->cu_d3 = d_Malloc(tmp);
-  /* this->cu_h1 = new double [tmp]; */
-  this->cu_h1 = d_MallocHost(tmp);
+  if(isMulti){
+
+  }else{
+    this->cu_d3 = d_Malloc(tmp);
+    this->cu_h1 = d_MallocHost(tmp);
+  }
   this->time->end();
   this->time->cu_MV_malloc_time += this->time->getTime();
 
   this->cu_h8 = d_MallocHost(tmp * (1000+1));
-  /* this->cu_d100 = d_Malloc(this->size); */
-  /* this->cu_d101 = d_Malloc(tmp); */
-  /*  */
-  /*  */
-  /* this->cu_d200 = d_Malloc(this->size * (1000+1)); */
-  /* this->cu_d201 = d_Malloc(tmp * (1000+1)); */
-
 }
 
-cuda::cuda(times *t, unsigned long int size, int k) : cuda::cuda(t, size){
+cuda::cuda(times *t, unsigned long int size, int k, unsigned long int size1, unsigned long int size2) : cuda::cuda(t, size, size1, size2){
+  if(isMulti){
+    std::cout << "XXXXXXXXXXXXXXXX" << std::endl;
+  }
   this->k = k;
   int tmp = ceil((double)this->size/(double)128);
 
@@ -306,7 +337,10 @@ cuda::cuda(times *t, unsigned long int size, int k) : cuda::cuda(t, size){
   this->time->cu_dot_malloc_time += this->time->getTime();
 }
 
-cuda::cuda(times *t, unsigned long int size, double restart) : cuda::cuda(t, size){
+cuda::cuda(times *t, unsigned long int size, double restart, unsigned long int size1, unsigned long int size2) : cuda::cuda(t, size, size1, size2){
+  if(isMulti){
+    std::cout << "XXXXXXXXXXXXXXXX" << std::endl;
+  }
   int r = static_cast<int>(restart);
   this->restart = r;
   int tmp = ceil((double)this->size/(double)128);
@@ -316,7 +350,10 @@ cuda::cuda(times *t, unsigned long int size, double restart) : cuda::cuda(t, siz
   this->cu_h6 = d_MallocHost(tmp);
 }
 
-cuda::cuda(times *t, unsigned long int size, int k, double restart) : cuda::cuda(t, size, k){
+cuda::cuda(times *t, unsigned long int size, int k, double restart, unsigned long int size1, unsigned long int size2) : cuda::cuda(t, size, k, size1, size2){
+  if(isMulti){
+    std::cout << "XXXXXXXXXXXXXXXX" << std::endl;
+  }
   int r = static_cast<int>(restart);
   this->restart = r;
   int tmp = ceil((double)this->size/(double)128);
@@ -339,6 +376,7 @@ cuda::~cuda(){
   Free(cu_d9);
   Free(cu_d10);
   Free(cu_d11);
+
   FreeHost(cu_h1);
   FreeHost(cu_h2);
   FreeHost(cu_h3);
@@ -353,6 +391,12 @@ cuda::~cuda(){
   /* Free(cu_d201); */
   FreeHost(cu_h8);
 
+  /* Free(cu_d1_1); */
+  /* Free(cu_d1_2); */
+  /* Free(cu_d2_1); */
+  /* Free(cu_d2_2); */
+  /* FreeHost(cu_h1_1); */
+  /* FreeHost(cu_h1_2); */
 }
 
 void cuda::Free(void* ptr){
@@ -386,19 +430,44 @@ double* cuda::d_Malloc(unsigned long int size){
   return ptr;
 }
 
+double* cuda::d_Malloc(unsigned long int size, int DeviceNum){
+  cudaSetDevice(DeviceNum);
+  double *ptr = NULL;
+  unsigned long int s = sizeof(double) * size;
+  checkCudaErrors(cudaMalloc((void**)&ptr, s));
+  cudaSetDevice(0);
+  return ptr;
+}
+
 double* cuda::d_MallocHost(unsigned long int size){
   double *ptr = NULL;
   unsigned long int  s = sizeof(double) * size;
   checkCudaErrors(cudaMallocHost((void**)&ptr, s));
-  /* checkCudaErrors(cudaHostAlloc((void**)&ptr, s, cudaHostAllocPortable)); */
   return ptr;
 }
 
+double* cuda::d_MallocHost(unsigned long int size, int DeviceNum){
+  cudaSetDevice(DeviceNum);
+  double *ptr = NULL;
+  unsigned long int  s = sizeof(double) * size;
+  checkCudaErrors(cudaMallocHost((void**)&ptr, s));
+  cudaSetDevice(0);
+  return ptr;
+}
 
 int* cuda::i_Malloc(unsigned long int size){
   int *ptr = NULL;
   unsigned long int s = sizeof(int) * size;
   checkCudaErrors(cudaMalloc((void**)&ptr, s));
+  return ptr;
+}
+
+int* cuda::i_Malloc(unsigned long int size, int DeviceNum){
+  cudaSetDevice(DeviceNum);
+  int *ptr = NULL;
+  unsigned long int s = sizeof(int) * size;
+  checkCudaErrors(cudaMalloc((void**)&ptr, s));
+  cudaSetDevice(0);
   return ptr;
 }
 
@@ -409,12 +478,33 @@ int* cuda::i_MallocHost(unsigned long int size){
   return ptr;
 }
 
+int* cuda::i_MallocHost(unsigned long int size, int DeviceNum){
+  cudaSetDevice(DeviceNum);
+  int *ptr = NULL;
+  unsigned long int s = sizeof(int) * size;
+  checkCudaErrors(cudaMallocHost((void**)&ptr, s));
+  cudaSetDevice(0);
+  return ptr;
+}
+
 void cuda::Memset(double *ptr, double val, unsigned long int size){
   checkCudaErrors(cudaMemset(ptr, val, sizeof(double)*size));
 }
 
 void cuda::Memset(int *ptr, int val, unsigned long int size){
   checkCudaErrors(cudaMemset(ptr, val, sizeof(int)*size));
+}
+
+void cuda::Memset(double *ptr, double val, unsigned long int size, int DeviceNum){
+  cudaSetDevice(DeviceNum);
+  checkCudaErrors(cudaMemset(ptr, val, sizeof(double)*size));
+  cudaSetDevice(0);
+}
+
+void cuda::Memset(int *ptr, int val, unsigned long int size, int DeviceNum){
+  cudaSetDevice(DeviceNum);
+  checkCudaErrors(cudaMemset(ptr, val, sizeof(int)*size));
+  cudaSetDevice(0);
 }
 
 void cuda::Reset(){
@@ -1721,4 +1811,60 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
   for(int i=0; i<32; i++){
     cudaStreamDestroy(stream[i]);
   }
+}
+
+void cuda::ShowDevice(){
+  int deviceCount;
+  cudaGetDeviceCount(&deviceCount);
+  for(int i=0; i<deviceCount; i++){
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, i);
+    std::cout << "Device[" << i << "]has compute capability " << deviceProp.major << "." << deviceProp.minor << std::endl;
+  }
+}
+
+int cuda::GetDeviceNum(){
+  int deviceCount;
+  cudaGetDeviceCount(&deviceCount);
+  return deviceCount;
+}
+
+void cuda::SetSize_Multi(int size1, int size2){
+  this->size1 = size1;
+  this->size2 = size2;
+}
+
+void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2){
+
+  int ThreadPerBlock1 = 128;
+  int BlockPerGrid1 = (size1-1) / (ThreadPerBlock1/32)+1;
+
+  int ThreadPerBlock2 = 128;
+  int BlockPerGrid2 = (size2-1) / (ThreadPerBlock2/32)+1;
+
+  Memset(cu_d2_1, 0, size1, 0);
+  Memset(cu_d2_2, 0, size2, 1);
+
+
+  //d1_1 -> in GPU(0)
+  //d1_2 -> in GPU(1)
+
+  //d2_1 -> out GPU(0)
+  //d2_1 -> out GPU(1)
+  cudaMemcpy(cu_d1_1, in, size*sizeof(double), cudaMemcpyHostToDevice);
+  cudaMemcpy(cu_d1_2, in, size*sizeof(double), cudaMemcpyHostToDevice);
+
+  cudaSetDevice(0);
+  kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d2_1);
+  checkCudaErrors( cudaPeekAtLastError() );
+  cudaMemcpy(out, cu_d2_1, size1*sizeof(double), cudaMemcpyDeviceToHost);
+
+  cudaSetDevice(1);
+  kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2>>>(this->size2, val2, col2, ptr2, cu_d1_2, cu_d2_2);
+  checkCudaErrors( cudaPeekAtLastError() );
+  cudaMemcpy((double*)(out+size1), cu_d2_2, size2*sizeof(double), cudaMemcpyDeviceToHost);
+
+  cudaSetDevice(0);
+  /* exit(-1); */
+
 }

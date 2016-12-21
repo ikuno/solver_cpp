@@ -22,7 +22,7 @@ class kskipBicg {
 
     int maxloop;
     double eps;
-    bool isVP, isVerbose, isCUDA, isInner, isPinned;
+    bool isVP, isVerbose, isCUDA, isInner, isPinned, isMultiGPU;
     int kskip;
 
     int exit_flag;

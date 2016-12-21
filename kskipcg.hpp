@@ -23,7 +23,7 @@ class kskipcg {
 
     int maxloop;
     double eps;
-    bool isVP, isVerbose, isCUDA, isInner, isPinned;
+    bool isVP, isVerbose, isCUDA, isInner, isPinned, isMultiGPU;
     int kskip;
     int fix;
 

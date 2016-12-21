@@ -1,5 +1,6 @@
 #include "solver_collection.hpp"
 #include <iostream>
+#include <cmath>
 #include <cstdlib>
 #include <dirent.h>
 #include <fstream>
@@ -23,6 +24,7 @@ collection::collection() {
   isInnerKskip = false;
   isPinned = false;
   OMPThread = 8;
+  CUDADevice = cu->GetDeviceNum();
 
   outerSolver = NONE;
   innerSolver = NONE;
@@ -67,6 +69,18 @@ collection::collection() {
   CTcol = NULL;
   CTptr = NULL;
 
+  N1 = 0;
+  N2 = 0;
+  NNZ1 = 0;
+  NNZ2 = 0;
+
+  val1 = NULL;
+  col1 = NULL;
+  ptr1 = NULL;
+
+  val2 = NULL;
+  col2 = NULL;
+  ptr2 = NULL;
 }
 
 collection::~collection() {
@@ -112,12 +126,25 @@ collection::~collection() {
     delete[] xvec;
 
     if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      std::cout  << "ok 8" << std::endl;
       delete[] Tval;
       delete[] Tcol;
       delete[] Tptr;
     }
   }
+  if(isMultiGPU){
+    if(isCUDA){
 
+    }else{
+      delete[] val1;
+      delete[] col1;
+      delete[] ptr1;
+
+      delete[] val2;
+      delete[] col2;
+      delete[] ptr2;
+    }
+  }
   cu->Reset();
   delete cu;
   delete time;
@@ -225,6 +252,7 @@ void collection::readCMD(int argc, char* argv[]){
   cmd.add("verbose", 'v', "verbose mode will printout all detel ");
   cmd.add("cuda", 'c', "cuda");
   cmd.add("pinned", 'x', "use pinned memory");
+  cmd.add("multiGPU", 'g', "use multiGPU in CUDA");
 
   cmd.parse_check(argc, argv);
 
@@ -288,6 +316,13 @@ void collection::readCMD(int argc, char* argv[]){
   if(cmd.exist("verbose")) this->isVerbose=true;
   if(cmd.exist("cuda")) this->isCUDA=true;
   if(cmd.exist("pinned")) this->isPinned=true;
+  if(cmd.exist("multiGPU")) {
+    this->isMultiGPU=true;
+  }
+  if(this->isMultiGPU && this->CUDADevice<=1){
+    std::cout << "Number of CUDA Device is less than 2, Can not Enable MultiGPU Mode" << std::endl;
+    exit(-1);
+  }
 
   this->setOpenmpThread();
 
@@ -520,11 +555,25 @@ void collection::showCMD(){
   std::cout << "N : " << this->N << std::endl;
   std::cout << "NNZ : " << this->NNZ << std::endl;
 
+  if(this->isMultiGPU){
+    std::cout << "N1 : " << this->N1 << std::endl;
+    std::cout << "N2 : " << this->N2 << std::endl;
+    std::cout << "NNZ1 : " << this->NNZ1 << std::endl;
+    std::cout << "NNZ2 : " << this->NNZ2 << std::endl;
+  }
+
+  std::cout << "-------------" << std::endl;
+  
+  std::cout << "OpenMP thread : " << this->OMPThread << std::endl;
+  std::cout << "GPU Num : " << this->CUDADevice << std::endl;
+
   std::cout << "-------------" << std::endl;
 
-  std::cout << "VP : " << this->isVP << std::endl;
-  std::cout << "CUDA : " << this->isCUDA << std::endl;
-  std::cout << "OpenMP thread : " << this->OMPThread << std::endl;
+  std::cout << "VP : " << (this->isVP ? "On":"Off") << std::endl;
+  std::cout << "CUDA : " << (this->isCUDA ? "On":"Off") << std::endl;
+  std::cout << "Pinned : " << (this->isPinned ? "On":"Off") << std::endl;
+  std::cout << "MultiGPU : " << (this->isMultiGPU ? "On":"Off") << std::endl;
+  
 
   std::cout << "-------------" << std::endl;
 
@@ -796,17 +845,125 @@ void collection::setOpenmpThread(){
 
 void collection::CudaCopy(){
   if(isCUDA){
-    std::cout << "Copy Matrix to CUDA.........." << std::flush;
-    cu->H2D(this->val, this->Cval, this->NNZ);
-    cu->H2D(this->col, this->Ccol, this->NNZ);
-    cu->H2D(this->ptr, this->Cptr, this->N+1);
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-      std::cout << "Copy Transpose Matrix to CUDA.........."<< std::flush;
-      cu->H2D(this->Tval, this->CTval, this->NNZ);
-      cu->H2D(this->Tcol, this->CTcol, this->NNZ);
-      cu->H2D(this->Tptr, this->CTptr, this->N+1);
+    if(isMultiGPU){
+      std::cout << "Copy Matrix to CUDA MultiGPU Part1.........." << std::flush;
+
+      cu->H2D(this->val1, this->Cval1, this->NNZ1);
+      cu->H2D(this->col1, this->Ccol1, this->NNZ1);
+      cu->H2D(this->ptr1, this->Cptr1, this->N1+1);
       std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
+      std::cout << "Copy Matrix to CUDA MultiGPU Part2.........." << std::flush;
+      cu->H2D(this->val2, this->Cval2, this->NNZ2);
+      cu->H2D(this->col2, this->Ccol2, this->NNZ2);
+      cu->H2D(this->ptr2, this->Cptr2, this->N2+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
+      if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+        std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+        exit(-1);
+      }
+    }else{
+
+      std::cout << "Copy Matrix to CUDA.........." << std::flush;
+      cu->H2D(this->val, this->Cval, this->NNZ);
+      cu->H2D(this->col, this->Ccol, this->NNZ);
+      cu->H2D(this->ptr, this->Cptr, this->N+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+        std::cout << "Copy Transpose Matrix to CUDA.........."<< std::flush;
+        cu->H2D(this->Tval, this->CTval, this->NNZ);
+        cu->H2D(this->Tcol, this->CTcol, this->NNZ);
+        cu->H2D(this->Tptr, this->CTptr, this->N+1);
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      }
+    }
+  }
+}
+
+void collection::MultiGPUAlloc(){
+  if(this->N%2 == 0){
+    this->N1 = this->N/2;
+    this->N2 = this->N1;
+  }else{
+    this->N1 = std::ceil(this->N / 2.0);
+    this->N2 = this->N - this->N1;
+  }
+  this->NNZ1 = this->ptr[this->N1];
+  this->NNZ2 = this->NNZ - this->ptr[this->N1];
+
+  if(isCUDA){
+    std::cout << "Allocing CUDA side Matrix  -> MultiGPU Part1.........."<< std::flush;
+  
+    this->val1 = new double [NNZ1];
+    this->col1 = new int [NNZ1];
+    this->ptr1 = new int [(N1+1)];
+
+    this->Cval1 = cu->d_Malloc(this->NNZ1, 0);
+    this->Ccol1 = cu->i_Malloc(this->NNZ1, 0);
+    this->Cptr1 = cu->i_Malloc((this->N1)+1, 0);
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
+    std::cout << "Allocing CUDA side Matrix  -> MultiGPU Part2.........."<< std::flush;
+    this->val2 = new double [NNZ2];
+    this->col2 = new int [NNZ2];
+    this->ptr2 = new int [N2+1];
+
+    this->Cval2 = cu->d_Malloc(this->NNZ2, 1);
+    this->Ccol2 = cu->i_Malloc(this->NNZ2, 1);
+    this->Cptr2 = cu->i_Malloc((this->N2)+1, 1);
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
+    for(unsigned long int i=0; i<this->N; i++){
+      if(i<this->N1){
+        this->ptr1[i] = this->ptr[i];
+      }else{
+        this->ptr2[i-N1] = this->ptr[i] - this->NNZ1;
+      }
+    }
+    this->ptr1[this->N1] = this->NNZ1;
+    this->ptr2[this->N2] = this->NNZ2;
+
+    for(unsigned long int i=0; i<this->NNZ; i++){
+      if(i<this->NNZ1){
+        this->col1[i] = this->col[i];
+        this->val1[i] = this->val[i];
+      }else{
+        this->col2[i-this->NNZ1] = this->col[i];
+        this->val2[i-this->NNZ1] = this->val[i];
+      }
+    }
+  }else{
+    std::cout << "Allocing Matrix MultiGPU Part1.........."<< std::flush;
+    this->val1 = new double [NNZ1];
+    this->col1 = new int [NNZ1];
+    this->ptr1 = new int [N1+1];
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    
+    std::cout << "Allocing Matrix MultiGPU Part1.........."<< std::flush;
+    this->val2 = new double [NNZ2];
+    this->col2 = new int [NNZ2];
+    this->ptr2 = new int [N2+1];
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
+    for(unsigned long int i=0; i<this->N; i++){
+      if(i<this->N1){
+        this->ptr1[i] = this->ptr[i];
+      }else{
+        this->ptr2[i-N1] = this->ptr[i] - this->NNZ1;
+      }
+    }
+    this->ptr1[this->N1] = this->NNZ1;
+    this->ptr2[this->N2] = this->NNZ2;
+
+    for(unsigned long int i=0; i<this->NNZ; i++){
+      if(i<this->NNZ1){
+        this->col1[i] = this->col[i];
+        this->val1[i] = this->val[i];
+      }else{
+        this->col2[i-this->NNZ1] = this->col[i];
+        this->val2[i-this->NNZ1] = this->val[i];
+      }
     }
   }
 }

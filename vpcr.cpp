@@ -8,11 +8,22 @@ vpcr::vpcr(collection *coll, double *bvec, double *xvec, bool inner){
   this->coll = coll;
   bs = new blas(this->coll, this->coll->time);
   in = new innerMethods(this->coll, cu, bs);
+  isMultiGPU = this->coll->isMultiGPU;
+
   if(this->coll->isInnerKskip){
-    cu = new cuda(this->coll->time, this->coll->N, this->coll->innerKskip);
+    if(isMultiGPU){
+      cu = new cuda(this->coll->time, this->coll->N, this->coll->innerKskip, this->coll->N1, this->coll->N2);
+    }else{
+      cu = new cuda(this->coll->time, this->coll->N, this->coll->innerKskip);
+    }
   }else{
-    cu = new cuda(this->coll->time, this->coll->N);
+    if(isMultiGPU){
+      cu = new cuda(this->coll->time, this->coll->N, this->coll->N1, this->coll->N2);
+    }else{
+      cu = new cuda(this->coll->time, this->coll->N);
+    }
   }
+
 
   exit_flag = 2;
   isVP = this->coll->isVP;

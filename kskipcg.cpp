@@ -8,6 +8,7 @@
 kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
   this->coll = coll;
   isInner = inner;
+  isMultiGPU = this->coll->isMultiGPU;
 
   isVP = this->coll->isVP;
   isVerbose = this->coll->isVerbose;
@@ -31,7 +32,11 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda 
     this->cu = a_cu;
   }else{
     bs = new blas(this->coll, this->coll->time);
-    cu = new cuda(this->coll->time, this->coll->N, this->kskip);
+    if(isMultiGPU){
+      cu = new cuda(this->coll->time, this->coll->N, this->kskip, this->coll->N1, this->coll->N2);
+    }else{
+      cu = new cuda(this->coll->time, this->coll->N, this->kskip);
+    }
   }
 
   N = this->coll->N;

@@ -26,7 +26,7 @@ class vpgmres {
 
     int maxloop;
     double eps;
-    bool isVP, isVerbose, isCUDA, isInner, isPinned;
+    bool isVP, isVerbose, isCUDA, isInner, isPinned, isMultiGPU;
     int restart;
 
     int exit_flag, over_flag;

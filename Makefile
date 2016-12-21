@@ -33,9 +33,9 @@ CUDALDFLAGS = -lcusparse -lgomp -O2 -arch=sm_35 -Xcompiler "-Wall -std=c++11 -fo
 
 all:$(PROGRAM_NAME)
 
-debug: CXXFLAGS = -g -O0 -std=c++11 -Wall -pedantic -pg -fopenmp
+debug: CXXFLAGS = -ggdb3 -O0 -std=c++11 -Wall -pedantic -pg -fopenmp
 debug: CUDAFLAGS = -g -G -arch=sm_35 -O0 -std=c++11 -lcusparse
-debug: CUDALDFLAGS = -lcusparse -lgomp -O0 -arch=sm_35 -Xcompiler "-g -O0 -std=c++11 -Wall -pedantic -pg -fopenmp"
+debug: CUDALDFLAGS = -lcusparse -lgomp -O0 -g -G -arch=sm_35 -Xcompiler "-ggdb3  -O0 -std=c++11 -Wall -pedantic -pg -fopenmp"
 debug: $(PROGRAM_NAME)
 
 $(PROGRAM_NAME): $(OBJECTS)

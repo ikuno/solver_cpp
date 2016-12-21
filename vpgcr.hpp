@@ -26,7 +26,7 @@ class vpgcr {
     int maxloop;
     double eps;
     int restart;
-    bool isVP, isVerbose, isCUDA, isInner, isPinned;
+    bool isVP, isVerbose, isCUDA, isInner, isPinned, isMultiGPU;
 
     int exit_flag;
     double test_error;

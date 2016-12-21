@@ -34,7 +34,9 @@ class collection {
     bool isMixPrecision;
     bool isInnerKskip;
     bool isPinned;
+    bool isMultiGPU;
     int OMPThread;
+    int CUDADevice;
 
     std::string L1_Dir_Name;
 
@@ -62,9 +64,14 @@ class collection {
     std::string CRS_Matrix_Name;
     std::string MM_Matrix_Name;
     std::string fullPath; 
+    int inputSource; //1->CRS, 2->MM
     unsigned long int N; 
     unsigned long int NNZ;
-    int inputSource; //1->CRS, 2->MM
+
+    unsigned long int N1;
+    unsigned long int N2;
+    unsigned long int NNZ1;
+    unsigned long int NNZ2;
 
 
     collection();
@@ -84,6 +91,7 @@ class collection {
     void setOpenmpThread();
 
     void CudaCopy();
+    void MultiGPUAlloc();
 
 //pointer
     double* val;
@@ -106,6 +114,23 @@ class collection {
     int* CTptr;
 
     times *time;
+
+//multi
+    double* val1;
+    int* col1;
+    int* ptr1;
+
+    double* val2;
+    int* col2;
+    int* ptr2;
+
+    double* Cval1;
+    int* Ccol1;
+    int* Cptr1;
+
+    double* Cval2;
+    int* Ccol2;
+    int* Cptr2;
 
 };
 

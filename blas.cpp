@@ -446,3 +446,34 @@ void blas::Gmres_sp_1(int k, double *x, double *y, double *out){
     }
   }
 }
+
+void blas::MtxVec_mult_Multi(double *in_vec, double *out_vec){
+  double tmp = 0.0;
+
+  double *val1 = this->coll->val1;
+  int *ptr1 = this->coll->ptr1;
+  int *col1 = this->coll->col1;
+
+  double *val2 = this->coll->val2;
+  int *ptr2 = this->coll->ptr2;
+  int *col2 = this->coll->col2;
+
+  unsigned long int N1 = this->coll->N1;
+  unsigned long int N2 = this->coll->N2;
+
+  for(unsigned long int i=0; i<N1; i++){
+    tmp = 0.0;
+    for(int j=ptr1[i]; j<ptr1[i+1]; j++){
+      tmp += val1[j] * in_vec[col1[j]];
+    }
+    out_vec[i] = tmp;
+  }
+
+  for(unsigned long int i=0; i<N2; i++){
+    tmp = 0.0;
+    for(int j=ptr2[i]; j<ptr2[i+1]; j++){
+      tmp += val2[j] * in_vec[col2[j]];
+    }
+    out_vec[N1+i] = tmp;
+  }
+}
