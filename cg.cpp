@@ -129,18 +129,14 @@ int cg::solve(){
   bnorm = bs->norm_2(bvec);
 
   //mv = Ax
-  if(isMultiGPU){
-    if(isCUDA){
+  if(isCUDA){
+    if(isMultiGPU){
       cu->MtxVec_mult_Multi(xvec, mv, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
     }else{
-      bs->MtxVec_mult_Multi(xvec, mv);
+      cu->MtxVec_mult(xvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }
   }else{
-    if(isCUDA){
-      cu->MtxVec_mult(xvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-    }else{
-      bs->MtxVec_mult(xvec, mv);
-    }
+    bs->MtxVec_mult(xvec, mv);
   }
 
   //r = b - Ax
@@ -175,18 +171,14 @@ int cg::solve(){
     }
 
     //mv = Ap
-    if(isMultiGPU){
-      if(isCUDA){
+    if(isCUDA){
+      if(isMultiGPU){
         cu->MtxVec_mult_Multi(pvec, mv, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
       }else{
-        bs->MtxVec_mult_Multi(pvec, mv);
+        cu->MtxVec_mult(pvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       }
     }else{
-      if(isCUDA){
-        cu->MtxVec_mult(pvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      }else{
-        bs->MtxVec_mult(pvec, mv);
-      }
+      bs->MtxVec_mult(pvec, mv);
     }
 
     //alpha = (r,r) / (p,ap)

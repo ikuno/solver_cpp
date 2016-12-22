@@ -23,7 +23,7 @@ CUDA_INCLUDE_DIR := -I $(CUDA_PATH)/samples/common/inc
 
 #compile option
 CXXFLAGS = -Wall -std=c++11 -fopenmp -O2 -pedantic
-CUDAFLAGS = -arch=sm_35 -O2 -std=c++11 -lcusparse
+CUDAFLAGS = -arch=sm_35 -O2 -std=c++11 -lcusparse -Xcompiler "-fopenmp"
 
 #linker option
 CUDALDFLAGS = -lcusparse -lgomp -O2 -arch=sm_35 -Xcompiler "-Wall -std=c++11 -fopenmp -O2"

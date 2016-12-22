@@ -62,7 +62,7 @@ class cuda {
     void Memset(int *ptr, int val, unsigned long int size);
     void Memset(int *ptr, int val, unsigned long int size, int DeviceNum);
 
-    void Reset();
+    void Reset(int DeviceNum);
 
     //--------------------------------------
     void CSR2CSC(double *dCSRval, int *dCSRcol, int *dCSRptr, double *CSCval, int *CSCrow, int *CSCptr, double *dCSCval, int *dCSCrow, int *dCSCptr, unsigned long int N, unsigned long int NNZ);

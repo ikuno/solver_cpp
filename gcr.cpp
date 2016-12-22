@@ -146,7 +146,11 @@ int gcr::solve(){
   while(loop<maxloop){
     //Ax
     if(isCUDA){
-      cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      if(isMultiGPU){
+        cu->MtxVec_mult_Multi(xvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+      }else{
+        cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      }
     }else{
       bs->MtxVec_mult(xvec, Av);
     }
@@ -159,7 +163,12 @@ int gcr::solve(){
 
     //Ap
     if(isCUDA){
-      cu->MtxVec_mult(pvec, 0, N, qvec, 0, N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      if(isMultiGPU){
+        // cu->MtxVec_mult_Multi(pvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+        cu->MtxVec_mult_Multi((double*)(pvec+(0*N)), (double*)(qvec+(0*N)), this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2); 
+      }else{
+        cu->MtxVec_mult(pvec, 0, N, qvec, 0, N, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      }
     }else{
       bs->MtxVec_mult(pvec, 0, N, qvec, 0, N);
     }
@@ -213,10 +222,15 @@ int gcr::solve(){
 
       //Ar
       if(isCUDA){
-        cu->MtxVec_mult(rvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        if(isMultiGPU){
+          cu->MtxVec_mult_Multi(rvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+        }else{
+          cu->MtxVec_mult(rvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        }
       }else{
         bs->MtxVec_mult(rvec, Av);
       }
+
 
       //init p[k+1] q[k+1]
       for(int i=0; i<N; i++){

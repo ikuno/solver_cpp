@@ -81,6 +81,14 @@ collection::collection() {
   val2 = NULL;
   col2 = NULL;
   ptr2 = NULL;
+
+  if(isMultiGPU){
+    cu->Reset(0);
+    cu->Reset(1);
+  }else{
+    cu->Reset(0);
+  }
+
 }
 
 collection::~collection() {
@@ -145,7 +153,12 @@ collection::~collection() {
       delete[] ptr2;
     }
   }
-  cu->Reset();
+  if(isMultiGPU){
+    cu->Reset(0);
+    cu->Reset(1);
+  }else{
+    cu->Reset(0);
+  }
   delete cu;
   delete time;
 }
@@ -674,6 +687,7 @@ void collection::readMatrix(){
     ptr_path = this->fullPath+"/Ptr.txt";
     bx_path = this->fullPath+"/bx.txt";
 
+
     unsigned long int dammy;
     unsigned long int counter[3]={0,0,0};
 
@@ -693,6 +707,8 @@ void collection::readMatrix(){
     }
     valcol_file.close();
 
+    std::cout << "Done valcol .........."<< std::flush;
+
     std::ifstream ptr_file(ptr_path.c_str());
     if (ptr_file.fail())
     {
@@ -707,6 +723,7 @@ void collection::readMatrix(){
       counter[1]++;
     }
     ptr_file.close();
+    std::cout << "Done ptr .........."<< std::flush;
 
     std::ifstream bx_file(bx_path.c_str());
     if (bx_file.fail())
@@ -723,6 +740,7 @@ void collection::readMatrix(){
       counter[2]++;
     }
     bx_file.close();
+    std::cout << "Done bx .........."<< std::flush;
 
     std::cout << GREEN << "[○] Done"<< RESET << std::endl;
   }
