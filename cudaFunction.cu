@@ -281,7 +281,6 @@ cuda::cuda(times *t, unsigned long int size, unsigned long int size1, unsigned l
     this->size = size;
   }
 
-  this->time->start();
   int tmp = ceil((double)this->size/(double)128);
   int tmp1 = ceil((double)this->size1/(double)128);
   int tmp2 = ceil((double)this->size2/(double)128);
@@ -295,18 +294,13 @@ cuda::cuda(times *t, unsigned long int size, unsigned long int size1, unsigned l
     this->cu_d1 = d_Malloc(this->size);
     this->cu_d2 = d_Malloc(this->size);
   }
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
 
-  this->time->start();
   if(isMulti){
 
   }else{
     this->cu_d3 = d_Malloc(tmp);
     this->cu_h1 = d_MallocHost(tmp);
   }
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
 
   this->cu_h8 = d_MallocHost(tmp * (1000+1));
 }
@@ -318,13 +312,9 @@ cuda::cuda(times *t, unsigned long int size, int k, unsigned long int size1, uns
   this->k = k;
   int tmp = ceil((double)this->size/(double)128);
 
-  this->time->start();
   this->cu_d4 = d_Malloc(this->size * (2*this->k + 1));
   this->cu_d5 = d_Malloc(this->size * (2*this->k + 2));
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
 
-  this->time->start();
   this->cu_d6 = d_Malloc(tmp * (2*this->k));
   this->cu_d7 = d_Malloc(tmp * (2*this->k + 1));
   this->cu_d8 = d_Malloc(tmp * (2*this->k + 2));
@@ -336,8 +326,6 @@ cuda::cuda(times *t, unsigned long int size, int k, unsigned long int size1, uns
 
   this->cu_d9 = d_Malloc(tmp * (2*this->k + 1));
   this->cu_h5 = d_MallocHost(tmp * (2*this->k+1));
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
 }
 
 cuda::cuda(times *t, unsigned long int size, double restart, unsigned long int size1, unsigned long int size2) : cuda::cuda(t, size, size1, size2){
@@ -410,28 +398,64 @@ void cuda::FreeHost(void* ptr){
   checkCudaErrors(cudaFreeHost(ptr));
 }
 
-void cuda::H2D(double *from, double *to, unsigned long int size){
+void cuda::H2D(double *from, double *to, unsigned long int size, bool timer, int DeviceNum){
+  if(timer){
+    this->time->start_e();
+  }
+  checkCudaErrors( cudaSetDevice(DeviceNum) );
   checkCudaErrors(cudaMemcpy(to, from, sizeof(double)*size, cudaMemcpyHostToDevice));
+  checkCudaErrors( cudaSetDevice(0) );
+  if(timer){
+    this->time->end_e();
+    this->time->h2d_time += this->time->getTime_e();
+  }
 }
 
-void cuda::D2H(double *from, double *to, unsigned long int size){
+void cuda::D2H(double *from, double *to, unsigned long int size, bool timer, int DeviceNum){
+  if(timer){
+    this->time->start_e();
+  }
+  checkCudaErrors( cudaSetDevice(DeviceNum) );
   checkCudaErrors(cudaMemcpy(to, from, sizeof(double)*size, cudaMemcpyDeviceToHost));
+  checkCudaErrors( cudaSetDevice(0) );
+  if(timer){
+    this->time->end_e();
+    this->time->d2h_time += this->time->getTime_e();
+  }
 }
 
-void cuda::H2D(int *from, int *to, unsigned long int size){
+void cuda::H2D(int *from, int *to, unsigned long int size, bool timer, int DeviceNum){
+  if(timer){
+    this->time->start_e();
+  }
+  checkCudaErrors( cudaSetDevice(DeviceNum) );
   checkCudaErrors(cudaMemcpy(to, from, sizeof(int)*size, cudaMemcpyHostToDevice));
+  checkCudaErrors( cudaSetDevice(0) );
+  if(timer){
+    this->time->end_e();
+    this->time->h2d_time += this->time->getTime_e();
+  }
 }
 
-void cuda::D2H(int *from, int *to, unsigned long int size){
+void cuda::D2H(int *from, int *to, unsigned long int size, bool timer, int DeviceNum){
+  if(timer){
+    this->time->start_e();
+  }
+  checkCudaErrors( cudaSetDevice(DeviceNum) );
   checkCudaErrors(cudaMemcpy(to, from, sizeof(int)*size, cudaMemcpyDeviceToHost));
+  checkCudaErrors( cudaSetDevice(0) );
+  if(timer){
+    this->time->end_e();
+    this->time->d2h_time += this->time->getTime_e();
+  }
 }
 
-double* cuda::d_Malloc(unsigned long int size){
-  double *ptr = NULL;
-  unsigned long int s = sizeof(double) * size;
-  checkCudaErrors(cudaMalloc((void**)&ptr, s));
-  return ptr;
-}
+/* double* cuda::d_Malloc(unsigned long int size){ */
+/*   double *ptr = NULL; */
+/*   unsigned long int s = sizeof(double) * size; */
+/*   checkCudaErrors(cudaMalloc((void**)&ptr, s)); */
+/*   return ptr; */
+/* } */
 
 double* cuda::d_Malloc(unsigned long int size, int DeviceNum){
   cudaSetDevice(DeviceNum);
@@ -442,12 +466,12 @@ double* cuda::d_Malloc(unsigned long int size, int DeviceNum){
   return ptr;
 }
 
-double* cuda::d_MallocHost(unsigned long int size){
-  double *ptr = NULL;
-  unsigned long int  s = sizeof(double) * size;
-  checkCudaErrors(cudaMallocHost((void**)&ptr, s));
-  return ptr;
-}
+/* double* cuda::d_MallocHost(unsigned long int size){ */
+/*   double *ptr = NULL; */
+/*   unsigned long int  s = sizeof(double) * size; */
+/*   checkCudaErrors(cudaMallocHost((void**)&ptr, s)); */
+/*   return ptr; */
+/* } */
 
 double* cuda::d_MallocHost(unsigned long int size, int DeviceNum){
   cudaSetDevice(DeviceNum);
@@ -458,12 +482,12 @@ double* cuda::d_MallocHost(unsigned long int size, int DeviceNum){
   return ptr;
 }
 
-int* cuda::i_Malloc(unsigned long int size){
-  int *ptr = NULL;
-  unsigned long int s = sizeof(int) * size;
-  checkCudaErrors(cudaMalloc((void**)&ptr, s));
-  return ptr;
-}
+/* int* cuda::i_Malloc(unsigned long int size){ */
+/*   int *ptr = NULL; */
+/*   unsigned long int s = sizeof(int) * size; */
+/*   checkCudaErrors(cudaMalloc((void**)&ptr, s)); */
+/*   return ptr; */
+/* } */
 
 int* cuda::i_Malloc(unsigned long int size, int DeviceNum){
   cudaSetDevice(DeviceNum);
@@ -474,12 +498,12 @@ int* cuda::i_Malloc(unsigned long int size, int DeviceNum){
   return ptr;
 }
 
-int* cuda::i_MallocHost(unsigned long int size){
-  int *ptr = NULL;
-  unsigned long int s = sizeof(int) * size;
-  checkCudaErrors(cudaMallocHost((void**)&ptr, s));
-  return ptr;
-}
+/* int* cuda::i_MallocHost(unsigned long int size){ */
+/*   int *ptr = NULL; */
+/*   unsigned long int s = sizeof(int) * size; */
+/*   checkCudaErrors(cudaMallocHost((void**)&ptr, s)); */
+/*   return ptr; */
+/* } */
 
 int* cuda::i_MallocHost(unsigned long int size, int DeviceNum){
   cudaSetDevice(DeviceNum);
@@ -490,24 +514,38 @@ int* cuda::i_MallocHost(unsigned long int size, int DeviceNum){
   return ptr;
 }
 
-void cuda::Memset(double *ptr, double val, unsigned long int size){
-  checkCudaErrors(cudaMemset(ptr, val, sizeof(double)*size));
-}
+/* void cuda::Memset(double *ptr, double val, unsigned long int size){ */
+/*   checkCudaErrors(cudaMemset(ptr, val, sizeof(double)*size)); */
+/* } */
+/*  */
+/* void cuda::Memset(int *ptr, int val, unsigned long int size){ */
+/*   checkCudaErrors(cudaMemset(ptr, val, sizeof(int)*size)); */
+/* } */
 
-void cuda::Memset(int *ptr, int val, unsigned long int size){
-  checkCudaErrors(cudaMemset(ptr, val, sizeof(int)*size));
-}
-
-void cuda::Memset(double *ptr, double val, unsigned long int size, int DeviceNum){
+void cuda::Memset(double *ptr, double val, unsigned long int size, bool timer, int DeviceNum){
+  if(timer){
+    this->time->start_e();
+  }
   cudaSetDevice(DeviceNum);
   checkCudaErrors(cudaMemset(ptr, val, sizeof(double)*size));
   cudaSetDevice(0);
+  if(timer){
+    this->time->end_e();
+    this->time->memset_time += this->time->getTime_e();
+  }
 }
 
-void cuda::Memset(int *ptr, int val, unsigned long int size, int DeviceNum){
+void cuda::Memset(int *ptr, int val, unsigned long int size, bool timer, int DeviceNum){
+  if(timer){
+    this->time->start_e();
+  }
   cudaSetDevice(DeviceNum);
   checkCudaErrors(cudaMemset(ptr, val, sizeof(int)*size));
   cudaSetDevice(0);
+  if(timer){
+    this->time->end_e();
+    this->time->memset_time += this->time->getTime_e();
+  }
 }
 
 void cuda::Reset(int DeviceNum){
@@ -521,81 +559,61 @@ void cuda::Reset(int DeviceNum){
 void cuda::MtxVec_mult(double *in, double *out, unsigned long size, double *val, int *col, int *ptr){
   double *D_in = NULL, *D_out = NULL;
 
+  this->time->start();
+
+  std::cout << "Useing defalut MtxVec" << std::endl;
+
   int ThreadPerBlock=128;
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
-  this->time->start();
   D_in = d_Malloc(size);
   D_out = d_Malloc(size);
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
 
-  this->time->start();
-  Memset(D_out, 0, size);
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
+  Memset(D_out, 0, size, true);
 
-  this->time->start();
-  H2D(in, D_in, size);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  H2D(in, D_in, size, true);
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
   
-  this->time->start();
   kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock+16)>>>(size, val, col, ptr, D_in, D_out);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->end();
-  this->time->cu_MV_proc_time += this->time->getTime();
 
-  this->time->start();
-  D2H(D_out, out, size);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  D2H(D_out, out, size, true);
 
-  this->time->start();
   Free(D_in);
   Free(D_out);
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
 
+  this->time->end();
+  this->time->mv_time += this->time->getTime();
 }
 
 void cuda::MtxVec_mult(double *in, double *out, double *val, int *col, int *ptr){
 
+  this->time->start();
+
   int ThreadPerBlock=128;
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
-
-
-  this->time->start();
-  Memset(this->cu_d2, 0, size);
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
+  
+  Memset(this->cu_d2, 0, size, true);
 
   //d1 -> in
   //d2 -> out
-  this->time->start();
-  H2D(in, this->cu_d1, size);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  H2D(in, this->cu_d1, size, true);
 
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock>>>(this->size, val, col, ptr, cu_d1, cu_d2);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->end();
-  this->time->cu_MV_proc_time += this->time->getTime();
 
-  this->time->start();
-  D2H(cu_d2, out, size);
+  D2H(cu_d2, out, size, true);
+
   this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  this->time->mv_time += this->time->getTime();
 }
 
 void cuda::MtxVec_mult(double *in, unsigned long int inindex, unsigned long int insize, double *out, unsigned long int outindex, unsigned long int outsize, double *val, int *col, int *ptr){
@@ -603,31 +621,24 @@ void cuda::MtxVec_mult(double *in, unsigned long int inindex, unsigned long int 
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
   this->time->start();
-  Memset(this->cu_d2, 0, size);
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
+
+  Memset(this->cu_d2, 0, size, true);
 
   //d1 -> in
   //d2 -> out
-  this->time->start();
-  H2D((double*)(in+(inindex*insize)), this->cu_d1, size);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  H2D((double*)(in+(inindex*insize)), this->cu_d1, size, true);
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock>>>(this->size, val, col, ptr, cu_d1, cu_d2);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->end();
-  this->time->cu_MV_proc_time += this->time->getTime();
 
-  this->time->start();
-  D2H(this->cu_d2, (double*)(out+(outindex*outsize)), size);
+  D2H(this->cu_d2, (double*)(out+(outindex*outsize)), size, true);
+
   this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  this->time->mv_time += this->time->getTime();
 }
 
 void cuda::MtxVec_mult(double *in, unsigned long int inindex, unsigned long int insize, double *out, double *val, int *col, int *ptr){
@@ -635,30 +646,23 @@ void cuda::MtxVec_mult(double *in, unsigned long int inindex, unsigned long int 
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
   this->time->start();
-  Memset(this->cu_d2, 0, size);
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
+
+  Memset(this->cu_d2, 0, size, true);
 
   //d1 -> in
   //d2 -> out
-  this->time->start();
-  H2D((double*)(in+(inindex*insize)), this->cu_d1, size);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  H2D((double*)(in+(inindex*insize)), this->cu_d1, size, true);
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
-  this->time->start();
   kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock>>>(this->size, val, col, ptr, cu_d1, cu_d2);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->end();
-  this->time->cu_MV_proc_time += this->time->getTime();
 
-  this->time->start();
-  D2H(this->cu_d2, out, size);
+  D2H(this->cu_d2, out, size, true);
+
   this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  this->time->mv_time += this->time->getTime();
 
 }
 
@@ -670,48 +674,39 @@ double cuda::dot(double *in1, double *in2, unsigned long int size){
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
   this->time->start();
+  std::cout << "Useing defalut MtxVec" << std::endl;
+
   D_in1 = d_Malloc(size);
   D_in2 = d_Malloc(size);
   D_out = d_Malloc(BlockPerGrid);
   H_out = new double [BlockPerGrid];
-  this->time->start();
-  this->time->cu_dot_malloc_time += this->time->getTime();
 
 
-  this->time->start();
   H2D(in1, D_in1, size);
   H2D(in2, D_in2, size);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
 
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(size, D_in1, D_in2, D_out);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->start();
-  this->time->cu_dot_proc_time += this->time->getTime();
 
-  this->time->start();
   D2H(D_out, H_out, BlockPerGrid);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
 
-  this->time->start();
 /* #pragma omp parallel for schedule(static) reduction(+:sum) */
   for(int i=0; i<BlockPerGrid; i++){
     sum += H_out[i];
   }
-  this->time->start();
-  this->time->cu_dot_reduce_time += this->time->getTime();
 
   delete[] H_out;
   Free(D_in1);
   Free(D_in2);
   Free(D_out);
+
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 
   return sum;
 }
@@ -723,45 +718,35 @@ double cuda::dot(double *in1, double *in2){
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
   this->time->start();
-  Memset(this->cu_d3, 0, BlockPerGrid);
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
+
+  Memset(this->cu_d3, 0, BlockPerGrid, true);
 
   //d_1 -> in1
   //d_2 -> in2
   //d_3 -> out
-  this->time->start();
-  H2D(in1, this->cu_d1, size);
-  H2D(in2, this->cu_d2, size);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  H2D(in1, this->cu_d1, size, true);
+  H2D(in2, this->cu_d2, size, true);
 
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d1, cu_d2, cu_d3);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->start();
-  this->time->cu_dot_proc_time += this->time->getTime();
 
 
   //d_3 -> out
   //h_1 -> out(host)
-  this->time->start();
-  D2H(cu_d3, cu_h1, BlockPerGrid);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  D2H(cu_d3, cu_h1, BlockPerGrid, true);
 
-  this->time->start();
 /* #pragma omp parallel for schedule(static) reduction(+:sum) */
   for(int i=0; i<BlockPerGrid; i++){
     sum += cu_h1[i];
   }
-  this->time->start();
-  this->time->cu_dot_reduce_time += this->time->getTime();
+
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 
   return sum;
 }
@@ -774,44 +759,34 @@ double cuda::dot(double *in1, unsigned long int in1index, unsigned long int in1s
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
   this->time->start();
-  Memset(this->cu_d3, 0, BlockPerGrid);
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
+
+  Memset(this->cu_d3, 0, BlockPerGrid, true);
 
   //d_1 -> in1
   //d_2 -> in2
   //d_3 -> out
-  this->time->start();
-  H2D((double*)(in1+(in1index*in1size)), this->cu_d1, size);
-  H2D((double*)(in2+(in2index*in2size)), this->cu_d2, size);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  H2D((double*)(in1+(in1index*in1size)), this->cu_d1, size, true);
+  H2D((double*)(in2+(in2index*in2size)), this->cu_d2, size, true);
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d1, cu_d2, cu_d3);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->start();
-  this->time->cu_dot_proc_time += this->time->getTime();
 
 
   //d_3 -> out
   //h_1 -> out(host)
-  this->time->start();
-  D2H(cu_d3, cu_h1, BlockPerGrid);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  D2H(cu_d3, cu_h1, BlockPerGrid, true);
 
-  this->time->start();
 /* #pragma omp parallel for schedule(static) reduction(+:sum) */
   for(int i=0; i<BlockPerGrid; i++){
     sum += cu_h1[i];
   }
-  this->time->start();
-  this->time->cu_dot_reduce_time += this->time->getTime();
+
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 
   return sum;
 
@@ -824,46 +799,35 @@ double cuda::dot(double *in1, double *in2, unsigned long int in2index, unsigned 
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
   this->time->start();
-  Memset(this->cu_d3, 0, BlockPerGrid);
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
+
+  Memset(this->cu_d3, 0, BlockPerGrid, true);
 
   //d_1 -> in1
   //d_2 -> in2
   //d_3 -> out
-  this->time->start();
-  H2D(in1, this->cu_d1, size);
-  H2D((double*)(in2+(in2index*in2size)), this->cu_d2, size);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  H2D(in1, this->cu_d1, size, true);
+  H2D((double*)(in2+(in2index*in2size)), this->cu_d2, size, true);
 
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d1, cu_d2, cu_d3);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->start();
-  this->time->cu_dot_proc_time += this->time->getTime();
 
 
   //d_3 -> out
   //h_1 -> out(host)
-  this->time->start();
-  D2H(cu_d3, cu_h1, BlockPerGrid);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  D2H(cu_d3, cu_h1, BlockPerGrid, true);
 
-  this->time->start();
 /* #pragma omp parallel for schedule(static) reduction(+:sum) */
   for(int i=0; i<BlockPerGrid; i++){
     sum += cu_h1[i];
   }
-  this->time->start();
-  this->time->cu_dot_reduce_time += this->time->getTime();
 
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
   return sum;
 }
 
@@ -874,47 +838,36 @@ double cuda::dot(double *in1, unsigned long int in1index, unsigned long int in1s
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
   this->time->start();
-  Memset(this->cu_d3, 0, BlockPerGrid);
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
+
+  Memset(this->cu_d3, 0, BlockPerGrid, true);
 
   //d_1 -> in1
   //d_2 -> in2
   //d_3 -> out
-  this->time->start();
-  H2D((double*)(in1+(in1index*in1size)), this->cu_d2, size);
-  H2D(in2, this->cu_d2, size);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  H2D((double*)(in1+(in1index*in1size)), this->cu_d2, size, true);
+  H2D(in2, this->cu_d2, size, true);
 
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d1, cu_d2, cu_d3);
   checkCudaErrors( cudaPeekAtLastError() );
-  this->time->start();
-  this->time->cu_dot_proc_time += this->time->getTime();
 
 
   //d_3 -> out
   //h_1 -> out(host)
-  this->time->start();
-  D2H(cu_d3, cu_h1, BlockPerGrid);
-  this->time->start();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  D2H(cu_d3, cu_h1, BlockPerGrid, true);
 
 
-  this->time->start();
 /* #pragma omp parallel for schedule(static) reduction(+:sum) */
   for(int i=0; i<BlockPerGrid; i++){
     sum += cu_h1[i];
   }
-  this->time->start();
-  this->time->cu_dot_reduce_time += this->time->getTime();
 
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 
   return sum;
 }
@@ -995,18 +948,14 @@ void cuda::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
   this->time->start();
-  Memset(this->cu_d4, 0, size*(2*k+1));
-  Memset(this->cu_d5, 0, size*(2*k+2));
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
+
+  Memset(this->cu_d4, 0, size*(2*k+1), true);
+  Memset(this->cu_d5, 0, size*(2*k+2), true);
 
   //r -> d1
   //p -> d2
-  this->time->start();
-  H2D(rvec, this->cu_d1, size);
-  H2D(pvec, this->cu_d2, size);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  H2D(rvec, this->cu_d1, size, true);
+  H2D(pvec, this->cu_d2, size, true);
 
   if(ThreadPerBlock*8 >= 49152){
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
@@ -1015,7 +964,6 @@ void cuda::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec
   // d1(in) --> d4(out)
   // d2(in) --> d5(out)
 
-  this->time->start();
   kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock>>>(this->size, val, col, ptr, cu_d1, cu_d4, 0, this->size);
   checkCudaErrors( cudaPeekAtLastError() );
   
@@ -1030,16 +978,13 @@ void cuda::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec
     kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock>>>(this->size, val, col, ptr, cu_d5, i-1, this->size, cu_d5, i, this->size);
     checkCudaErrors( cudaPeekAtLastError() );
   }
+
+
+  D2H(this->cu_d4, Ar, size*(2*kskip+1), true);
+  D2H(this->cu_d5, Ap, size*(2*kskip+2), true);
+
   this->time->end();
-  this->time->cu_MV_proc_time += this->time->getTime();
-
-
-  this->time->start();
-  D2H(this->cu_d4, Ar, size*(2*kskip+1));
-  D2H(this->cu_d5, Ap, size*(2*kskip+2));
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
-
+  this->time->mv_time += this->time->getTime();
 }
 
 void cuda::Kskip_cg_bicg_base2(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip, double *val, int *col, int *ptr){
@@ -1047,78 +992,45 @@ void cuda::Kskip_cg_bicg_base2(double *Ar, double *Ap, double *rvec, double *pve
   int BlockPerGrid=(size-1)/(ThreadPerBlock/32)+1;
 
   this->time->start();
+
   cudaStream_t stream1, stream2;
   cudaStreamCreate(&stream1);
   cudaStreamCreate(&stream2);
   cudaMemsetAsync(cu_d4, 0, size*(2*kskip+1), stream1);
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
 
-  this->time->start();
   cudaMemcpyAsync(this->cu_d1, rvec, sizeof(double)*size, cudaMemcpyHostToDevice, stream1);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
 
-  this->time->start();
   kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock, 0, stream1>>>(this->size, val, col, ptr, cu_d1, cu_d4, 0, this->size);
-  this->time->end();
-  this->time->cu_MV_proc_time += this->time->getTime();
 
-  this->time->start();
   cudaMemcpyAsync((double*)(Ar+(0*this->size)), (double*)(cu_d4+(0*this->size)), sizeof(double)*size, cudaMemcpyDeviceToHost, stream1);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
 
-  this->time->start();
   cudaMemsetAsync(cu_d5, 0, size*(2*kskip+2), stream2);
-  this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
 
-  this->time->start();
   cudaMemcpyAsync(this->cu_d2, pvec, sizeof(double)*size, cudaMemcpyHostToDevice, stream2);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
 
-  this->time->start();
   kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock, 0, stream2>>>(this->size, val, col, ptr, cu_d2, cu_d5, 0, this->size);
-  this->time->end();
-  this->time->cu_MV_proc_time += this->time->getTime();
 
-  this->time->start();
   cudaMemcpyAsync((double*)(Ap+(0*this->size)), (double*)(cu_d5+(0*this->size)), sizeof(double)*size, cudaMemcpyDeviceToHost, stream2);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
 
   
   for(int i=1; i<2*kskip+2; i++){
     if(i<2*kskip+1){
-      this->time->start();
       kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock, 0, stream1>>>(this->size, val, col, ptr, cu_d4, i-1, this->size, cu_d4, i, this->size);
-      this->time->end();
-      this->time->cu_MV_proc_time += this->time->getTime();
 
-      this->time->start();
       cudaMemcpyAsync((double*)(Ar+(i*this->size)), (double*)(cu_d4+(i*this->size)), sizeof(double)*size, cudaMemcpyDeviceToHost, stream1);
-      this->time->end();
-      this->time->cu_MV_copy_time += this->time->getTime();
     }
 
-    this->time->start();
     kernel_MtxVec_mult<<<BlockPerGrid, ThreadPerBlock, 0, stream2>>>(this->size, val, col, ptr, cu_d5, i-1, this->size, cu_d5, i, this->size);
-    this->time->end();
-    this->time->cu_MV_proc_time += this->time->getTime();
 
-    this->time->start();
     cudaMemcpyAsync((double*)(Ap+(i*this->size)), (double*)(cu_d5+(i*this->size)), sizeof(double)*size, cudaMemcpyDeviceToHost, stream2);
-    this->time->end();
-    this->time->cu_MV_copy_time += this->time->getTime();
   }
 
-  this->time->start();
   cudaStreamDestroy(stream1);
   cudaStreamDestroy(stream2);
+
   this->time->end();
-  this->time->cu_MV_malloc_time += this->time->getTime();
+  this->time->mv_time += this->time->getTime();
+
 }
 
 void cuda::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, double *Ar, double *Ap, double *rvec, double *pvec, int kskip, double *val, int *col, int *ptr){
@@ -1127,11 +1039,10 @@ void cuda::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
   this->time->start();
+
   Memset(this->cu_d6, 0, BlockPerGrid * (2*kskip));
   Memset(this->cu_d7, 0, BlockPerGrid * (2*kskip+1));
   Memset(this->cu_d8, 0, BlockPerGrid * (2*kskip+2));
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
 
   //d1 -> r
   //d2 -> p
@@ -1146,7 +1057,6 @@ void cuda::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   for(int i=0; i<2*kskip+2; i++){
     if(i<2*kskip){
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
@@ -1156,22 +1066,16 @@ void cuda::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
     }
     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
   }
-  this->time->end();
-  this->time->cu_dot_proc_time += this->time->getTime();
 
 
   //d6 -> delta -> h2
   //d7 -> eta -> h3
   //d8 -> zeta -> h4
 
-  this->time->start();
   D2H(cu_d6, cu_h2, BlockPerGrid * (2*kskip));
   D2H(cu_d7, cu_h3, BlockPerGrid * (2*kskip+1));
   D2H(cu_d8, cu_h4, BlockPerGrid * (2*kskip+2));
-  this->time->end();
-  this->time->cu_dot_copy_time += this->time->getTime();
 
-  this->time->start();
   double tmp1 = 0.0;
   double tmp2 = 0.0;
   double tmp3 = 0.0;
@@ -1198,28 +1102,24 @@ void cuda::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
     zeta[i] = tmp3;
   }
   this->time->end();
-  this->time->cu_dot_reduce_time += this->time->getTime();
+  this->time->dot_time += this->time->getTime();
 }
 
 void cuda::Kskip_cg_innerProduce2(double *delta, double *eta, double *zeta, double *Ar, double *Ap, double *rvec, double *pvec, int kskip, double *val, int *col, int *ptr){
 
   this->time->start();
+
   cudaStream_t stream1, stream2, stream3;
   cudaStreamCreate(&stream1);
   cudaStreamCreate(&stream2);
   cudaStreamCreate(&stream3);
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
 
   int ThreadPerBlock=128;
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
-  this->time->start();
   cudaMemsetAsync(cu_d6, 0, sizeof(double)*BlockPerGrid*(2*kskip), stream1);
   cudaMemsetAsync(cu_d7, 0, sizeof(double)*BlockPerGrid*(2*kskip+1), stream2);
   cudaMemsetAsync(cu_d8, 0, sizeof(double)*BlockPerGrid*(2*kskip+2), stream3);
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
 
   //d1 -> r
   //d2 -> p
@@ -1239,68 +1139,43 @@ double tmp3 = 0.0;
     tmp2 = 0.0;
     tmp3 = 0.0;
     if(i<2*kskip){
-      this->time->start();
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
-      this->time->end();
-      this->time->cu_dot_proc_time += this->time->getTime();
 
-      this->time->start();
       cudaMemcpyAsync((double*)(cu_h2+(i*BlockPerGrid)), (double*)(cu_d6+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream1);
-      this->time->end();
-      this->time->cu_dot_copy_time += this->time->getTime();
       cudaStreamSynchronize(stream1);
 
-      this->time->start();
       for(int j=0; j<BlockPerGrid; j++){
         tmp1 += cu_h2[i*BlockPerGrid+j];
       }
       delta[i] = tmp1;
-      this->time->end();
-      this->time->cu_dot_reduce_time += this->time->getTime();
 
     }
     if(i<2*kskip+1){
-      this->time->start();
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d5, i, this->size, cu_d1, cu_d7, i, BlockPerGrid);
-      this->time->end();
-      this->time->cu_dot_copy_time += this->time->getTime();
 
-      this->time->start();
       cudaMemcpyAsync((double*)(cu_h3+(i*BlockPerGrid)), (double*)(cu_d7+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream2);
-      this->time->end();
-      this->time->cu_dot_copy_time += this->time->getTime();
       cudaStreamSynchronize(stream2);
 
-      this->time->start();
       for(int j=0; j<BlockPerGrid; j++){
         tmp2 += cu_h3[i*BlockPerGrid+j];
       }
       eta[i] = tmp2;
-      this->time->end();
-      this->time->cu_dot_reduce_time += this->time->getTime();
 
     }
-    this->time->start();
     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream3>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
-    this->time->end();
-    this->time->cu_dot_copy_time += this->time->getTime();
 
-      this->time->start();
     cudaMemcpyAsync((double*)(cu_h4+(i*BlockPerGrid)), (double*)(cu_d8+(i*BlockPerGrid)), sizeof(double)*(BlockPerGrid), cudaMemcpyDeviceToHost, stream3);
-    this->time->end();
-    this->time->cu_dot_copy_time += this->time->getTime();
 
     cudaStreamSynchronize(stream3);
 
-    this->time->start();
     for(int j=0; j<BlockPerGrid; j++){
       tmp3 += cu_h4[i*BlockPerGrid+j];
     }
     zeta[i] = tmp3;
-    this->time->end();
-    this->time->cu_dot_reduce_time += this->time->getTime();
 
   }
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 }
 
 void cuda::Kskip_cg_innerProduce3(double *delta, double *eta, double *zeta, double *Ar, double *Ap, double *rvec, double *pvec, int kskip, double *val, int *col, int *ptr){
@@ -1310,6 +1185,7 @@ void cuda::Kskip_cg_innerProduce3(double *delta, double *eta, double *zeta, doub
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
   this->time->start();
+
   cudaStreamCreate(&stream1);
   cudaStreamCreate(&stream2);
   cudaStreamCreate(&stream3);
@@ -1319,8 +1195,6 @@ void cuda::Kskip_cg_innerProduce3(double *delta, double *eta, double *zeta, doub
   cudaMemsetAsync(cu_d7, 0, sizeof(double)*BlockPerGrid*(2*kskip+1), stream2);
   cudaMemsetAsync(cu_d8, 0, sizeof(double)*BlockPerGrid*(2*kskip+2), stream3);
 
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
 
   //d1 -> r
   //d2 -> p
@@ -1342,48 +1216,29 @@ void cuda::Kskip_cg_innerProduce3(double *delta, double *eta, double *zeta, doub
     tmp2 = 0.0;
     tmp3 = 0.0;
     if(i<2*kskip){
-      this->time->start();
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream1>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
-      this->time->end();
-      this->time->cu_dot_proc_time += this->time->getTime();
 
-      this->time->start();
       if(i==2*kskip-1){
         cudaMemcpyAsync(cu_h2, cu_d6, sizeof(double)*(BlockPerGrid)*(2*kskip), cudaMemcpyDeviceToHost, stream1);
       }
-      this->time->end();
-      this->time->cu_dot_copy_time += this->time->getTime();
 
     }
     if(i<2*kskip+1){
-      this->time->start();
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream2>>>(this->size, cu_d5, i, this->size, cu_d1, cu_d7, i, BlockPerGrid);
-      this->time->end();
-      this->time->cu_dot_proc_time += this->time->getTime();
 
-      this->time->start();
       if(i==2*kskip){
         cudaMemcpyAsync(cu_h3, cu_d7, sizeof(double)*(BlockPerGrid)*(2*kskip+1), cudaMemcpyDeviceToHost, stream2);
       }
-      this->time->end();
-      this->time->cu_dot_copy_time += this->time->getTime();
     }
-    this->time->start();
     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock), stream3>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
-    this->time->end();
-    this->time->cu_dot_proc_time += this->time->getTime();
 
-    this->time->start();
     if(i==2*kskip+1){
       cudaMemcpyAsync(cu_h4, cu_d8, sizeof(double)*(BlockPerGrid)*(2*kskip+2), cudaMemcpyDeviceToHost, stream3);
     }
-    this->time->end();
-    this->time->cu_dot_copy_time += this->time->getTime();
 
     cudaDeviceSynchronize();
   }
 
-    this->time->start();
 /* #pragma omp parallel for reduction(+:tmp1, tmp2, tmp3) schedule(static) firstprivate(delta, eta, zeta, cu_h2, cu_h3, cu_h4) lastprivate(delta, eta, zeta) */
   for(int i=0; i<2*kskip+2; i++){
     tmp1 = 0.0;
@@ -1406,9 +1261,9 @@ void cuda::Kskip_cg_innerProduce3(double *delta, double *eta, double *zeta, doub
     }
     zeta[i] = tmp3;
   }
-  this->time->end();
-  this->time->cu_dot_reduce_time += this->time->getTime();
 
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 }
 
 void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *r_vec, double *p_vec, int kskip, double *val, int *col, int *ptr){
@@ -1417,19 +1272,15 @@ void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
   this->time->start();
-  Memset(this->cu_d6, 0, BlockPerGrid * (2*kskip));
-  Memset(this->cu_d7, 0, BlockPerGrid * (2*kskip+1));
-  Memset(this->cu_d9, 0, BlockPerGrid * (2*kskip+1));
-  Memset(this->cu_d8, 0, BlockPerGrid * (2*kskip+2));
-  this->time->end();
-  this->time->cu_dot_malloc_time += this->time->getTime();
+
+  Memset(this->cu_d6, 0, BlockPerGrid * (2*kskip), true);
+  Memset(this->cu_d7, 0, BlockPerGrid * (2*kskip+1), true);
+  Memset(this->cu_d9, 0, BlockPerGrid * (2*kskip+1), true);
+  Memset(this->cu_d8, 0, BlockPerGrid * (2*kskip+2), true);
 
 
-  this->time->start();
-  H2D(r_vec, cu_d1, this->size);
-  H2D(p_vec, cu_d2, this->size);
-  this->time->end();
-  this->time->cu_MV_copy_time += this->time->getTime();
+  H2D(r_vec, cu_d1, this->size, true);
+  H2D(p_vec, cu_d2, this->size, true);
 
   //d1 -> *r
   //d2 -> *p
@@ -1445,7 +1296,6 @@ void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
     std::cout << "Request shared memory size is over max shared memory size in per block !!! Max = 49152 !!! Request = " << ThreadPerBlock*8 << std::endl;
   }
 
-  this->time->start();
   for(int i=0; i<2*kskip+2; i++){
     if(i<2*kskip){
       kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d4, i, this->size, cu_d1, cu_d6, i, BlockPerGrid);
@@ -1456,8 +1306,6 @@ void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
     }
     kernel_dot<<<BlockPerGrid, ThreadPerBlock, sizeof(double)*(ThreadPerBlock)>>>(this->size, cu_d5, i, this->size, cu_d2, cu_d8, i, BlockPerGrid);
   }
-  this->time->end();
-  this->time->cu_dot_proc_time += this->time->getTime();
 
 
   //d6 -> theta -> h2
@@ -1465,16 +1313,12 @@ void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
   //d9 -> rho -> h5
   //d8 -> phi -> h4
 
-  this->time->start();
-  D2H(cu_d6, cu_h2, BlockPerGrid * (2*kskip));
-  D2H(cu_d7, cu_h3, BlockPerGrid * (2*kskip+1));
-  D2H(cu_d9, cu_h5, BlockPerGrid * (2*kskip+1));
-  D2H(cu_d8, cu_h4, BlockPerGrid * (2*kskip+2));
-  this->time->end();
-  this->time->cu_dot_copy_time += this->time->getTime();
+  D2H(cu_d6, cu_h2, BlockPerGrid * (2*kskip), true);
+  D2H(cu_d7, cu_h3, BlockPerGrid * (2*kskip+1), true);
+  D2H(cu_d9, cu_h5, BlockPerGrid * (2*kskip+1), true);
+  D2H(cu_d8, cu_h4, BlockPerGrid * (2*kskip+2), true);
 
 
-  this->time->start();
   double tmp1 = 0.0;
   double tmp2 = 0.0;
   double tmp3 = 0.0;
@@ -1504,9 +1348,9 @@ void cuda::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
     }
     phi[i] = tmp4;
   }
-  this->time->end();
-  this->time->cu_dot_reduce_time += this->time->getTime();
 
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 
 }
 
@@ -1527,6 +1371,8 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
   //d8 -> phi -> h4
 
   cudaStream_t stream1, stream2, stream3, stream4;
+
+  this->time->start();
 
   cudaStreamCreate(&stream1);
   cudaStreamCreate(&stream2);
@@ -1596,6 +1442,8 @@ void cuda::Kskip_bicg_innerProduce2(double *theta, double *eta, double *rho, dou
   cudaStreamDestroy(stream3);
   cudaStreamDestroy(stream4);
 
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 }
 
 void cuda::Kskip_bicg_innerProduce3(double *theta, double *eta, double *rho, double *phi, double *Ar, double *Ap, double *r_vec, double *p_vec, int kskip, double *val, int *col, int *ptr){
@@ -1615,6 +1463,9 @@ void cuda::Kskip_bicg_innerProduce3(double *theta, double *eta, double *rho, dou
   //d8 -> phi -> h4
 
   cudaStream_t stream1, stream2, stream3, stream4;
+
+  this->time->start();
+
   cudaStreamCreate(&stream1);
   cudaStreamCreate(&stream2);
   cudaStreamCreate(&stream3);
@@ -1692,12 +1543,17 @@ void cuda::Kskip_bicg_innerProduce3(double *theta, double *eta, double *rho, dou
   cudaStreamDestroy(stream3);
   cudaStreamDestroy(stream4);
 
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 }
 
 void cuda::dot_gmres(double *wvec, double *vmtx, double *hmtx, int k, unsigned long int N){
+  this->time->start();
   for(int i=0; i<=k; i++){
     hmtx[k+i*N] = dot(wvec, vmtx, i, N);
   }
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 }
 
 void cuda::dot_gmres2(double *wvec, double *vmtx, double *hmtx, int k, unsigned long int N){
@@ -1706,6 +1562,9 @@ void cuda::dot_gmres2(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
 
 
   cudaStream_t stream1, stream2, stream3;
+
+  this->time->start();
+
   cudaStreamCreate(&stream1);
   cudaStreamCreate(&stream2);
   cudaStreamCreate(&stream3);
@@ -1797,6 +1656,10 @@ void cuda::dot_gmres2(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
   cudaStreamDestroy(stream1);
   cudaStreamDestroy(stream2);
   cudaStreamDestroy(stream3);
+
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
+
 }
 
 void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned long int N){
@@ -1804,6 +1667,7 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
   int BlockPerGrid=ceil((double)size/(double)ThreadPerBlock);
 
 
+  this->time->start();
   
   cudaStream_t stream[32];
   for(int i=0; i<32; i++){
@@ -1970,6 +1834,9 @@ void cuda::dot_gmres3(double *wvec, double *vmtx, double *hmtx, int k, unsigned 
   for(int i=0; i<32; i++){
     cudaStreamDestroy(stream[i]);
   }
+
+  this->time->end();
+  this->time->dot_time += this->time->getTime();
 }
 
 void cuda::ShowDevice(){
@@ -1993,43 +1860,11 @@ void cuda::SetSize_Multi(int size1, int size2){
   this->size2 = size2;
 }
 
-/* void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2){ */
-/*  */
-/*   int ThreadPerBlock1 = 128; */
-/*   int BlockPerGrid1 = (size1-1) / (ThreadPerBlock1/32)+1; */
-/*  */
-/*   int ThreadPerBlock2 = 128; */
-/*   int BlockPerGrid2 = (size2-1) / (ThreadPerBlock2/32)+1; */
-/*  */
-/*   Memset(cu_d2_1, 0, size1, 0); */
-/*   Memset(cu_d2_2, 0, size2, 1); */
-/*  */
-/*  */
-/*   //d1_1 -> in GPU(0) */
-/*   //d1_2 -> in GPU(1) */
-/*  */
-/*   //d2_1 -> out GPU(0) */
-/*   //d2_1 -> out GPU(1) */
-/*   cudaMemcpy(cu_d1_1, in, size*sizeof(double), cudaMemcpyHostToDevice); */
-/*   cudaMemcpy(cu_d1_2, in, size*sizeof(double), cudaMemcpyHostToDevice); */
-/*  */
-/*   cudaSetDevice(0); */
-/*   kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d2_1); */
-/*   checkCudaErrors( cudaPeekAtLastError() ); */
-/*   cudaMemcpy(out, cu_d2_1, size1*sizeof(double), cudaMemcpyDeviceToHost); */
-/*  */
-/*   cudaSetDevice(1); */
-/*   kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2>>>(this->size2, val2, col2, ptr2, cu_d1_2, cu_d2_2); */
-/*   checkCudaErrors( cudaPeekAtLastError() ); */
-/*   cudaMemcpy((double*)(out+size1), cu_d2_2, size2*sizeof(double), cudaMemcpyDeviceToHost); */
-/*  */
-/*   cudaSetDevice(0); */
-/*  */
-/* } */
-
 void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2){
 
   cudaStream_t GPU1, GPU2;
+
+  this->time->start();
 
   int ThreadPerBlock1 = 128;
   int BlockPerGrid1 = (size1-1) / (ThreadPerBlock1/32)+1;
@@ -2042,37 +1877,32 @@ void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, i
 
   //d2_1 -> out GPU(0)
   //d2_1 -> out GPU(1)
-#pragma omp parallel num_threads(2)
-{
-  int tid = omp_get_thread_num();
-  if(tid == 0){
-    checkCudaErrors (cudaSetDevice(0));
-    checkCudaErrors (cudaStreamCreate(&GPU1) );
-    checkCudaErrors (cudaMemsetAsync(cu_d2_1, 0, size1, GPU1) );
-    checkCudaErrors (cudaMemcpyAsync(cu_d1_1, in, size*sizeof(double), cudaMemcpyHostToDevice, GPU1));
-    kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d2_1);
-    checkCudaErrors( cudaPeekAtLastError() );
-    checkCudaErrors( cudaMemcpyAsync(out, cu_d2_1, size1*sizeof(double), cudaMemcpyDeviceToHost, GPU1) );
-  }
-  else if(tid == 1){
-    checkCudaErrors (cudaSetDevice(1));
-    checkCudaErrors (cudaStreamCreate(&GPU2) );
-    checkCudaErrors (cudaMemsetAsync(cu_d2_2, 0, size2, GPU2) );
-    checkCudaErrors (cudaMemcpyAsync(cu_d1_2, in, size*sizeof(double), cudaMemcpyHostToDevice, GPU2) );
-    kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU2>>>(this->size2, val2, col2, ptr2, cu_d1_2, cu_d2_2);
-    checkCudaErrors( cudaPeekAtLastError() );
-    checkCudaErrors( cudaMemcpyAsync((double*)(out+size1), cu_d2_2, size2*sizeof(double), cudaMemcpyDeviceToHost, GPU2) );
-  }else{
-    std::cout << "-=ERROR=-" << std::endl;
-  }
-}
+
+  checkCudaErrors (cudaSetDevice(0));
+  checkCudaErrors (cudaStreamCreate(&GPU1) );
+  checkCudaErrors (cudaMemsetAsync(cu_d2_1, 0, size1, GPU1) );
+  checkCudaErrors (cudaMemcpyAsync(cu_d1_1, in, size*sizeof(double), cudaMemcpyHostToDevice, GPU1));
+  kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d2_1);
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaMemcpyAsync(out, cu_d2_1, size1*sizeof(double), cudaMemcpyDeviceToHost, GPU1) );
+
+  checkCudaErrors (cudaSetDevice(1));
+  checkCudaErrors (cudaStreamCreate(&GPU2) );
+  checkCudaErrors (cudaMemsetAsync(cu_d2_2, 0, size2, GPU2) );
+  checkCudaErrors (cudaMemcpyAsync(cu_d1_2, in, size*sizeof(double), cudaMemcpyHostToDevice, GPU2) );
+  kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU2>>>(this->size2, val2, col2, ptr2, cu_d1_2, cu_d2_2);
+  checkCudaErrors( cudaPeekAtLastError() );
+  checkCudaErrors( cudaMemcpyAsync((double*)(out+size1), cu_d2_2, size2*sizeof(double), cudaMemcpyDeviceToHost, GPU2) );
 
   checkCudaErrors (cudaSetDevice(0));
   checkCudaErrors( cudaStreamSynchronize(GPU1) );
   checkCudaErrors( cudaStreamDestroy(GPU1) );
+
   checkCudaErrors (cudaSetDevice(1));
   checkCudaErrors( cudaStreamSynchronize(GPU2) );
   checkCudaErrors( cudaStreamDestroy(GPU2) );
   checkCudaErrors (cudaSetDevice(0));
 
+  this->time->end();
+  this->time->mv_time += this->time->getTime();
 }

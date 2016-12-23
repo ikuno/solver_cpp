@@ -131,7 +131,8 @@ int cg::solve(){
   //mv = Ax
   if(isCUDA){
     if(isMultiGPU){
-      cu->MtxVec_mult_Multi(xvec, mv, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+      // cu->MtxVec_mult_Multi(xvec, mv, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+      bs->MtxVec_mult(pvec, mv);
     }else{
       cu->MtxVec_mult(xvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
     }
@@ -174,6 +175,7 @@ int cg::solve(){
     if(isCUDA){
       if(isMultiGPU){
         cu->MtxVec_mult_Multi(pvec, mv, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+        // bs->MtxVec_mult(pvec, mv);
       }else{
         cu->MtxVec_mult(pvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       }

@@ -35,32 +35,36 @@ class cuda {
     ~cuda();
 
     //--------------------------------------
-    double* d_Malloc(unsigned long int size);
-    double* d_Malloc(unsigned long int size, int DeviceNum);
-    double* d_MallocHost(unsigned long int size);
-    double* d_MallocHost(unsigned long int size, int DeviceNum);
+    // double* d_Malloc(unsigned long int size);
+    double* d_Malloc(unsigned long int size, int DeviceNum = 0);
+    // double* d_MallocHost(unsigned long int size);
+    double* d_MallocHost(unsigned long int size, int DeviceNum = 0);
 
-    int* i_Malloc(unsigned long int size);
-    int* i_Malloc(unsigned long int size, int DeviceNum);
-    int* i_MallocHost(unsigned long int size);
-    int* i_MallocHost(unsigned long int size, int DeviceNum);
+    // int* i_Malloc(unsigned long int size);
+    int* i_Malloc(unsigned long int size, int DeviceNum = 0);
+    // int* i_MallocHost(unsigned long int size);
+    int* i_MallocHost(unsigned long int size, int DeviceNum = 0);
 
-    void H2D(double* from, double* to, unsigned long int size);
-    void D2H(double* from, double* to, unsigned long int size);
-    
+    // void H2D(double* from, double* to, unsigned long int size);
+    // void D2H(double* from, double* to, unsigned long int size);
+    //
+    // void H2D(int* from, int* to, unsigned long int size);
+    // void D2H(int* from, int* to, unsigned long int size);
+    void H2D(double* from, double* to, unsigned long int size, bool timer = false, int DeviceNum = 0);
+    void D2H(double* from, double* to, unsigned long int size, bool timer = false, int DeviceNum = 0);
 
-    void H2D(int* from, int* to, unsigned long int size);
-    void D2H(int* from, int* to, unsigned long int size);
-   
+    void H2D(int* from, int* to, unsigned long int size, bool timer = false, int DeviceNum = 0);
+    void D2H(int* from, int* to, unsigned long int size, bool timer = false, int DeviceNum = 0);
+
     void Free(void* ptr);
 
     void FreeHost(void* ptr);
 
-    void Memset(double *ptr, double val, unsigned long int size);
-    void Memset(double *ptr, double val, unsigned long int size, int DeviceNum);
+    // void Memset(double *ptr, double val, unsigned long int size);
+    void Memset(double *ptr, double val, unsigned long int size, bool timer = false, int DeviceNum = 0);
 
-    void Memset(int *ptr, int val, unsigned long int size);
-    void Memset(int *ptr, int val, unsigned long int size, int DeviceNum);
+    // void Memset(int *ptr, int val, unsigned long int size);
+    void Memset(int *ptr, int val, unsigned long int size, bool timer = false, int DeviceNum = 0);
 
     void Reset(int DeviceNum);
 

@@ -14,18 +14,15 @@
 
 class times {
   public:
-    double cu_dot_copy_time;
-    double cu_dot_proc_time;
-    double cu_dot_malloc_time;
-    double cu_dot_reduce_time;
+    double mv_time;
+    double dot_time;
+    double memset_time;
+    double h2d_time;
+    double d2h_time;
 
-    double cu_MV_copy_time;
-    double cu_MV_proc_time;
-    double cu_MV_malloc_time;
+    double cpu_mv_time;
+    double cpu_dot_time;
 
-    double cpu_dot_proc_time;
-    double cpu_MV_proc_time;
-    double cpu_all_malloc_time;
 
     std::chrono::system_clock::time_point c_start, c_end;
     double o_start, o_end;
@@ -42,6 +39,8 @@ class times {
 #ifdef _OPENMP
       o_start = omp_get_wtime();
 #endif
+    }
+    void start_e(){
       e_start = getEtime();
     }
 
@@ -50,6 +49,9 @@ class times {
 #ifdef _OPENMP
       o_end = omp_get_wtime();
 #endif
+    }
+
+    void end_e(){
       e_end = getEtime();
     }
 

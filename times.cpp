@@ -1,18 +1,14 @@
 #include "times.hpp"
 
 times::times(){
-  cu_dot_copy_time=0;
-  cu_dot_proc_time=0;
-  cu_dot_malloc_time=0;
-  cu_dot_reduce_time=0;
+  mv_time = 0.0;
+  dot_time = 0.0;
+  memset_time = 0.0;
+  h2d_time = 0.0;
+  d2h_time = 0.0;
 
-  cu_MV_copy_time=0;
-  cu_MV_proc_time=0;
-  cu_MV_malloc_time=0;
-
-  cpu_dot_proc_time=0;
-  cpu_MV_proc_time=0;
-  cpu_all_malloc_time=0;
+  cpu_mv_time = 0.0;
+  cpu_dot_time = 0.0;
 }
 
 times::~times(){
@@ -40,12 +36,12 @@ std::string times::get_date_time(){
 }
 
 double times::showTimeOnCPU(double total, bool hasGPU){
-  double all = cpu_dot_proc_time + cpu_MV_proc_time + cpu_all_malloc_time;
+  double all = cpu_mv_time + cpu_dot_time;
   std::cout << CYAN << "Execution time on CPU" << RESET << std::endl;
-  std::cout << "\tDot process time = " << std::setprecision(6) << cpu_dot_proc_time << ", " << std::setprecision(2) << cpu_dot_proc_time/total*100 << "%" << std::endl;
-  std::cout << "\tMV process time  = " << std::setprecision(6) << cpu_MV_proc_time <<  ", " << std::setprecision(2) << cpu_MV_proc_time/total*100 << "%" << std::endl;
+  std::cout << "\tDot process time = " << std::setprecision(6) << cpu_dot_time << ", " << std::setprecision(2) << cpu_dot_time/total*100 << "%" << std::endl;
+  std::cout << "\tMV process time  = " << std::setprecision(6) << cpu_mv_time <<  ", " << std::setprecision(2) << cpu_mv_time/total*100 << "%" << std::endl;
   if(!hasGPU){
-    std::cout << "\tother time       = " << std::setprecision(6) << total-all <<  ", " << std::setprecision(2) << (total-all)/total*100 << "%" << std::endl;
+    std::cout << "\tother time     = " << std::setprecision(6) << total-all <<  ", " << std::setprecision(2) << (total-all)/total*100 << "%" << std::endl;
     return (-1.0);
   }else{
     return all;
@@ -53,16 +49,13 @@ double times::showTimeOnCPU(double total, bool hasGPU){
 }
 
 void times::showTimeOnGPU(double total, double timeCPU){
-  double dot_t = cu_dot_copy_time + cu_dot_proc_time + cu_dot_malloc_time + cu_dot_reduce_time;
-  double mv_t = cu_MV_copy_time + cu_MV_proc_time + cu_MV_malloc_time;
-  double all = dot_t + mv_t;
+  double all = mv_time + dot_time;
+  // double inall = h2d_time + d2h_time + memset_time;
   std::cout << CYAN << "Execution time on GPU" << RESET << std::endl;
-  std::cout << "\tDot malloc time  = " << std::setprecision(6) << cu_dot_malloc_time << ", " << std::setprecision(2) << cu_dot_malloc_time/total*100 << "%" << std::endl;
-  std::cout << "\tDot copy time    = " << std::setprecision(6) << cu_dot_copy_time << ", " << std::setprecision(2) << cu_dot_copy_time/total*100 << "%" << std::endl;
-  std::cout << "\tDot process time = " << std::setprecision(6) << cu_dot_proc_time << ", " << std::setprecision(2) << cu_dot_proc_time/total*100 << "%" << std::endl;
-  std::cout << "\tDot reduce time  = " << std::setprecision(6) << cu_dot_reduce_time << ", " << std::setprecision(2) << cu_dot_reduce_time/total*100 << "%" << std::endl;
-  std::cout << "\tMV malloc time   = " << std::setprecision(6) << cu_MV_malloc_time << ", " << std::setprecision(2) << cu_MV_malloc_time/total*100 << "%" << std::endl;
-  std::cout << "\tMV copy time     = " << std::setprecision(6) << cu_MV_copy_time << ", " << std::setprecision(2) << cu_MV_copy_time/total*100 << "%" << std::endl;
-  std::cout << "\tMV process time  = " << std::setprecision(6) << cu_MV_proc_time << ", " << std::setprecision(2) << cu_MV_proc_time/total*100 << "%" << std::endl;
+  std::cout << "\tDot malloc time  = " << std::setprecision(6) << dot_time << ", " << std::setprecision(2) << dot_time/total*100 << "%" << std::endl;
+  std::cout << "\tMV malloc time   = " << std::setprecision(6) << mv_time << ", " << std::setprecision(2) << mv_time/total*100 << "%" << std::endl;
+  std::cout << "\t  H2D time       = " << std::setprecision(6) << h2d_time << ", " << std::setprecision(2) << h2d_time/total*100 << "%" << std::endl;
+  std::cout << "\t  D2H time       = " << std::setprecision(6) << d2h_time << ", " << std::setprecision(2) << d2h_time/total*100 << "%" << std::endl;
+  std::cout << "\t  Memset time    = " << std::setprecision(6) << memset_time << ", " << std::setprecision(2) << memset_time/total*100 << "%" << std::endl;
   std::cout << "\tother time       = " << std::setprecision(6) << total-all-timeCPU <<  ", " << std::setprecision(2) << (total-all-timeCPU)/total*100 << "%" << std::endl;
 }

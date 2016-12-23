@@ -30,6 +30,7 @@ double blas::norm_1(double *v){
 
 double blas::norm_2(double *v){
   double tmp = 0.0;
+#pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
   for(unsigned long int i=0;i<this->coll->N;i++){
     tmp += v[i] * v[i];
   }
@@ -56,7 +57,7 @@ void blas::MtxVec_mult(double *in_vec, double *out_vec){
     out_vec[i] = tmp;
   }
   this->time->end();
-  this->time->cpu_MV_proc_time += this->time->getTime();
+  this->time->cpu_mv_time += this->time->getTime();
 }
 
 void blas::MtxVec_mult(double *in_vec, unsigned long int xindex, unsigned long int xsize, double *out_vec){
@@ -76,7 +77,7 @@ void blas::MtxVec_mult(double *in_vec, unsigned long int xindex, unsigned long i
     out_vec[i] = tmp;
   }
   this->time->end();
-  this->time->cpu_MV_proc_time += this->time->getTime();
+  this->time->cpu_mv_time += this->time->getTime();
 
 }
 
@@ -97,7 +98,7 @@ void blas::MtxVec_mult(double *in_vec, unsigned long int xindex, unsigned long i
     out_vec[yindex*ysize+i] = tmp;
   }
   this->time->end();
-  this->time->cpu_MV_proc_time += this->time->getTime();
+  this->time->cpu_mv_time += this->time->getTime();
 }
 
 void blas::MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, double *out_vec){
@@ -114,7 +115,7 @@ void blas::MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, doubl
     out_vec[i] = tmp;
   }
   this->time->end();
-  this->time->cpu_MV_proc_time += this->time->getTime();
+  this->time->cpu_mv_time += this->time->getTime();
 }
 
 
@@ -144,7 +145,7 @@ double blas::dot(double *x, double *y){
     tmp += x[i] * y[i];
   }
   this->time->end();
-  this->time->cpu_dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_time += this->time->getTime();
   return tmp;
 }
 
@@ -156,7 +157,7 @@ double blas::dot(double *x, double *y, unsigned long int size){
     tmp += x[i] * y[i];
   }
   this->time->end();
-  this->time->cpu_dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_time += this->time->getTime();
 
   return tmp;
 }
@@ -170,7 +171,7 @@ double blas::dot(double *x, double *y, unsigned long int yindex, unsigned long i
     tmp += x[i] * y[yindex*ysize+i];
   }
   this->time->end();
-  this->time->cpu_dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_time += this->time->getTime();
 
   return tmp;
 }
@@ -184,7 +185,7 @@ double blas::dot(double *x, unsigned long int xindex, unsigned long int xsize, d
     tmp += x[xindex*xsize+i] * y[yindex*ysize+i];
   }
   this->time->end();
-  this->time->cpu_dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_time += this->time->getTime();
 
   return tmp;
 }
@@ -203,7 +204,8 @@ void blas::Scalar_ax(double a, double *x, unsigned long int xindex, unsigned lon
 }
 
 void blas::Scalar_axy(double a, double *x, double *y, double *out){
-  double tmp;
+  double tmp = 0;
+#pragma omp parallel for schedule(static) firstprivate(out, a, x, tmp) lastprivate(out) num_threads(this->coll->OMPThread)
   for(unsigned long int i=0; i<this->coll->N; i++){
     tmp = y[i];
     out[i] = (a * x[i]) + tmp;
@@ -211,7 +213,8 @@ void blas::Scalar_axy(double a, double *x, double *y, double *out){
 }
 
 void blas::Scalar_axy(double a, double *x, unsigned long int xindex, unsigned long int xsize, double *y, double *out){
-  double tmp;
+  double tmp = 0;
+#pragma omp parallel for schedule(static) firstprivate(out, a, x, tmp, xindex, xsize) lastprivate(out) num_threads(this->coll->OMPThread)
   for(unsigned long int i=0; i<this->coll->N; i++){
     tmp = y[i];
     out[i] = (a * x[xindex*xsize+i]) + tmp;
@@ -219,7 +222,8 @@ void blas::Scalar_axy(double a, double *x, unsigned long int xindex, unsigned lo
 }
 
 void blas::Scalar_axy(double a, double *x, unsigned long int xindex, unsigned long int xsize, double *y, unsigned long int yindex, unsigned long int ysize, double *out, unsigned long int zindex, unsigned long int zsize){
-  double tmp;
+  double tmp = 0;
+#pragma omp parallel for schedule(static) firstprivate(out, a, x, tmp, xindex, xsize, zindex, zsize) lastprivate(out) num_threads(this->coll->OMPThread)
   for(unsigned long int i=0; i<this->coll->N; i++){
     tmp = y[yindex*ysize+i];
     out[zindex*zsize+i] = (a * x[xindex*xsize+i]) + tmp;
@@ -227,6 +231,7 @@ void blas::Scalar_axy(double a, double *x, unsigned long int xindex, unsigned lo
 }
 
 void blas::Scalar_x_div_a(double *x, double a, double *out){
+#pragma omp parallel for schedule(static) firstprivate(out, a, x) lastprivate(out) num_threads(this->coll->OMPThread)
   for(unsigned long int i=0; i<this->coll->N; i++){
     out[i] = x[i] / a;
   }
@@ -358,7 +363,7 @@ void blas::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec
     }
   }
   this->time->end();
-  this->time->cpu_MV_proc_time += this->time->getTime();
+  this->time->cpu_mv_time += this->time->getTime();
 
 
 }
@@ -393,7 +398,7 @@ void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
     zeta[i] = tmp3;
   }
   this->time->end();
-  this->time->cpu_dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_time += this->time->getTime();
 
 }
 
@@ -431,7 +436,7 @@ void blas::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
     phi[i] = tmp4;
   }
   this->time->end();
-  this->time->cpu_dot_proc_time += this->time->getTime();
+  this->time->cpu_dot_time += this->time->getTime();
 
 }
 
@@ -449,6 +454,8 @@ void blas::Gmres_sp_1(int k, double *x, double *y, double *out){
 
 void blas::MtxVec_mult_Multi(double *in_vec, double *out_vec){
   double tmp = 0.0;
+
+  this->time->start();
 
   double *val1 = this->coll->val1;
   int *ptr1 = this->coll->ptr1;
@@ -476,4 +483,7 @@ void blas::MtxVec_mult_Multi(double *in_vec, double *out_vec){
     }
     out_vec[N1+i] = tmp;
   }
+
+  this->time->end();
+  this->time->cpu_mv_time += this->time->getTime();
 }
