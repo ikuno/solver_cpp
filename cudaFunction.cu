@@ -1863,6 +1863,7 @@ void cuda::SetSize_Multi(int size1, int size2){
 void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2){
 
   cudaStream_t GPU1, GPU2;
+  cudaEvent_t eventA;
 
   this->time->start();
 
@@ -1880,8 +1881,10 @@ void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, i
 
   checkCudaErrors (cudaSetDevice(0));
   checkCudaErrors (cudaStreamCreate(&GPU1) );
+  /* checkCudaErrors (cudaEventCreate(&eventA) ); */
   checkCudaErrors (cudaMemsetAsync(cu_d2_1, 0, size1, GPU1) );
   checkCudaErrors (cudaMemcpyAsync(cu_d1_1, in, size*sizeof(double), cudaMemcpyHostToDevice, GPU1));
+  /* checkCudaErrors (cudaEventRecord(eventA, GPU1)); */
   kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d2_1);
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaMemcpyAsync(out, cu_d2_1, size1*sizeof(double), cudaMemcpyDeviceToHost, GPU1) );
@@ -1890,6 +1893,8 @@ void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, i
   checkCudaErrors (cudaStreamCreate(&GPU2) );
   checkCudaErrors (cudaMemsetAsync(cu_d2_2, 0, size2, GPU2) );
   checkCudaErrors (cudaMemcpyAsync(cu_d1_2, in, size*sizeof(double), cudaMemcpyHostToDevice, GPU2) );
+  /* checkCudaErrors (cudaEventSynchronize(eventA)); */
+  /* cudaMemcpyPeerAsync(cu_d1_2, 1, cu_d1_1, 0, size*sizeof(double), GPU2); */
   kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU2>>>(this->size2, val2, col2, ptr2, cu_d1_2, cu_d2_2);
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaMemcpyAsync((double*)(out+size1), cu_d2_2, size2*sizeof(double), cudaMemcpyDeviceToHost, GPU2) );
@@ -1905,4 +1910,30 @@ void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, i
 
   this->time->end();
   this->time->mv_time += this->time->getTime();
+}
+
+void cuda::EnableP2P(){
+  int GPU1ToGPU2 = 0;
+  int GPU2ToGPU1 = 0;
+
+  int GPU1 = 0;
+  int GPU2 = 1;
+
+  cudaDeviceCanAccessPeer(&GPU1ToGPU2, GPU1, GPU2);
+  cudaDeviceCanAccessPeer(&GPU2ToGPU1, GPU2, GPU1);
+
+  if(GPU2ToGPU1){
+    cudaSetDevice(GPU2);
+    cudaDeviceEnablePeerAccess(GPU1, 0);
+  }else{
+    std::cout << "GPU1 To GPU2 False" << std::endl;
+  }
+
+  if(GPU1ToGPU2){
+    cudaSetDevice(GPU1);
+    cudaDeviceEnablePeerAccess(GPU2, 0);
+  }else{
+    std::cout << "GPU1 To GPU2 False" << std::endl;
+  }
+
 }

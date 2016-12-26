@@ -82,13 +82,7 @@ collection::collection() {
   col2 = NULL;
   ptr2 = NULL;
 
-  if(isMultiGPU){
-    cu->Reset(0);
-    cu->Reset(1);
-  }else{
-    cu->Reset(0);
-  }
-
+  
 }
 
 collection::~collection() {
@@ -336,6 +330,11 @@ void collection::readCMD(int argc, char* argv[]){
     std::cout << "Number of CUDA Device is less than 2, Can not Enable MultiGPU Mode" << std::endl;
     exit(-1);
   }
+
+  if(this->isMultiGPU){
+    cu->EnableP2P();
+  }
+
 
   this->setOpenmpThread();
 

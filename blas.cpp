@@ -487,3 +487,18 @@ void blas::MtxVec_mult_Multi(double *in_vec, double *out_vec){
   this->time->end();
   this->time->cpu_mv_time += this->time->getTime();
 }
+
+void blas::Gcr_sp_1(int k, int N, double *Av, double *qvec, double *pvec, double *qq, double *beta_vec){
+  double dot_tmp;
+
+#pragma omp parallel for schedule(static) firstprivate(Av, qvec, qq, beta_vec) lastprivate(beta_vec) num_threads(this->coll->OMPThread)
+  for(int i=0; i<=k; i++){
+    dot_tmp = dot(Av, qvec, i, N);
+    beta_vec[i] = -(dot_tmp) / qq[i];
+  }
+
+  for(int i=0; i<=k; i++){
+    Scalar_axy(beta_vec[i], pvec, i, N, pvec, k+1, N, pvec, k+1, N);
+    Scalar_axy(beta_vec[i], qvec, i, N, qvec, k+1, N, qvec, k+1, N);
+  }
+}

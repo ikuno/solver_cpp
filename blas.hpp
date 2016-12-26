@@ -73,6 +73,8 @@ class blas {
 
     void MtxVec_mult_Multi(double *in_vec, double *out_vec);
 
+    void Gcr_sp_1(int k, int N, double *Av, double *qvec, double *pvec, double *qq, double *beta_vec);
+
 };
 
 

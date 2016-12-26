@@ -11,9 +11,9 @@ class cuda {
     double *cu_d4, *cu_d5, *cu_d6, *cu_d7, *cu_d8, *cu_h2, *cu_h3, *cu_h4;//kskipcg N*(2*k+1) N*(2*k+1) Blocks*(2*k) Blocks*(2*k+1) Blocks*(2*k+2) Blocks*(2*k) Blocks*(2*k+1) Blocks*(2*k+2)
     double *cu_d9, *cu_h5;//kskipbicg Blocks*(2*k+1) Blocks*(2*k+1)
     double *cu_d10, *cu_h6, *cu_d11, *cu_h7;//gmres vpgmres restart*N restart*N, blocks, blocks
-
     double *cu_d100, *cu_d101; //test for gmres N, blocks
     double *cu_d200, *cu_d201, *cu_h8; // test  for gmres N*(r+1) B*(r+1) B*(r+1)
+
 
     double *cu_d1_1, *cu_d1_2, *cu_d2_1, *cu_d2_2;
     double *cu_d3_1, *cu_d3_2, *cu_h1_1, *cu_h1_2;
@@ -117,6 +117,7 @@ class cuda {
     void ShowDevice();
     void MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2);
     void SetSize_Multi(int size1, int size2);
+    void EnableP2P();
 };
 #endif //CUDAFUNCTION_HPP_INCLUDED__
 
