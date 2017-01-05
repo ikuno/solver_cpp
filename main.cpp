@@ -11,13 +11,13 @@ int main(int argc, char* argv[])
   col.readCMD(argc, argv);
   col.checkCMD();
   col.checkCRSMatrix();
-  col.CRSAlloc();
+  col.CRSAlloc_Part1();
   col.readMatrix();
-  if(col.isMultiGPU){
-    col.MultiGPUAlloc();
-  }
-  col.CudaCopy();
+  col.CRSAlloc_Part2();
+  col.CudaCopy_Part1();
   col.transposeMatrix();
+  col.make2GPUMatrix();
+  col.CudaCopy_Part2();
   col.setOpenmpThread();
 
   col.showCMD();

@@ -259,9 +259,11 @@ cuda::cuda(times *t){
   this->cu_d1_2 = NULL;
   this->cu_d2_1 = NULL;
   this->cu_d2_2 = NULL;
-  /*  */
-  /* this->cu_h1_1 = NULL; */
-  /* this->cu_h1_2 = NULL; */
+
+  this->cu_d4_1 = NULL;
+  this->cu_d4_2 = NULL;
+  this->cu_d5_1 = NULL;
+  this->cu_d5_2 = NULL;
 
 }
 
@@ -296,7 +298,7 @@ cuda::cuda(times *t, unsigned long int size, unsigned long int size1, unsigned l
   }
 
   if(isMulti){
-
+    //dot not available in multi gpu now
   }else{
     this->cu_d3 = d_Malloc(tmp);
     this->cu_h1 = d_MallocHost(tmp);
@@ -306,26 +308,41 @@ cuda::cuda(times *t, unsigned long int size, unsigned long int size1, unsigned l
 }
 
 cuda::cuda(times *t, unsigned long int size, int k, unsigned long int size1, unsigned long int size2) : cuda::cuda(t, size, size1, size2){
-  if(isMulti){
-    std::cout << "XXXXXXXXXXXXXXXX" << std::endl;
-  }
   this->k = k;
   int tmp = ceil((double)this->size/(double)128);
 
-  this->cu_d4 = d_Malloc(this->size * (2*this->k + 1));
-  this->cu_d5 = d_Malloc(this->size * (2*this->k + 2));
+  if(isMulti){
+    this->cu_d4_1 = d_Malloc(this->size * (2*this->k + 1), 0);
+    this->cu_d4_2 = d_Malloc(this->size * (2*this->k + 1), 1);
 
-  this->cu_d6 = d_Malloc(tmp * (2*this->k));
-  this->cu_d7 = d_Malloc(tmp * (2*this->k + 1));
-  this->cu_d8 = d_Malloc(tmp * (2*this->k + 2));
+    this->cu_d5_1 = d_Malloc(this->size * (2*this->k + 2), 0);
+    this->cu_d5_2 = d_Malloc(this->size * (2*this->k + 2), 1);
+  }else{
+    this->cu_d4 = d_Malloc(this->size * (2*this->k + 1));
+    this->cu_d5 = d_Malloc(this->size * (2*this->k + 2));
+  }
+
+  if(isMulti){
+  }else{
+    this->cu_d6 = d_Malloc(tmp * (2*this->k));
+    this->cu_d7 = d_Malloc(tmp * (2*this->k + 1));
+    this->cu_d8 = d_Malloc(tmp * (2*this->k + 2));
+  }
  
+  if(isMulti){
 
-  this->cu_h2 = d_MallocHost(tmp * (2*this->k));
-  this->cu_h3 = d_MallocHost(tmp * (2*this->k+1));
-  this->cu_h4 = d_MallocHost(tmp * (2*this->k+2));
+  }else{
+    this->cu_h2 = d_MallocHost(tmp * (2*this->k));
+    this->cu_h3 = d_MallocHost(tmp * (2*this->k+1));
+    this->cu_h4 = d_MallocHost(tmp * (2*this->k+2));
+  }
 
-  this->cu_d9 = d_Malloc(tmp * (2*this->k + 1));
-  this->cu_h5 = d_MallocHost(tmp * (2*this->k+1));
+  if(isMulti){
+
+  }else{
+    this->cu_d9 = d_Malloc(tmp * (2*this->k + 1));
+    this->cu_h5 = d_MallocHost(tmp * (2*this->k+1));
+  }
 }
 
 cuda::cuda(times *t, unsigned long int size, double restart, unsigned long int size1, unsigned long int size2) : cuda::cuda(t, size, size1, size2){
@@ -382,12 +399,15 @@ cuda::~cuda(){
   /* Free(cu_d201); */
   FreeHost(cu_h8);
 
-  /* Free(cu_d1_1); */
-  /* Free(cu_d1_2); */
-  /* Free(cu_d2_1); */
-  /* Free(cu_d2_2); */
-  /* FreeHost(cu_h1_1); */
-  /* FreeHost(cu_h1_2); */
+  Free(cu_d1_1);
+  Free(cu_d1_2);
+  Free(cu_d2_1);
+  Free(cu_d2_2);
+
+  Free(cu_d4_1);
+  Free(cu_d4_2);
+  Free(cu_d5_1);
+  Free(cu_d5_2);
 }
 
 void cuda::Free(void* ptr){
@@ -551,6 +571,7 @@ void cuda::Memset(int *ptr, int val, unsigned long int size, bool timer, int Dev
 void cuda::Reset(int DeviceNum){
   /* checkCudaErrors(cudaDeviceSynchronize()); */
   /* checkCudaErrors(cudaProfilerStop()); */
+  std::cout << "Reset Device" << std::endl;
   checkCudaErrors (cudaSetDevice(DeviceNum) );
   checkCudaErrors (cudaDeviceReset() );
   checkCudaErrors (cudaSetDevice(0) );
@@ -876,12 +897,30 @@ void cuda::CSR2CSC(double *dCSRval, int *dCSRcol, int *dCSRptr, double *CSCval, 
   cusparseHandle_t handle=0;
   cusparseCreate(&handle);
 
-  std::cout << "Transpose Matrix in CUDA.........." << std::flush;
   cusparseStatus_t status = cusparseDcsr2csc(handle, N, N, NNZ, dCSRval, dCSRptr, dCSRcol, dCSCval, dCSCrow, dCSCptr, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO);
   std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
   if(status != CUSPARSE_STATUS_SUCCESS){
-    std::cout << "error in cusparse" << std::endl;
+    std::cout << "error in cusparse CSR2CSC cuda" << std::endl;
+    if(status == CUSPARSE_STATUS_NOT_INITIALIZED){
+      std::cout << "CUSPARSE_STATUS_NOT_INITIALIZED" << std::endl;
+    }else if(status == CUSPARSE_STATUS_ALLOC_FAILED){
+      std::cout << "CUSPARSE_STATUS_ALLOC_FAILED" << std::endl;
+    }else if(status == CUSPARSE_STATUS_INVALID_VALUE){
+      std::cout << "CUSPARSE_STATUS_INVALID_VALUE" << std::endl;
+    }else if(status == CUSPARSE_STATUS_ARCH_MISMATCH){
+      std::cout << "CUSPARSE_STATUS_ARCH_MISMATCH" << std::endl;
+    }else if(status == CUSPARSE_STATUS_MAPPING_ERROR){
+      std::cout << "CUSPARSE_STATUS_MAPPING_ERROR" << std::endl;
+    }else if(status == CUSPARSE_STATUS_EXECUTION_FAILED){
+      std::cout << "CUSPARSE_STATUS_EXECUTION_FAILED" << std::endl;
+    }else if(status == CUSPARSE_STATUS_INTERNAL_ERROR){
+      std::cout << "CUSPARSE_STATUS_INTERNAL_ERROR" << std::endl;
+    }else if(status == CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED){
+      std::cout << "CUSPARSE_STATUS_MATRIX_TYPE_NOT_SUPPORTED" << std::endl;
+    }else{
+      std::cout << "else error" << std::endl;
+    }
     exit(-1);
   }
 
@@ -921,12 +960,11 @@ void cuda::CSR2CSC(double *CSRval, int *CSRcol, int *CSRptr, double *CSCval, int
   cudaMemset(dCSCrow, 0, sizeof(int)*NNZ);
   cudaMemset(dCSCptr, 0, sizeof(int)*(N+1));
 
-  std::cout << "Transpose Matrix in CUDA.........."<< std::flush;
   cusparseStatus_t status = cusparseDcsr2csc(handle, N, N, NNZ, dCSRval, dCSRptr, dCSRcol, dCSCval, dCSCrow, dCSCptr, CUSPARSE_ACTION_NUMERIC, CUSPARSE_INDEX_BASE_ZERO);
   std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
   if(status != CUSPARSE_STATUS_SUCCESS){
-    std::cout << "error in cusparse" << std::endl;
+    std::cout << "error in cusparse CSR2CSC CPU" << std::endl;
     exit(-1);
   }
 
@@ -1860,6 +1898,32 @@ void cuda::SetSize_Multi(int size1, int size2){
   this->size2 = size2;
 }
 
+void cuda::EnableP2P(){
+  int GPU1ToGPU2 = 0;
+  int GPU2ToGPU1 = 0;
+
+  int GPU1 = 0;
+  int GPU2 = 1;
+
+  cudaDeviceCanAccessPeer(&GPU1ToGPU2, GPU1, GPU2);
+  cudaDeviceCanAccessPeer(&GPU2ToGPU1, GPU2, GPU1);
+
+  if(GPU2ToGPU1){
+    cudaSetDevice(GPU2);
+    cudaDeviceEnablePeerAccess(GPU1, 0);
+  }else{
+    std::cout << "GPU1 To GPU2 False" << std::endl;
+  }
+
+  if(GPU1ToGPU2){
+    cudaSetDevice(GPU1);
+    cudaDeviceEnablePeerAccess(GPU2, 0);
+  }else{
+    std::cout << "GPU1 To GPU2 False" << std::endl;
+  }
+
+}
+
 void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2){
 
   cudaStream_t GPU1, GPU2;
@@ -1910,30 +1974,229 @@ void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, i
 
   this->time->end();
   this->time->mv_time += this->time->getTime();
+
 }
 
-void cuda::EnableP2P(){
-  int GPU1ToGPU2 = 0;
-  int GPU2ToGPU1 = 0;
+/* void cuda::Kskip_cg_bicg_base_Multi(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2){ */
+/*  */
+/*   int ThreadPerBlock1=128; */
+/*   int BlockPerGrid1=(size1-1)/(ThreadPerBlock1/32)+1; */
+/*  */
+/*   int ThreadPerBlock2=128; */
+/*   int BlockPerGrid2=(size2-1)/(ThreadPerBlock2/32)+1; */
+/*  */
+/*   checkCudaErrors( cudaSetDevice(0) ); */
+/*   checkCudaErrors( cudaMemcpy(cu_d1_1, rvec, size*sizeof(double), cudaMemcpyHostToDevice) ); */
+/*   kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d4_1); */
+/*   checkCudaErrors( cudaPeekAtLastError() ); */
+/*   checkCudaErrors( cudaMemcpy(Ar, cu_d4_1, size1*sizeof(double), cudaMemcpyDeviceToHost) ); */
+/*  */
+/*   checkCudaErrors( cudaSetDevice(1) ); */
+/*   checkCudaErrors( cudaMemcpy(cu_d1_2, rvec, size*sizeof(double), cudaMemcpyHostToDevice) ); */
+/*   kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2>>>(this->size2, val2, col2, ptr2, cu_d1_2, (double*)(cu_d4_2+size1)); */
+/*   checkCudaErrors( cudaPeekAtLastError() ); */
+/*   checkCudaErrors( cudaMemcpy((double*)(Ar+size1), (double*)(cu_d4_2+size1), size2*sizeof(double), cudaMemcpyDeviceToHost) ); */
+/*  */
+/*   checkCudaErrors( cudaSetDevice(0) ); */
+/*   checkCudaErrors( cudaMemcpy(cu_d1_1, pvec, size*sizeof(double), cudaMemcpyHostToDevice) ); */
+/*   kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d5_1); */
+/*   checkCudaErrors( cudaPeekAtLastError() ); */
+/*   checkCudaErrors( cudaMemcpy(Ap, cu_d5_1, size1*sizeof(double), cudaMemcpyDeviceToHost) ); */
+/*  */
+/*   checkCudaErrors( cudaSetDevice(1) ); */
+/*   checkCudaErrors( cudaMemcpy(cu_d1_2, pvec, size*sizeof(double), cudaMemcpyHostToDevice) ); */
+/*   kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2>>>(this->size2, val2, col2, ptr2, cu_d1_2, (double*)(cu_d5_2+size1)); */
+/*   checkCudaErrors( cudaPeekAtLastError() ); */
+/*   checkCudaErrors( cudaMemcpy((double*)(Ap+size1), (double*)(cu_d5_2+size1), size2*sizeof(double), cudaMemcpyDeviceToHost) ); */
+/*  */
+/*  */
+/*   for(int i=1; i<2*kskip+2; i++){ */
+/*     checkCudaErrors( cudaMemcpyPeer((double*)(cu_d5_2+(i-1)*size), 1, (double*)(cu_d5_1+(i-1)*size), 0, size1*sizeof(double)) ); */
+/*     checkCudaErrors( cudaMemcpyPeer((double*)(cu_d5_1+(i-1)*size+size1), 1, (double*)(cu_d5_2+(i-1)*size+size1), 0, size2*sizeof(double)) ); */
+/*  */
+/*     checkCudaErrors( cudaSetDevice(0) ); */
+/*     kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1>>>(this->size1, val1, col1, ptr1, (double*)(cu_d5_1+(i-1)*size), (double*)(cu_d5_1+(i)*size)); */
+/*     checkCudaErrors( cudaPeekAtLastError() ); */
+/*     checkCudaErrors( cudaMemcpy((double*)(Ap+(i)*size), (double*)(cu_d5_1+(i)*size), size1*sizeof(double), cudaMemcpyDeviceToHost) ); */
+/*  */
+/*     checkCudaErrors( cudaSetDevice(1) ); */
+/*     kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2>>>(this->size2, val2, col2, ptr2, (double*)(cu_d5_2+(i-1)*size), (double*)(cu_d5_2+(i)*size+size1)); */
+/*     checkCudaErrors( cudaPeekAtLastError() ); */
+/*     checkCudaErrors( cudaMemcpy((double*)(Ap+(i)*size+size1), (double*)(cu_d5_2+(i)*size+size1), size2*sizeof(double), cudaMemcpyDeviceToHost) ); */
+/*     if(i<2*kskip+1){ */
+/*       checkCudaErrors( cudaMemcpyPeer((double*)(cu_d4_2+(i-1)*size), 1, (double*)(cu_d4_1+(i-1)*size), 0, size1*sizeof(double)) ); */
+/*       checkCudaErrors( cudaMemcpyPeer((double*)(cu_d4_1+(i-1)*size+size1), 1, (double*)(cu_d4_2+(i-1)*size+size1), 0, size2*sizeof(double)) ); */
+/*  */
+/*       checkCudaErrors( cudaSetDevice(0) ); */
+/*       kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1>>>(this->size1, val1, col1, ptr1, (double*)(cu_d4_1+(i-1)*size), (double*)(cu_d4_1+(i)*size)); */
+/*       checkCudaErrors( cudaPeekAtLastError() ); */
+/*       checkCudaErrors( cudaMemcpy((double*)(Ar+(i)*size), (double*)(cu_d4_1+(i)*size), size1*sizeof(double), cudaMemcpyDeviceToHost) ); */
+/*  */
+/*       checkCudaErrors( cudaSetDevice(1) ); */
+/*       kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2>>>(this->size2, val2, col2, ptr2, (double*)(cu_d4_2+(i-1)*size), (double*)(cu_d4_2+(i)*size+size1)); */
+/*       checkCudaErrors( cudaPeekAtLastError() ); */
+/*       checkCudaErrors( cudaMemcpy((double*)(Ar+(i)*size+size1), (double*)(cu_d4_2+(i)*size+size1), size2*sizeof(double), cudaMemcpyDeviceToHost) ); */
+/*     } */
+/*   } */
+/*  */
+/* } */
 
-  int GPU1 = 0;
-  int GPU2 = 1;
+void cuda::Kskip_cg_bicg_base_Multi(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2){
 
-  cudaDeviceCanAccessPeer(&GPU1ToGPU2, GPU1, GPU2);
-  cudaDeviceCanAccessPeer(&GPU2ToGPU1, GPU2, GPU1);
+  cudaStream_t GPU1_1, GPU1_2;
+  cudaStream_t GPU2_1, GPU2_2;
+  cudaEvent_t E1_1, E1_2;
+  cudaEvent_t E2_1, E2_2;
 
-  if(GPU2ToGPU1){
-    cudaSetDevice(GPU2);
-    cudaDeviceEnablePeerAccess(GPU1, 0);
-  }else{
-    std::cout << "GPU1 To GPU2 False" << std::endl;
+  int ThreadPerBlock1=128;
+  int BlockPerGrid1=(size1-1)/(ThreadPerBlock1/32)+1;
+
+  int ThreadPerBlock2=128;
+  int BlockPerGrid2=(size2-1)/(ThreadPerBlock2/32)+1;
+
+  checkCudaErrors( cudaSetDevice(0) );
+  checkCudaErrors( cudaStreamCreate(&GPU1_1) );
+  checkCudaErrors( cudaStreamCreate(&GPU2_1) );
+  checkCudaErrors( cudaEventCreate(&E1_1) );
+  checkCudaErrors( cudaEventCreate(&E2_1) );
+  checkCudaErrors( cudaMemcpyAsync(cu_d1_1, rvec, size*sizeof(double), cudaMemcpyHostToDevice, GPU1_1) );
+  kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU1_1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d4_1);
+  checkCudaErrors( cudaPeekAtLastError() );
+
+  checkCudaErrors( cudaSetDevice(1) );
+  checkCudaErrors( cudaStreamCreate(&GPU1_2) );
+  checkCudaErrors( cudaStreamCreate(&GPU2_2) );
+  checkCudaErrors( cudaEventCreate(&E1_2) );
+  checkCudaErrors( cudaEventCreate(&E2_2) );
+  checkCudaErrors( cudaMemcpyAsync(cu_d1_2, rvec, size*sizeof(double), cudaMemcpyHostToDevice, GPU1_2) );
+  kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU1_2>>>(this->size2, val2, col2, ptr2, cu_d1_2, (double*)(cu_d4_2+size1));
+  checkCudaErrors( cudaPeekAtLastError() );
+
+//saving memory space 
+  /* checkCudaErrors( cudaSetDevice(0) ); */
+  /* checkCudaErrors( cudaMemcpyAsync(cu_d1_1, pvec, size*sizeof(double), cudaMemcpyHostToDevice, GPU1_1) ); */
+  /* kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU1_1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d5_1); */
+  /* checkCudaErrors( cudaPeekAtLastError() ); */
+  /* checkCudaErrors( cudaEventRecord(E1_1, GPU1_1) ); */
+
+  checkCudaErrors( cudaSetDevice(0) );
+  checkCudaErrors( cudaMemcpyAsync((double*)(cu_d4_1+size1), pvec, size*sizeof(double), cudaMemcpyHostToDevice, GPU2_1) );
+  kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU2_1>>>(this->size1, val1, col1, ptr1, (double*)(cu_d4_1+size1), cu_d5_1);
+  checkCudaErrors( cudaPeekAtLastError() );
+  /* checkCudaErrors( cudaEventRecord(E1_1, GPU1_1) ); */
+  checkCudaErrors( cudaEventRecord(E1_1, GPU2_1) );
+
+
+//saving memory space 
+  /* checkCudaErrors( cudaSetDevice(1) ); */
+  /* checkCudaErrors( cudaMemcpyAsync(cu_d1_2, pvec, size*sizeof(double), cudaMemcpyHostToDevice, GPU1_2) ); */
+  /* kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU1_2>>>(this->size2, val2, col2, ptr2, cu_d1_2, (double*)(cu_d5_2+size1)); */
+  /* checkCudaErrors( cudaPeekAtLastError() ); */
+  /* checkCudaErrors( cudaEventRecord(E1_2, GPU1_2) ); */
+
+  checkCudaErrors( cudaSetDevice(1) );
+  checkCudaErrors( cudaMemcpyAsync((double*)(cu_d4_2+size1+size2), pvec, size*sizeof(double), cudaMemcpyHostToDevice, GPU2_2) );
+  kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU2_2>>>(this->size2, val2, col2, ptr2, (double*)(cu_d4_2+size1+size2), (double*)(cu_d5_2+size1));
+  checkCudaErrors( cudaPeekAtLastError() );
+  /* checkCudaErrors( cudaEventRecord(E1_2, GPU1_2) ); */
+  checkCudaErrors( cudaEventRecord(E1_2, GPU2_2) );
+
+  for(int i=1; i<2*kskip+2; i++){
+    checkCudaErrors( cudaSetDevice(0) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU1_1, E1_1, 0) );
+    checkCudaErrors( cudaMemcpyPeerAsync((double*)(cu_d5_2+(i-1)*size), 1, (double*)(cu_d5_1+(i-1)*size), 0, size1*sizeof(double), GPU1_1) );
+    checkCudaErrors( cudaEventRecord(E2_1, GPU1_1) );
+
+    checkCudaErrors( cudaSetDevice(1) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU1_2, E1_2, 0) );
+    checkCudaErrors( cudaMemcpyPeerAsync((double*)(cu_d5_1+(i-1)*size+size1), 1, (double*)(cu_d5_2+(i-1)*size+size1), 0, size2*sizeof(double), GPU1_2) );
+    checkCudaErrors( cudaEventRecord(E2_2, GPU1_2) );
+
+    checkCudaErrors( cudaSetDevice(0) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU2_1, E2_1, 0) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU2_1, E2_2, 0) );
+    checkCudaErrors( cudaMemcpyAsync((double*)(Ap+(i-1)*size), (double*)(cu_d5_1+(i-1)*size), size1*sizeof(double), cudaMemcpyDeviceToHost, GPU2_1) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU1_1, E2_1, 0) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU1_1, E2_2, 0) );
+    kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU1_1>>>(this->size1, val1, col1, ptr1, (double*)(cu_d5_1+(i-1)*size), (double*)(cu_d5_1+(i)*size));
+    checkCudaErrors( cudaPeekAtLastError() );
+    checkCudaErrors( cudaEventRecord(E1_1, GPU1_1) );
+
+    checkCudaErrors( cudaSetDevice(1) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU2_2, E2_1, 0) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU2_2, E2_2, 0) );
+    checkCudaErrors( cudaMemcpyAsync((double*)(Ap+(i-1)*size+size1), (double*)(cu_d5_2+(i-1)*size+size1), size2*sizeof(double), cudaMemcpyDeviceToHost, GPU2_2) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU1_2, E2_1, 0) );
+    checkCudaErrors( cudaStreamWaitEvent(GPU1_2, E2_2, 0) );
+    kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU1_2>>>(this->size2, val2, col2, ptr2, (double*)(cu_d5_2+(i-1)*size), (double*)(cu_d5_2+(i)*size+size1));
+    checkCudaErrors( cudaPeekAtLastError() );
+    checkCudaErrors( cudaEventRecord(E1_2, GPU1_2) );
+
+    if(i<2*kskip+1){
+      checkCudaErrors( cudaSetDevice(0) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU1_1, E1_1, 0) );
+      checkCudaErrors( cudaMemcpyPeerAsync((double*)(cu_d4_2+(i-1)*size), 1, (double*)(cu_d4_1+(i-1)*size), 0, size1*sizeof(double), GPU1_1) );
+      checkCudaErrors( cudaEventRecord(E2_1, GPU1_1) );
+
+      checkCudaErrors( cudaSetDevice(1) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU1_2, E1_2, 0) );
+      checkCudaErrors( cudaMemcpyPeerAsync((double*)(cu_d4_1+(i-1)*size+size1), 1, (double*)(cu_d4_2+(i-1)*size+size1), 0, size2*sizeof(double), GPU1_2) );
+      checkCudaErrors( cudaEventRecord(E2_2, GPU1_2) );
+
+      checkCudaErrors( cudaSetDevice(0) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU2_1, E2_1, 0) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU2_1, E2_2, 0) );
+      checkCudaErrors( cudaMemcpyAsync((double*)(Ar+(i-1)*size), (double*)(cu_d4_1+(i-1)*size), size1*sizeof(double), cudaMemcpyDeviceToHost, GPU2_1) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU1_1, E2_1, 0) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU1_1, E2_2, 0) );
+      kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU1_1>>>(this->size1, val1, col1, ptr1, (double*)(cu_d4_1+(i-1)*size), (double*)(cu_d4_1+(i)*size));
+      checkCudaErrors( cudaPeekAtLastError() );
+      checkCudaErrors( cudaEventRecord(E1_1, GPU1_1) );
+
+      checkCudaErrors( cudaSetDevice(1) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU2_2, E2_1, 0) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU2_2, E2_2, 0) );
+      checkCudaErrors( cudaMemcpyAsync((double*)(Ar+(i-1)*size+size1), (double*)(cu_d4_2+(i-1)*size+size1), size2*sizeof(double), cudaMemcpyDeviceToHost, GPU2_2) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU1_2, E2_1, 0) );
+      checkCudaErrors( cudaStreamWaitEvent(GPU1_2, E2_2, 0) );
+      kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU1_2>>>(this->size2, val2, col2, ptr2, (double*)(cu_d4_2+(i-1)*size), (double*)(cu_d4_2+(i)*size+size1));
+      checkCudaErrors( cudaPeekAtLastError() );
+      checkCudaErrors( cudaEventRecord(E1_2, GPU1_2) );
+    }
+    checkCudaErrors( cudaSetDevice(0) );
+    checkCudaErrors( cudaStreamSynchronize(GPU1_1) );
+
+    checkCudaErrors( cudaSetDevice(1) );
+    checkCudaErrors( cudaStreamSynchronize(GPU1_2) );
   }
 
-  if(GPU1ToGPU2){
-    cudaSetDevice(GPU1);
-    cudaDeviceEnablePeerAccess(GPU2, 0);
-  }else{
-    std::cout << "GPU1 To GPU2 False" << std::endl;
-  }
+  checkCudaErrors( cudaSetDevice(0) );
+  checkCudaErrors( cudaStreamWaitEvent(GPU1_1, E1_1, 0) );
+  checkCudaErrors( cudaMemcpyAsync((double*)(Ap+(2*kskip+1)*size), (double*)(cu_d5_1+(2*kskip+1)*size), size1*sizeof(double), cudaMemcpyDeviceToHost, GPU1_1) );
+  checkCudaErrors( cudaStreamWaitEvent(GPU2_1, E2_1, 0) );
+  checkCudaErrors( cudaMemcpyAsync((double*)(Ar+(2*kskip)*size), (double*)(cu_d4_1+(2*kskip)*size), size1*sizeof(double), cudaMemcpyDeviceToHost, GPU2_1) );
+
+  checkCudaErrors( cudaSetDevice(1) );
+  checkCudaErrors( cudaStreamWaitEvent(GPU1_2, E1_2, 0) );
+  checkCudaErrors( cudaMemcpyAsync((double*)(Ap+(2*kskip+1)*size+size1), (double*)(cu_d5_2+(2*kskip+1)*size+size1), size2*sizeof(double), cudaMemcpyDeviceToHost, GPU1_2) );
+  checkCudaErrors( cudaStreamWaitEvent(GPU2_2, E2_2, 0) );
+  checkCudaErrors( cudaMemcpyAsync((double*)(Ar+(2*kskip)*size+size1), (double*)(cu_d4_2+(2*kskip)*size+size1), size2*sizeof(double), cudaMemcpyDeviceToHost, GPU2_2) );
+
+  checkCudaErrors( cudaSetDevice(0) );
+  checkCudaErrors( cudaStreamSynchronize(GPU1_1) );
+  checkCudaErrors( cudaStreamSynchronize(GPU2_1) );
+  checkCudaErrors( cudaStreamDestroy(GPU1_1) );
+  checkCudaErrors( cudaStreamDestroy(GPU2_1) );
+  checkCudaErrors( cudaEventDestroy(E1_1) );
+  checkCudaErrors( cudaEventDestroy(E2_1) );
+
+  checkCudaErrors( cudaSetDevice(1) );
+  checkCudaErrors( cudaStreamSynchronize(GPU1_2) );
+  checkCudaErrors( cudaStreamSynchronize(GPU2_2) );
+  checkCudaErrors( cudaStreamDestroy(GPU1_2) );
+  checkCudaErrors( cudaStreamDestroy(GPU2_2) );
+  checkCudaErrors( cudaEventDestroy(E1_2) );
+  checkCudaErrors( cudaEventDestroy(E2_2) );
+  checkCudaErrors( cudaSetDevice(0) );
 
 }

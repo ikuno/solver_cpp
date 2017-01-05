@@ -164,10 +164,17 @@ int kskipcg::solve(){
 
   //Ax
   if(isCUDA){
-    cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+    if(isMultiGPU){
+      cu->MtxVec_mult_Multi(xvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+    // bs->MtxVec_mult(xvec, Av);
+    }else{
+      cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+    }
   }else{
     bs->MtxVec_mult(xvec, Av);
   }
+
+  std::cout << "XXX " << std::endl;
 
   //r = b - Ax
   bs->Vec_sub(bvec, Av, rvec);
@@ -196,9 +203,12 @@ int kskipcg::solve(){
     //Ar-> Ar^2k
     //Ap-> Ap^2k+2
     if(isCUDA){
-      // bs->Kskip_cg_base(Ar, Ap, rvec, pvec, kskip);
-      // cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      cu->Kskip_cg_bicg_base2(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      if(isMultiGPU){
+        cu->Kskip_cg_bicg_base_Multi(Ar, Ap, rvec, pvec, kskip, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+      }else{
+        cu->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        // cu->Kskip_cg_bicg_base2(Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      }
     }else{
       bs->Kskip_cg_bicg_base(Ar, Ap, rvec, pvec, kskip);
     }
@@ -215,10 +225,14 @@ int kskipcg::solve(){
     //eta=(r,Ap)
     //zeta=(p,Ap)
     if(isCUDA){
-      // bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
+      if(isMultiGPU){
+        bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
+      }else{
       // cu->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
       // cu->Kskip_cg_innerProduce2(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      cu->Kskip_cg_innerProduce3(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // cu->Kskip_cg_innerProduce3(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
+      }
     }else{
       bs->Kskip_cg_innerProduce(delta, eta, zeta, Ar, Ap, rvec, pvec, kskip);
     }
@@ -249,7 +263,12 @@ int kskipcg::solve(){
 
       //Ap
       if(isCUDA){
-        cu->MtxVec_mult(pvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        if(isMultiGPU){
+          cu->MtxVec_mult_Multi(pvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+        // bs->MtxVec_mult(pvec, Av);
+        }else{
+          cu->MtxVec_mult(pvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        }
       }else{
         bs->MtxVec_mult(pvec, Av);
       }

@@ -18,7 +18,12 @@ These codes are licensed under Apache License 2.0.
 - [o]SolverName not found
 
 ## MEMO
-CG, CR, GCR, BICG, GMRES, kskipcg, kskipbicg
+MultiGPU 行列ベクトル積　実装
+
+普通　CG CR GCR VPCG
+転置　BICG 
+Base　KSKIPCG KSKIPBICG
 
 ## 未実装
   KSKIPCR, VPBICG, VPCR
+

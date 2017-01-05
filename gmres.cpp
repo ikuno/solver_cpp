@@ -262,7 +262,7 @@ int gmres::solve(){
 
       //Av & w
       if(isCUDA){
-        cu->MtxVec_mult(vmtx, k, N, wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        cu->MtxVec_mult((double*)(vmtx+(k*N)), wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
         // bs->MtxVec_mult(vmtx, k, N, wvec);
       }else{
         bs->MtxVec_mult(vmtx, k, N, wvec);

@@ -82,71 +82,116 @@ collection::collection() {
   col2 = NULL;
   ptr2 = NULL;
 
-  
+  CTval1 = NULL;
+  CTcol1 = NULL;
+  CTptr1 = NULL;
+
+  CTval2 = NULL;
+  CTcol2 = NULL;
+  CTptr2 = NULL;
+
+  if(isMultiGPU){
+    cu->Reset(0);
+    cu->Reset(1);
+  }else{
+    cu->Reset(0);
+  }
+
 }
 
 collection::~collection() {
-  if(isCUDA){
-    if(isPinned){
-      cu->FreeHost(val);
-      cu->FreeHost(col);
-      cu->FreeHost(ptr);
-      delete[] bvec;
-      cu->FreeHost(xvec);
-    }else{
-      delete[] val;
-      delete[] col;
-      delete[] ptr;
-      delete[] bvec;
-      delete[] xvec;
-    }
-
-    cu->Free(Cval);
-    cu->Free(Ccol);
-    cu->Free(Cptr);
-
-    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-      if(isPinned){
-        cu->FreeHost(Tval);
-        cu->FreeHost(Tcol);
-        cu->FreeHost(Tptr);
-      }else{
-        delete[] Tval;
-        delete[] Tcol;
-        delete[] Tptr;
-      }
-
-      cu->Free(CTval);
-      cu->Free(CTcol);
-      cu->Free(CTptr);
-    }
+  delete[] bvec;
+  if(!isPinned){
+    delete[] xvec;
   }else{
+    cu->FreeHost(xvec);
+  }
+
+  if(!isPinned){
     delete[] val;
     delete[] col;
     delete[] ptr;
-    delete[] bvec;
-    delete[] xvec;
+  }else{
+    cu->FreeHost(val);
+    cu->FreeHost(col);
+    cu->FreeHost(ptr);
+  }
 
-    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-      std::cout  << "ok 8" << std::endl;
+  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+    if(!isPinned){
       delete[] Tval;
       delete[] Tcol;
       delete[] Tptr;
+    }else{
+      cu->FreeHost(Tval);
+      cu->FreeHost(Tcol);
+      cu->FreeHost(Tptr);
     }
   }
-  if(isMultiGPU){
-    if(isCUDA){
 
-    }else{
+  if(isMultiGPU){
+    if(!isPinned){
       delete[] val1;
       delete[] col1;
       delete[] ptr1;
-
       delete[] val2;
       delete[] col2;
       delete[] ptr2;
+    }else{
+      cu->FreeHost(val1);
+      cu->FreeHost(col1);
+      cu->FreeHost(ptr1);
+      cu->FreeHost(val2);
+      cu->FreeHost(col2);
+      cu->FreeHost(ptr2);
+    }
+    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      if(!isPinned){
+        delete[] Tval1;
+        delete[] Tcol1;
+        delete[] Tptr1;
+        delete[] Tval2;
+        delete[] Tcol2;
+        delete[] Tptr2;
+      }else{
+        cu->FreeHost(Tval1);
+        cu->FreeHost(Tcol1);
+        cu->FreeHost(Tptr1);
+        cu->FreeHost(Tval2);
+        cu->FreeHost(Tcol2);
+        cu->FreeHost(Tptr2);
+      }
     }
   }
+
+  if(isCUDA){
+    if(!isMultiGPU){
+      cu->Free(Cval);
+      cu->Free(Ccol);
+      cu->Free(Cptr);
+      if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+        cu->Free(CTval);
+        cu->Free(CTcol);
+        cu->Free(CTptr);
+      }
+    }else{
+      cu->Free(Cval1);
+      cu->Free(Ccol1);
+      cu->Free(Cptr1);
+      cu->Free(Cval2);
+      cu->Free(Ccol2);
+      cu->Free(Cptr2);
+      if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+        cu->Free(CTval1);
+        cu->Free(CTcol1);
+        cu->Free(CTptr1);
+        cu->Free(CTval2);
+        cu->Free(CTcol2);
+        cu->Free(CTptr2);
+      }
+    }
+  }
+
   if(isMultiGPU){
     cu->Reset(0);
     cu->Reset(1);
@@ -706,7 +751,7 @@ void collection::readMatrix(){
     }
     valcol_file.close();
 
-    std::cout << "\n\tvalcol ..........Done"<< std::flush;
+    std::cout << "\n\tvalcol .........."<< GREEN << "[○] Done" << RESET << std::endl;
 
     std::ifstream ptr_file(ptr_path.c_str());
     if (ptr_file.fail())
@@ -722,7 +767,7 @@ void collection::readMatrix(){
       counter[1]++;
     }
     ptr_file.close();
-    std::cout << "\n\tptr .......... Done"<< std::flush;
+    std::cout << "\tptr .........."<< GREEN << "[○] Done" << RESET << std::endl;
 
     std::ifstream bx_file(bx_path.c_str());
     if (bx_file.fail())
@@ -739,76 +784,11 @@ void collection::readMatrix(){
       counter[2]++;
     }
     bx_file.close();
-    std::cout << "\n\tbx .......... Done"<< std::flush;
+    std::cout << "\tbx .........."<< GREEN << "[○] Done" << RESET << std::endl;
 
-    std::cout << "\n................................." << GREEN << "[○] Done" << RESET << std::endl;
+    std::cout << "        ................." << GREEN << "[○] Done" << RESET << std::endl;
   }
 
-}
-
-void collection::CRSAlloc(){
-  if(isCUDA){
-    if(isPinned){
-      std::cout << "Allocing Matrix .........."<< std::flush;
-      this->val = cu->d_MallocHost(this->NNZ);
-      this->col = cu->i_MallocHost(this->NNZ);
-      this->ptr = cu->i_MallocHost(this->N+1);
-      this->bvec = new double [this->N];
-      this->xvec = cu->d_MallocHost(this->N);
-    }else{
-      std::cout << "Allocing Matrix pinned.........."<< std::flush;
-      this->val = new double [this->NNZ];
-      this->col = new int [this->NNZ];
-      this->ptr = new int [this->N+1];
-      this->bvec = new double [this->N];
-      this->xvec = new double [this->N];
-    }
-
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-
-    std::cout << "Allocing CUDA side Matrix .........."<< std::flush;
-    this->Cval = cu->d_Malloc(this->NNZ);
-    this->Ccol = cu->i_Malloc(this->NNZ);
-    this->Cptr = cu->i_Malloc(this->N+1);
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-
-    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-      if(isPinned){
-        std::cout << "Allocing Transpose Matrix .........."<< std::flush;
-        this->Tval = cu->d_MallocHost(this->NNZ);
-        this->Tcol = cu->i_MallocHost(this->NNZ);
-        this->Tptr = cu->i_MallocHost(this->N+1);
-      }else{
-        std::cout << "Allocing Transpose Matrix pinned .........."<< std::flush;
-        this->Tval = new double [this->NNZ];
-        this->Tcol = new int [this->NNZ];
-        this->Tptr = new int [this->N+1];
-      }
-
-      std::cout << GREEN << "[○] Done" << RESET << std::endl;
-
-      std::cout << "Allocing Transpose CUDA side Matrix .........."<< std::flush;
-      this->CTval = cu->d_Malloc(this->NNZ);
-      this->CTcol = cu->i_Malloc(this->NNZ);
-      this->CTptr = cu->i_Malloc(this->N+1);
-      std::cout << GREEN << "[○] Done" << RESET << std::endl;
-    }
-  }else{
-    std::cout << "Allocing Matrix .........."<< std::flush;
-    this->val = new double [this->NNZ];
-    this->col = new int [this->NNZ];
-    this->ptr = new int [this->N+1];
-    this->bvec = new double [this->N];
-    this->xvec = new double [this->N];
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-      std::cout << "Allocing Transpose Matrix .........."<< std::flush;
-      this->Tval = new double [this->NNZ];
-      this->Tcol = new int [this->NNZ];
-      this->Tptr = new int [this->N+1];
-      std::cout << GREEN << "[○] Done" << RESET << std::endl;
-    }
-  }
 }
 
 void collection::transpose(){
@@ -841,11 +821,13 @@ void collection::transpose(){
 void collection::transposeMatrix(){
   if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
     if(this->isCUDA){
+      std::cout << "[GPU] Transpose Matrix in CUDA Use CSR2CSC.......... Cval -> CTval Tval" << std::flush;
       cu->CSR2CSC(this->Cval, this->Ccol, this->Cptr, this->Tval, this->Tcol, this->Tptr, this->CTval, this->CTcol, this->CTptr, this->N, this->NNZ);
     }else{
-      // this->transpose();
+      std::cout << "[CPU] Transpose Matrix in CUDA Use CSR2CSC.......... val -> Tval"<< std::flush;
       cu->CSR2CSC(this->val, this->col, this->ptr, this->Tval, this->Tcol, this->Tptr, this->N, this->NNZ);
     }
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
   }
 }
 
@@ -860,126 +842,247 @@ void collection::setOpenmpThread(){
   setenv(name.c_str(), stm.str().c_str(), 1);
 }
 
-void collection::CudaCopy(){
-  if(isCUDA){
-    if(isMultiGPU){
-      std::cout << "Copy Matrix to CUDA MultiGPU Part1.........." << std::flush;
+void collection::make2GPUMatrix(){
+  
+  if(isMultiGPU){
+    std::cout << "[GPU] Make MultiGPU CPU side Matrix.......... val -> val1 + val2" << std::flush;
+    for(unsigned long int i=0; i<this->N; i++){
+      if(i<this->N1){
+        this->ptr1[i] = this->ptr[i];
+      }else{
+        this->ptr2[i-N1] = this->ptr[i] - this->NNZ1;
+      }
+    }
+    this->ptr1[this->N1] = this->NNZ1;
+    this->ptr2[this->N2] = this->NNZ2;
 
+    for(unsigned long int i=0; i<this->NNZ; i++){
+      if(i<this->NNZ1){
+        this->col1[i] = this->col[i];
+        this->val1[i] = this->val[i];
+      }else{
+        this->col2[i-this->NNZ1] = this->col[i];
+        this->val2[i-this->NNZ1] = this->val[i];
+      }
+    }
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+
+    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      std::cout << "[GPU] Make MultiGPU CPU side Transpose Matrix .......... Tval -> Tval1 + Tval2" << std::flush;
+      for(unsigned long int i=0; i<this->N; i++){
+        if(i<this->N1){
+          this->Tptr1[i] = this->Tptr[i];
+        }else{
+          this->Tptr2[i-N1] = this->Tptr[i] - this->NNZ1;
+        }
+      }
+      this->Tptr1[this->N1] = this->NNZ1;
+      this->Tptr2[this->N2] = this->NNZ2;
+
+      for(unsigned long int i=0; i<this->NNZ; i++){
+        if(i<this->NNZ1){
+          this->Tcol1[i] = this->Tcol[i];
+          this->Tval1[i] = this->Tval[i];
+        }else{
+          this->Tcol2[i-this->NNZ1] = this->Tcol[i];
+          this->Tval2[i-this->NNZ1] = this->Tval[i];
+        }
+      }
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    }
+  }
+}
+
+void collection::CudaCopy_Part1(){
+  if(isCUDA){
+    // if(!isMultiGPU){
+      std::cout << "[GPU] Copy Matrix to CUDA.......... val -> Cval" << std::flush;
+      cu->H2D(this->val, this->Cval, this->NNZ);
+      cu->H2D(this->col, this->Ccol, this->NNZ);
+      cu->H2D(this->ptr, this->Cptr, this->N+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    // }
+  }
+}
+void collection::CudaCopy_Part2(){
+  if(isCUDA){
+    if(!isMultiGPU){
+      // if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      //   std::cout << "[GPU] Copy Transpose Matrix to CUDA.......... Tval -> CTval"<< std::flush;
+      //   cu->H2D(this->Tval, this->CTval, this->NNZ);
+      //   cu->H2D(this->Tcol, this->CTcol, this->NNZ);
+      //   cu->H2D(this->Tptr, this->CTptr, this->N+1);
+      //   std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      // }
+    }else{
+      std::cout << "[GPU] Copy Matrix to CUDA [MultiGPU Part1].......... val1 -> Cval1" << std::flush;
       cu->H2D(this->val1, this->Cval1, this->NNZ1);
       cu->H2D(this->col1, this->Ccol1, this->NNZ1);
       cu->H2D(this->ptr1, this->Cptr1, this->N1+1);
       std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
-      std::cout << "Copy Matrix to CUDA MultiGPU Part2.........." << std::flush;
+      std::cout << "[GPU] Copy Matrix to CUDA [MultiGPU Part2].......... val2 -> Cval2" << std::flush;
       cu->H2D(this->val2, this->Cval2, this->NNZ2);
       cu->H2D(this->col2, this->Ccol2, this->NNZ2);
       cu->H2D(this->ptr2, this->Cptr2, this->N2+1);
       std::cout << GREEN << "[○] Done" << RESET << std::endl;
 
       if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-        std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
-        exit(-1);
-      }
-    }else{
-
-      std::cout << "Copy Matrix to CUDA.........." << std::flush;
-      cu->H2D(this->val, this->Cval, this->NNZ);
-      cu->H2D(this->col, this->Ccol, this->NNZ);
-      cu->H2D(this->ptr, this->Cptr, this->N+1);
-      std::cout << GREEN << "[○] Done" << RESET << std::endl;
-      if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
-        std::cout << "Copy Transpose Matrix to CUDA.........."<< std::flush;
-        cu->H2D(this->Tval, this->CTval, this->NNZ);
-        cu->H2D(this->Tcol, this->CTcol, this->NNZ);
-        cu->H2D(this->Tptr, this->CTptr, this->N+1);
+        std::cout << "[GPU] Copy Transpose Matrix to CUDA [MultiGPU Part1].......... Tval1 -> CTval1"<< std::flush;
+        cu->H2D(this->Tval1, this->CTval1, this->NNZ1);
+        cu->H2D(this->Tcol1, this->CTcol1, this->NNZ1);
+        cu->H2D(this->Tptr1, this->CTptr1, this->N1+1);
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
+        std::cout << "[GPU] Copy Transpose Matrix to CUDA [MultiGPU Part2].......... Tval2 -> CTval2"<< std::flush;
+        cu->H2D(this->Tval2, this->CTval2, this->NNZ2);
+        cu->H2D(this->Tcol2, this->CTcol2, this->NNZ2);
+        cu->H2D(this->Tptr2, this->CTptr2, this->N2+1);
         std::cout << GREEN << "[○] Done" << RESET << std::endl;
       }
     }
   }
 }
 
-void collection::MultiGPUAlloc(){
-  if(this->N%2 == 0){
+void collection::CRSAlloc_Part1(){
+
+
+  // CPU side
+  if(!isPinned){
+    std::cout << "[CPU] Allocing Matrix .......... val col ptr"<< std::flush;
+    this->val = new double [this->NNZ];
+    this->col = new int [this->NNZ];
+    this->ptr = new int [this->N+1];
+
+    this->bvec = new double [this->N];
+    this->xvec = new double [this->N];
+  }else{
+    std::cout << "[CPU] Allocing Matrix [Pinned Memory].......... val col ptr"<< std::flush;
+    this->val = cu->d_MallocHost(this->NNZ);
+    this->col = cu->i_MallocHost(this->NNZ);
+    this->ptr = cu->i_MallocHost(this->N+1);
+
+    this->bvec = new double [this->N];
+    this->xvec = cu->d_MallocHost(this->N);
+  }
+  std::cout << GREEN << "[○] Done" << RESET << std::endl;
+  //BI
+  if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+    if(!isPinned){
+      std::cout << "[CPU] Allocing Transpose Matrix .......... Tval Tcol Tptr"<< std::flush;
+      this->Tval = new double [this->NNZ];
+      this->Tcol = new int [this->NNZ];
+      this->Tptr = new int [this->N+1];
+    }else{
+      std::cout << "[CPU] Allocing Transpose Matrix [Pinned Memory].......... Tval Tcol Tptr"<< std::flush;
+      this->Tval = cu->d_MallocHost(this->NNZ);
+      this->Tcol = cu->i_MallocHost(this->NNZ);
+      this->Tptr = cu->i_MallocHost(this->N+1);
+    }
+    std::cout << GREEN << "[○] Done" << RESET << std::endl;
+  }
+}
+
+void collection::CRSAlloc_Part2(){
+if(this->N%2 == 0){
     this->N1 = this->N/2;
     this->N2 = this->N1;
   }else{
     this->N1 = std::ceil(this->N / 2.0);
     this->N2 = this->N - this->N1;
   }
+
   this->NNZ1 = this->ptr[this->N1];
   this->NNZ2 = this->NNZ - this->ptr[this->N1];
 
+  // 2CPU
+  if(isMultiGPU){
+    if(!isPinned){
+      std::cout << "[CPU] Allocing  Matrix [MultiCPU Part1].......... val1 col1 ptr1"<< std::flush;
+      this->val1 = new double [NNZ1];
+      this->col1 = new int [NNZ1];
+      this->ptr1 = new int [N1+1];
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      std::cout << "[CPU] Allocing  Matrix [MultiCPU Part2].......... val2 col2 ptr2"<< std::flush;
+      this->val2 = new double [NNZ2];
+      this->col2 = new int [NNZ2];
+      this->ptr2 = new int [N2+1];
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    }else{
+      std::cout << "[CPU] Allocing  Matrix [MultiCPU Part1] [Pinned Memory].......... val1 col1 ptr1"<< std::flush;
+      this->val1 = cu->d_MallocHost(this->NNZ1);
+      this->col1 = cu->i_MallocHost(this->NNZ1);
+      this->ptr1 = cu->i_MallocHost((this->N1)+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      std::cout << "[CPU] Allocing  Matrix [MultiCPU Part2] [Pinned Memory].......... val2 col2 ptr2"<< std::flush;
+      this->val2 = cu->d_MallocHost(this->NNZ2);
+      this->col2 = cu->i_MallocHost(this->NNZ2);
+      this->ptr2 = cu->i_MallocHost((this->N2)+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+    }
+    if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+      if(!isPinned){
+        std::cout << "[CPU] Allocing Transpose Matrix [MultiCPU Part1] .......... Tval1 Tcol1 Tptr1"<< std::flush;
+        this->Tval1 = new double [this->NNZ1];
+        this->Tcol1 = new int [this->NNZ1];
+        this->Tptr1 = new int [(this->N1)+1];
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
+        std::cout << "[CPU] Allocing Transpose Matrix [MultiCPU Part2] .......... Tval2 Tcol2 Tptr2"<< std::flush;
+        this->Tval2 = new double [this->NNZ2];
+        this->Tcol2 = new int [this->NNZ2];
+        this->Tptr2 = new int [(this->N2)+1];
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      }else{
+        std::cout << "[CPU] Allocing Transpose Matrix [Pinned Memory] [MultiCPU Part1] .......... Tval1 Tcol1 Tptr1"<< std::flush;
+        this->Tval1 = cu->d_MallocHost(this->NNZ1);
+        this->Tcol1 = cu->i_MallocHost(this->NNZ1);
+        this->Tptr1 = cu->i_MallocHost((this->N1)+1);
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
+        std::cout << "[CPU] Allocing Transpose Matrix [Pinned Memory] [MultiCPU Part2] .......... Tval2 Tcol2 Tptr2"<< std::flush;
+        this->Tval2 = cu->d_MallocHost(this->NNZ2);
+        this->Tcol2 = cu->i_MallocHost(this->NNZ2);
+        this->Tptr2 = cu->i_MallocHost((this->N2)+1);
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      }
+    }
+  }
+
+  //GPU side
   if(isCUDA){
-    std::cout << "Allocing CUDA side Matrix  -> MultiGPU Part1.........."<< std::flush;
-  
-    this->val1 = new double [NNZ1];
-    this->col1 = new int [NNZ1];
-    this->ptr1 = new int [(N1+1)];
-
-    this->Cval1 = cu->d_Malloc(this->NNZ1, 0);
-    this->Ccol1 = cu->i_Malloc(this->NNZ1, 0);
-    this->Cptr1 = cu->i_Malloc((this->N1)+1, 0);
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-
-    std::cout << "Allocing CUDA side Matrix  -> MultiGPU Part2.........."<< std::flush;
-    this->val2 = new double [NNZ2];
-    this->col2 = new int [NNZ2];
-    this->ptr2 = new int [N2+1];
-
-    this->Cval2 = cu->d_Malloc(this->NNZ2, 1);
-    this->Ccol2 = cu->i_Malloc(this->NNZ2, 1);
-    this->Cptr2 = cu->i_Malloc((this->N2)+1, 1);
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-
-    for(unsigned long int i=0; i<this->N; i++){
-      if(i<this->N1){
-        this->ptr1[i] = this->ptr[i];
-      }else{
-        this->ptr2[i-N1] = this->ptr[i] - this->NNZ1;
+    //1GPU
+      std::cout << "[GPU] Allocing Matrix .......... Cval Ccol Cptr"<< std::flush;
+      this->Cval = cu->d_Malloc(this->NNZ);
+      this->Ccol = cu->i_Malloc(this->NNZ);
+      this->Cptr = cu->i_Malloc(this->N+1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+        std::cout << "[GPU] Allocing Transpose Matrix .......... CTval CTcol CTptr"<< std::flush;
+        this->CTval = cu->d_Malloc(this->NNZ);
+        this->CTcol = cu->i_Malloc(this->NNZ);
+        this->CTptr = cu->i_Malloc(this->N+1);
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
       }
-    }
-    this->ptr1[this->N1] = this->NNZ1;
-    this->ptr2[this->N2] = this->NNZ2;
-
-    for(unsigned long int i=0; i<this->NNZ; i++){
-      if(i<this->NNZ1){
-        this->col1[i] = this->col[i];
-        this->val1[i] = this->val[i];
-      }else{
-        this->col2[i-this->NNZ1] = this->col[i];
-        this->val2[i-this->NNZ1] = this->val[i];
-      }
-    }
-  }else{
-    std::cout << "Allocing Matrix MultiGPU Part1.........."<< std::flush;
-    this->val1 = new double [NNZ1];
-    this->col1 = new int [NNZ1];
-    this->ptr1 = new int [N1+1];
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-    
-    std::cout << "Allocing Matrix MultiGPU Part1.........."<< std::flush;
-    this->val2 = new double [NNZ2];
-    this->col2 = new int [NNZ2];
-    this->ptr2 = new int [N2+1];
-    std::cout << GREEN << "[○] Done" << RESET << std::endl;
-
-    for(unsigned long int i=0; i<this->N; i++){
-      if(i<this->N1){
-        this->ptr1[i] = this->ptr[i];
-      }else{
-        this->ptr2[i-N1] = this->ptr[i] - this->NNZ1;
-      }
-    }
-    this->ptr1[this->N1] = this->NNZ1;
-    this->ptr2[this->N2] = this->NNZ2;
-
-    for(unsigned long int i=0; i<this->NNZ; i++){
-      if(i<this->NNZ1){
-        this->col1[i] = this->col[i];
-        this->val1[i] = this->val[i];
-      }else{
-        this->col2[i-this->NNZ1] = this->col[i];
-        this->val2[i-this->NNZ1] = this->val[i];
+    if(isMultiGPU){
+      std::cout << "[GPU] Allocing Matrix [MultiCPU Part1].......... Cval1 Ccol1 Cptr1"<< std::flush;
+      this->Cval1 = cu->d_Malloc(this->NNZ1, 0);
+      this->Ccol1 = cu->i_Malloc(this->NNZ1, 0);
+      this->Cptr1 = cu->i_Malloc((this->N1)+1, 0);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      std::cout << "[GPU] Allocing Matrix [MultiCPU Part2].......... Cval2 Ccol2 Cptr2"<< std::flush;
+      this->Cval2 = cu->d_Malloc(this->NNZ2, 1);
+      this->Ccol2 = cu->i_Malloc(this->NNZ2, 1);
+      this->Cptr2 = cu->i_Malloc((this->N2)+1, 1);
+      std::cout << GREEN << "[○] Done" << RESET << std::endl;
+      if(this->outerSolver == BICG || this->outerSolver == KSKIPBICG || this->outerSolver == VPBICG || this->innerSolver == BICG || this->innerSolver == KSKIPBICG || this->innerSolver == VPBICG){
+        std::cout << "[GPU] Allocing Transpose Matrix [MultiCPU Part1].......... CTval1 CTcol1 CTptr1"<< std::flush;
+        this->CTval1 = cu->d_Malloc(this->NNZ1, 0);
+        this->CTcol1 = cu->i_Malloc(this->NNZ1, 0);
+        this->CTptr1 = cu->i_Malloc((this->N1)+1, 0);
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
+        std::cout << "[GPU] Allocing Transpose Matrix [MultiCPU Part2].......... CTval2 CTcol2 CTptr2"<< std::flush;
+        this->CTval2 = cu->d_Malloc(this->NNZ2, 1);
+        this->CTcol2 = cu->i_Malloc(this->NNZ2, 1);
+        this->CTptr2 = cu->i_Malloc((this->N2)+1, 1);
+        std::cout << GREEN << "[○] Done" << RESET << std::endl;
       }
     }
   }

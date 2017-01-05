@@ -85,13 +85,16 @@ class collection {
 
     void checkCRSMatrix();
     void readMatrix();
-    void CRSAlloc();
+    void CRSAlloc_Part1();
+    void CRSAlloc_Part2();
     void transposeMatrix();
     void transpose();
     void setOpenmpThread();
 
-    void CudaCopy();
+    void CudaCopy_Part1();
+    void CudaCopy_Part2();
     void MultiGPUAlloc();
+    void make2GPUMatrix();
 
 //pointer
     double* val;
@@ -131,6 +134,24 @@ class collection {
     double* Cval2;
     int* Ccol2;
     int* Cptr2;
+
+    double* Tval1;
+    int* Tcol1;
+    int* Tptr1;
+
+    double* Tval2;
+    int* Tcol2;
+    int* Tptr2;
+
+
+    double* CTval1;
+    int* CTcol1;
+    int* CTptr1;
+
+    double* CTval2;
+    int* CTcol2;
+    int* CTptr2;
+
 
 };
 

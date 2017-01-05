@@ -142,7 +142,11 @@ int bicg::solve(){
 
   //mv = Ax
   if(isCUDA){
-    cu->MtxVec_mult(xvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+    if(isMultiGPU){
+      cu->MtxVec_mult_Multi(xvec, mv, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+    }else{
+      cu->MtxVec_mult(xvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+    }
   }else{
     bs->MtxVec_mult(xvec, mv);
   }
@@ -185,7 +189,11 @@ int bicg::solve(){
 
     //mv = Ap
     if(isCUDA){
-      cu->MtxVec_mult(pvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      if(isMultiGPU){
+        cu->MtxVec_mult_Multi(pvec, mv, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+      }else{
+        cu->MtxVec_mult(pvec, mv, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      }
     }else{
       bs->MtxVec_mult(pvec, mv);
     }
@@ -207,7 +215,11 @@ int bicg::solve(){
 
     //mv = A(T)p*
     if(isCUDA){
-      cu->MtxVec_mult(p_vec, mv, this->coll->CTval, this->coll->CTcol, this->coll->CTptr);
+      if(isMultiGPU){
+        cu->MtxVec_mult_Multi(p_vec, mv, this->coll->CTval1, this->coll->CTcol1, this->coll->CTptr1, this->coll->CTval2, this->coll->CTcol2, this->coll->CTptr2);
+      }else{
+        cu->MtxVec_mult(p_vec, mv, this->coll->CTval, this->coll->CTcol, this->coll->CTptr);
+      }
     }else{
       bs->MtxVec_mult(this->coll->Tval, this->coll->Tcol, this->coll->Tptr, p_vec, mv);
     }
