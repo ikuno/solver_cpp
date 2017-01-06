@@ -17,7 +17,7 @@ class gmres {
     
     long int loop;
     double *xvec, *bvec;
-    double *rvec, *axvec, *evec, *vvec, *vmtx, *hmtx, *yvec, *wvec, *avvec, *hvvec, *cvec, *svec, *x0vec, *tmpvec, *x_0;
+    double *rvec, *axvec, *evec, *vvec, *vmtx, *hmtx, *yvec, *wvec, *avvec, *hvvec, *cvec, *svec, *x0vec, *tmpvec, *x_0, *Av, *testvec, *testvec2;
     double wv_ip, error;
     double alpha, bnorm;
     double tmp, tmp2, rr2;

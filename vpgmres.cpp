@@ -47,9 +47,10 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
   N = this->coll->N;
   if(isCUDA){
     if(isPinned){
-      vvec = cu->d_MallocHost(N);
-      wvec = cu->d_MallocHost(N);
-      tmpvec = cu->d_MallocHost(N);
+      // vvec = cu->d_MallocHost(N);
+      testvec2 = cu->d_MallocHost(N);
+      // wvec = cu->d_MallocHost(N);
+      Av = cu->d_MallocHost(N);
       zvec = cu->d_MallocHost(N);
 
       rvec = new double [N];
@@ -57,12 +58,14 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
       vmtx = new double [N*(restart+1)];
       hmtx = new double [N*(restart+1)];
       yvec = new double [restart];
-      hvvec = new double [restart*(restart+1)];
       cvec = new double [restart];
       svec = new double [restart];
       x0vec = new double [N];
       zmtx = new double [N*(restart+1)];
       x_0 = new double [N];
+      tmpvec = new double [N];
+      vvec = new double [N];
+      wvec = new double [N];
     }else{
       rvec = new double [N];
       evec = new double [restart];
@@ -71,7 +74,6 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
       hmtx = new double [N*(restart+1)];
       yvec = new double [restart];
       wvec = new double [N];
-      hvvec = new double [restart*(restart+1)];
       cvec = new double [restart];
       svec = new double [restart];
       x0vec = new double [N];
@@ -79,6 +81,8 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
       zmtx = new double [N*(restart+1)];
       zvec = new double [N];
       x_0 = new double [N];
+      Av = new double [N];
+      testvec2 = new double [N];
     }
   }else{
     rvec = new double [N];
@@ -88,7 +92,6 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
     hmtx = new double [N*(restart+1)];
     yvec = new double [restart];
     wvec = new double [N];
-    hvvec = new double [restart*(restart+1)];
     cvec = new double [restart];
     svec = new double [restart];
     x0vec = new double [N];
@@ -96,6 +99,8 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
     zmtx = new double [N*(restart+1)];
     zvec = new double [N];
     x_0 = new double [N];
+    Av = new double [N];
+    testvec2 = new double [N];
   }
 
   this->xvec = xvec;
@@ -108,7 +113,6 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
   std::memset(hmtx, 0, sizeof(double)*(N*(restart+1)));
   std::memset(yvec, 0, sizeof(double)*restart);
   std::memset(wvec, 0, sizeof(double)*N);
-  std::memset(hvvec, 0, sizeof(double)*(restart*(restart+1)));
   std::memset(cvec, 0, sizeof(double)*restart);
   std::memset(svec, 0, sizeof(double)*restart);
   std::memset(x0vec, 0, sizeof(double)*N);
@@ -116,6 +120,8 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
   std::memset(zmtx, 0, sizeof(double)*(N*(restart+1)));
   std::memset(zvec, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
+  std::memset(Av, 0, sizeof(double)*N);
+  std::memset(testvec2, 0, sizeof(double)*N);
 
 
   f_his.open("./output/VPGMRES_his.txt");
@@ -147,9 +153,10 @@ vpgmres::vpgmres(collection *coll, double *bvec, double *xvec, bool inner){
 vpgmres::~vpgmres(){
   if(isCUDA){
     if(isPinned){
-      cu->FreeHost(vvec);
-      cu->FreeHost(wvec);
-      cu->FreeHost(tmpvec);
+      // cu->FreeHost(vvec);
+      cu->FreeHost(testvec2);
+      // cu->FreeHost(wvec);
+      cu->FreeHost(Av);
       cu->FreeHost(zvec);
 
       delete[] rvec;
@@ -157,12 +164,14 @@ vpgmres::~vpgmres(){
       delete[] vmtx;
       delete[] hmtx;
       delete[] yvec;
-      delete[] hvvec;
       delete[] cvec;
       delete[] svec;
       delete[] x0vec;
       delete[] zmtx;
       delete[] x_0;
+      delete[] tmpvec;
+      delete[] vvec;
+      delete[] wvec;
     }else{
       delete[] rvec;
       delete[] evec;
@@ -171,14 +180,15 @@ vpgmres::~vpgmres(){
       delete[] hmtx;
       delete[] yvec;
       delete[] wvec;
-      delete[] hvvec;
       delete[] cvec;
       delete[] svec;
       delete[] x0vec;
       delete[] tmpvec;
+      delete[] testvec2;
       delete[] zmtx;
       delete[] zvec;
       delete[] x_0;
+      delete[] Av;
     }
   }else{
     delete[] rvec;
@@ -188,7 +198,6 @@ vpgmres::~vpgmres(){
     delete[] hmtx;
     delete[] yvec;
     delete[] wvec;
-    delete[] hvvec;
     delete[] cvec;
     delete[] svec;
     delete[] x0vec;
@@ -196,6 +205,8 @@ vpgmres::~vpgmres(){
     delete[] zmtx;
     delete[] zvec;
     delete[] x_0;
+    delete[] Av;
+    delete[] testvec2;
   }
   delete this->bs;
   delete this->in;
@@ -219,14 +230,17 @@ int vpgmres::solve(){
   {
     //Ax0
     if(isCUDA){
-      cu->MtxVec_mult(xvec, tmpvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      // bs->MtxVec_mult(xvec, tmpvec);
+      if(isMultiGPU){
+        cu->MtxVec_mult_Multi(xvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+      }else{
+        cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      }
     }else{
-      bs->MtxVec_mult(xvec, tmpvec);
+      bs->MtxVec_mult(xvec, Av);
     }
 
     //r0=b-Ax0
-    bs->Vec_sub(bvec, tmpvec, rvec);
+    bs->Vec_sub(bvec, Av, rvec);
 
     //2norm rvec
     tmp = bs->norm_2(rvec);
@@ -289,17 +303,36 @@ int vpgmres::solve(){
         break;
       }
 
-      in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, vvec, zvec);
+      bs->time->start();
+      bs->Vec_copy(vvec, testvec2);
+      bs->time->end();
+      bs->time->cp_time += bs->time->getTime();
 
-      /* //Av & W */
+      // in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, vvec, zvec);
+      in->innerSelect(this->coll, this->coll->innerSolver, cu, bs, testvec2, zvec);
+
       if(isCUDA){
-        cu->MtxVec_mult(zvec, wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-        // bs->MtxVec_mult(zvec, wvec);
+        if(isMultiGPU){
+          // cu->MtxVec_mult_Multi(zvec, wvec, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+          cu->MtxVec_mult_Multi(zvec, testvec2, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+        }else{
+          // cu->MtxVec_mult(zvec, wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+          cu->MtxVec_mult(zvec, testvec2, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        }
       }else{
-        bs->MtxVec_mult(zvec, wvec);
+        // bs->MtxVec_mult(zvec, wvec);
+        bs->MtxVec_mult(zvec, testvec2);
       }
 
+      bs->time->start();
+      bs->Vec_copy(testvec2, wvec);
+      bs->time->end();
+      bs->time->cp_time += bs->time->getTime();
+
+      bs->time->start();
       bs->Vec_copy(zvec, zmtx, k, N);
+      bs->time->end();
+      bs->time->cp_time += bs->time->getTime();
 
       //h_i_k & w update
       // for(int i=0; i<=k; i++){

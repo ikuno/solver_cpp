@@ -22,8 +22,8 @@ CUDA_INCLUDE_DIR := -I $(CUDA_PATH)/samples/common/inc
 # CPP_INCLUDE_DIR = 
 
 #compile option
-CXXFLAGS = -Wall -std=c++11 -fopenmp -O2 -pedantic
-CUDAFLAGS = -arch=sm_35 -O2 -std=c++11 -lcusparse -Xcompiler "-fopenmp"
+CXXFLAGS = -Wall -std=c++11 -fopenmp -O2 -pedantic -DUSE_OPENMP
+CUDAFLAGS = -arch=sm_35 -O2 -std=c++11 -lcusparse -Xcompiler "-fopenmp -DUSE_OPENMP"
 
 #linker option
 CUDALDFLAGS = -lcusparse -lgomp -O2 -arch=sm_35 -Xcompiler "-Wall -std=c++11 -fopenmp -O2"
@@ -33,8 +33,8 @@ CUDALDFLAGS = -lcusparse -lgomp -O2 -arch=sm_35 -Xcompiler "-Wall -std=c++11 -fo
 
 all:$(PROGRAM_NAME)
 
-debug: CXXFLAGS = -ggdb3 -O0 -std=c++11 -Wall -pedantic -pg -fopenmp
-debug: CUDAFLAGS = -g -G -arch=sm_35 -O0 -std=c++11 -lcusparse -Xcompiler "-fopenmp"
+debug: CXXFLAGS = -ggdb3 -O0 -fno-inline -std=c++11 -Wall -pedantic -pg -fopenmp
+debug: CUDAFLAGS = -g -G -arch=sm_35 -O0 -std=c++11 -lcusparse -Xcompiler "-fopenmp" 
 debug: CUDALDFLAGS = -lcusparse -lgomp -O0 -g -G -arch=sm_35 -Xcompiler "-ggdb3  -O0 -std=c++11 -Wall -pedantic -pg -fopenmp"
 debug: $(PROGRAM_NAME)
 

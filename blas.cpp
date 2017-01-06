@@ -30,7 +30,9 @@ double blas::norm_1(double *v){
 
 double blas::norm_2(double *v){
   double tmp = 0.0;
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0;i<this->coll->N;i++){
     tmp += v[i] * v[i];
   }
@@ -48,7 +50,9 @@ void blas::MtxVec_mult(double *in_vec, double *out_vec){
   unsigned long int N = this->coll->N;
 
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<N; i++){
     tmp = 0.0;
     for(int j=ptr[i]; j<ptr[i+1]; j++){
@@ -68,7 +72,9 @@ void blas::MtxVec_mult(double *in_vec, unsigned long int xindex, unsigned long i
   unsigned long int N = this->coll->N;
 
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<N; i++){
     tmp = 0.0;
     for(int j=ptr[i]; j<ptr[i+1]; j++){
@@ -89,7 +95,9 @@ void blas::MtxVec_mult(double *in_vec, unsigned long int xindex, unsigned long i
   unsigned long int N = this->coll->N;
 
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, val, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<N; i++){
     tmp = 0.0;
     for(int j=ptr[i]; j<ptr[i+1]; j++){
@@ -106,7 +114,9 @@ void blas::MtxVec_mult(double *Tval, int *Tcol, int *Tptr, double *in_vec, doubl
   unsigned long int N = this->coll->N;
 
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:tmp) schedule(static) firstprivate(out_vec, Tval, in_vec) lastprivate(out_vec) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<N; i++){
     tmp = 0.0;
     for(int j=Tptr[i]; j<Tptr[i+1]; j++){
@@ -140,7 +150,9 @@ double blas::dot(double *x, double *y){
   double tmp = 0.0;
   unsigned long int N = this->coll->N;
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<N; i++){
     tmp += x[i] * y[i];
   }
@@ -152,7 +164,9 @@ double blas::dot(double *x, double *y){
 double blas::dot(double *x, double *y, unsigned long int size){
   double tmp = 0.0;
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<size; i++){
     tmp += x[i] * y[i];
   }
@@ -166,7 +180,9 @@ double blas::dot(double *x, double *y, unsigned long int yindex, unsigned long i
   double tmp = 0.0;
   unsigned long int N = this->coll->N;
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<N; i++){
     tmp += x[i] * y[yindex*ysize+i];
   }
@@ -180,7 +196,9 @@ double blas::dot(double *x, unsigned long int xindex, unsigned long int xsize, d
   double tmp = 0.0;
   unsigned long int N = this->coll->N;
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) reduction(+:tmp) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<N; i++){
     tmp += x[xindex*xsize+i] * y[yindex*ysize+i];
   }
@@ -197,24 +215,28 @@ void blas::Scalar_ax(double a, double *x, double *out){
 }
 
 void blas::Scalar_ax(double a, double *x, unsigned long int xindex, unsigned long int xsize, double *out){
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) firstprivate(out, a, x) lastprivate(out) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<this->coll->N; i++){
     out[i] = a * x[xindex*xsize+i];
   }
 }
 
 void blas::Scalar_axy(double a, double *x, double *y, double *out){
-  double tmp = 0;
-#pragma omp parallel for schedule(static) firstprivate(out, a, x, tmp) lastprivate(out) num_threads(this->coll->OMPThread)
+#ifdef USE_OPENMP
+#pragma omp parallel for schedule(static) firstprivate(out) lastprivate(out) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<this->coll->N; i++){
-    tmp = y[i];
-    out[i] = (a * x[i]) + tmp;
+    out[i] = (a * x[i]) + y[i];
   }
 }
 
 void blas::Scalar_axy(double a, double *x, unsigned long int xindex, unsigned long int xsize, double *y, double *out){
   double tmp = 0;
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) firstprivate(out, a, x, tmp, xindex, xsize) lastprivate(out) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<this->coll->N; i++){
     tmp = y[i];
     out[i] = (a * x[xindex*xsize+i]) + tmp;
@@ -223,7 +245,9 @@ void blas::Scalar_axy(double a, double *x, unsigned long int xindex, unsigned lo
 
 void blas::Scalar_axy(double a, double *x, unsigned long int xindex, unsigned long int xsize, double *y, unsigned long int yindex, unsigned long int ysize, double *out, unsigned long int zindex, unsigned long int zsize){
   double tmp = 0;
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) firstprivate(out, a, x, tmp, xindex, xsize, zindex, zsize) lastprivate(out) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<this->coll->N; i++){
     tmp = y[yindex*ysize+i];
     out[zindex*zsize+i] = (a * x[xindex*xsize+i]) + tmp;
@@ -231,7 +255,9 @@ void blas::Scalar_axy(double a, double *x, unsigned long int xindex, unsigned lo
 }
 
 void blas::Scalar_x_div_a(double *x, double a, double *out){
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) firstprivate(out, a, x) lastprivate(out) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<this->coll->N; i++){
     out[i] = x[i] / a;
   }
@@ -334,7 +360,9 @@ void blas::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec
   unsigned long int N = this->coll->N;
 
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val, pvec, rvec) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int i=0; i<N; i++){
     tmp1 = 0.0;
     tmp2 = 0.0;
@@ -346,7 +374,9 @@ void blas::Kskip_cg_bicg_base(double *Ar, double *Ap, double *rvec, double *pvec
     Ap[0*N+i] = tmp2;
   }
   for(int ii=1; ii<2*kskip+2; ii++){
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:tmp1, tmp2) schedule(static) firstprivate(Ar, Ap, val) lastprivate(Ar, Ap) num_threads(this->coll->OMPThread)
+#endif
     for(unsigned long int i=0; i<N; i++){
       tmp1 = 0.0;
       tmp2 = 0.0;
@@ -375,7 +405,9 @@ void blas::Kskip_cg_innerProduce(double *delta, double *eta, double *zeta, doubl
   unsigned long int N = this->coll->N;
 
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:tmp1, tmp2, tmp3) schedule(static) firstprivate(delta, eta, zeta, Ar, rvec, Ap, pvec) lastprivate(delta, eta, zeta) num_threads(this->coll->OMPThread)
+#endif
   for(int i=0; i<2*kskip+2; i++){
     tmp1=0.0;
     tmp2=0.0;
@@ -410,7 +442,9 @@ void blas::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
   unsigned long int N = this->coll->N;
 
   this->time->start();
+#ifdef USE_OPENMP
 #pragma omp parallel for reduction(+:tmp1, tmp2, tmp3, tmp4) schedule(static) firstprivate(theta, eta, rho, phi, Ar, rvec, Ap, pvec, r_vec, p_vec) lastprivate(theta, eta, rho, phi) num_threads(this->coll->OMPThread)
+#endif
   for(int i=0; i<2*kskip+2; i++){
     tmp1=0.0;
     tmp2=0.0;
@@ -443,10 +477,11 @@ void blas::Kskip_bicg_innerProduce(double *theta, double *eta, double *rho, doub
 void blas::Gmres_sp_1(int k, double *x, double *y, double *out){
   unsigned long int N = this->coll->N;
 
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) firstprivate(out, x, y) lastprivate(out) num_threads(this->coll->OMPThread)
+#endif
   for(unsigned long int j=0; j<N; j++){
     for(int i=0; i<=k; i++){
-    // for(int i=0; i<k; i++){
       out[j] -= x[i*N+k] * y[i*N+j];
     }
   }
@@ -491,14 +526,18 @@ void blas::MtxVec_mult_Multi(double *in_vec, double *out_vec){
 void blas::Gcr_sp_1(int k, int N, double *Av, double *qvec, double *pvec, double *qq, double *beta_vec){
   double dot_tmp;
 
+#ifdef USE_OPENMP
 #pragma omp parallel for schedule(static) firstprivate(Av, qvec, qq, beta_vec) lastprivate(beta_vec) num_threads(this->coll->OMPThread)
+#endif
   for(int i=0; i<=k; i++){
     dot_tmp = dot(Av, qvec, i, N);
     beta_vec[i] = -(dot_tmp) / qq[i];
   }
 
   for(int i=0; i<=k; i++){
-    Scalar_axy(beta_vec[i], pvec, i, N, pvec, k+1, N, pvec, k+1, N);
-    Scalar_axy(beta_vec[i], qvec, i, N, qvec, k+1, N, qvec, k+1, N);
+    // Scalar_axy(beta_vec[i], pvec, i, N, pvec, k+1, N, pvec, k+1, N);
+    // Scalar_axy(beta_vec[i], qvec, i, N, qvec, k+1, N, qvec, k+1, N);
+    Scalar_axy(beta_vec[i], (double*)(pvec+i*N), (double*)(pvec+(k+1)*N), (double*)(pvec+(k+1)*N));
+    Scalar_axy(beta_vec[i], (double*)(qvec+i*N), (double*)(qvec+(k+1)*N), (double*)(qvec+(k+1)*N));
   }
 }

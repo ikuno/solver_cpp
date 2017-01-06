@@ -42,19 +42,25 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
   N = this->coll->N;
   if(isCUDA){
     if(isPinned){
-      vmtx = cu->d_MallocHost(N*(restart+1));
+      // vmtx = cu->d_MallocHost(N*(restart+1));
+      testvec2 = cu->d_MallocHost(N);
       wvec = cu->d_MallocHost(N);
-      tmpvec = cu->d_MallocHost(N);
+      Av = cu->d_MallocHost(N);
       rvec = new double [N];
       evec = new double [restart];
       vvec = new double [N];
+      vmtx = new double [N*(restart+1)];
       hmtx = new double [N*(restart+1)];
       yvec = new double [restart];
       cvec = new double [restart];
       svec = new double [restart];
       x0vec = new double [N];
+      tmpvec = new double [N];
       x_0 = new double [N];
+      testvec = new double [N];
+
     }else{
+      Av = new double [N];
       rvec = new double [N];
       evec = new double [restart];
       vvec = new double [N];
@@ -67,8 +73,11 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
       x0vec = new double [N];
       tmpvec = new double [N];
       x_0 = new double [N];
+      testvec = new double [N];
+      testvec2 = new double [N];
     }
   }else{
+    Av = new double [N];
     rvec = new double [N];
     evec = new double [restart];
     vvec = new double [N];
@@ -81,6 +90,8 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
     x0vec = new double [N];
     tmpvec = new double [N];
     x_0 = new double [N];
+    testvec = new double [N];
+    testvec2 = new double [N];
   }
 
   this->xvec = xvec;
@@ -97,7 +108,10 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
   std::memset(svec, 0, sizeof(double)*restart);
   std::memset(x0vec, 0, sizeof(double)*N);
   std::memset(tmpvec, 0, sizeof(double)*N);
+  std::memset(Av, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
+  std::memset(testvec, 0, sizeof(double)*N);
+  std::memset(testvec2, 0, sizeof(double)*N);
 
   if(!isInner){
     f_his.open("./output/GMRES_his.txt");
@@ -124,19 +138,23 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
 gmres::~gmres(){
   if(isCUDA){
     if(isPinned){
-      cu->FreeHost(vmtx);
+      // cu->FreeHost(vmtx);
+      cu->FreeHost(testvec2);
       cu->FreeHost(wvec);
-      cu->FreeHost(tmpvec);
+      cu->FreeHost(Av);
 
       delete[] rvec;
       delete[] evec;
       delete[] vvec;
+      delete[] vmtx;
       delete[] hmtx;
       delete[] yvec;
       delete[] cvec;
       delete[] svec;
       delete[] x0vec;
       delete[] x_0;
+      delete[] tmpvec;
+      delete[] testvec;
     }else{
       delete[] rvec;
       delete[] evec;
@@ -148,8 +166,11 @@ gmres::~gmres(){
       delete[] cvec;
       delete[] svec;
       delete[] x0vec;
+      delete[] Av;
       delete[] tmpvec;
       delete[] x_0;
+      delete[] testvec;
+      delete[] testvec2;
     }
 
   }else{
@@ -163,8 +184,11 @@ gmres::~gmres(){
     delete[] cvec;
     delete[] svec;
     delete[] x0vec;
+    delete[] Av;
     delete[] tmpvec;
     delete[] x_0;
+    delete[] testvec;
+    delete[] testvec2;
   }
 
   if(!isInner){
@@ -189,15 +213,25 @@ int gmres::solve(){
   for(count=0; count<maxloop;)
   {
     //Ax0
+    // if(isCUDA){
+    //   cu->MtxVec_mult(xvec, tmpvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+    // }else{
+    //   bs->MtxVec_mult(xvec, tmpvec);
+    // }
     if(isCUDA){
-      cu->MtxVec_mult(xvec, tmpvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-      // bs->MtxVec_mult(xvec, tmpvec);
+      if(isMultiGPU){
+
+        cu->MtxVec_mult_Multi(xvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+
+      }else{
+        cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      }
     }else{
-      bs->MtxVec_mult(xvec, tmpvec);
+      bs->MtxVec_mult(xvec, Av);
     }
 
     //r0=b-Ax0
-    bs->Vec_sub(bvec, tmpvec, rvec);
+    bs->Vec_sub(bvec, Av, rvec);
 
     //2norm rvec
     tmp = bs->norm_2(rvec);
@@ -261,12 +295,30 @@ int gmres::solve(){
       }
 
       //Av & w
+      // if(isCUDA){
+      //   cu->MtxVec_mult((double*)(vmtx+(k*N)), wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+      // }else{
+      //   bs->MtxVec_mult(vmtx, k, N, wvec);
+      // }
+      bs->Vec_copy((double*)(vmtx+(k*N)), testvec2);
+
       if(isCUDA){
-        cu->MtxVec_mult((double*)(vmtx+(k*N)), wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
-        // bs->MtxVec_mult(vmtx, k, N, wvec);
+        if(isMultiGPU){
+
+          // cu->MtxVec_mult_Multi((double*)(vmtx+(k*N)), wvec, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+          cu->MtxVec_mult_Multi(testvec2, wvec, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+
+        }else{
+          // cu->MtxVec_mult((double*)(vmtx+(k*N)), wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+          cu->MtxVec_mult(testvec2, wvec, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
+        }
       }else{
-        bs->MtxVec_mult(vmtx, k, N, wvec);
+        // bs->MtxVec_mult(vmtx, k, N, wvec);
+        // bs->MtxVec_mult(testvec2, k, N, wvec);
+        bs->MtxVec_mult(testvec2, wvec);
       }
+
+      bs->Vec_copy(wvec, testvec);
 
 
       //h_i_k & w update
@@ -275,17 +327,21 @@ int gmres::solve(){
         // cu->dot_gmres2(wvec, vmtx, hmtx, k, N);
         // cu->dot_gmres3(wvec, vmtx, hmtx, k, N);
         for(int i=0; i<=k; i++){
-          wv_ip = bs->dot(wvec, vmtx, i, N);
+          // wv_ip = bs->dot(wvec, vmtx, i, N);
+          wv_ip = bs->dot(testvec, vmtx, i, N);
           hmtx[i*N+k] = wv_ip;
         }
       }else{
         for(int i=0; i<=k; i++){
-          wv_ip = bs->dot(wvec, vmtx, i, N);
+          // wv_ip = bs->dot(wvec, vmtx, i, N);
+          wv_ip = bs->dot(testvec, vmtx, i, N);
           hmtx[i*N+k] = wv_ip;
         }
       }
 
       bs->Gmres_sp_1(k, hmtx, vmtx, wvec);
+      // bs->Gmres_sp_1(k, hmtx, vmtx, testvec);
+
 
       //h_k+1 update
       tmp = bs->norm_2(wvec);
@@ -349,7 +405,11 @@ int gmres::solve(){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
 
-    this->coll->time->showTimeOnCPU(time.getTime());
+    if(this->coll->isCUDA){
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
+    }else{
+      this->coll->time->showTimeOnCPU(time.getTime());
+    }
 
   }else{
     if(isVerbose){

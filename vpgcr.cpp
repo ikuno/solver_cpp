@@ -58,6 +58,8 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
       qq = new double [restart];
       qvec = cu->d_MallocHost(restart * N);
       pvec = cu->d_MallocHost(restart * N);
+
+      beta_vec = cu->d_MallocHost(restart);
     }else{
       rvec = new double [N];
       zvec = new double [N];
@@ -66,6 +68,8 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
       qq = new double [restart];
       qvec = new double [restart * N];
       pvec = new double [restart * N];
+
+      beta_vec = new double [restart];
     }
   }else{
     rvec = new double [N];
@@ -75,6 +79,8 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
     qq = new double [restart];
     qvec = new double [restart * N];
     pvec = new double [restart * N];
+
+    beta_vec = new double [restart];
   }
 
   
@@ -126,6 +132,8 @@ vpgcr::~vpgcr(){
       cu->FreeHost(qvec);
       cu->FreeHost(pvec);
       cu->FreeHost(zvec);
+
+      cu->FreeHost(beta_vec);
     }else{
       delete[] rvec;
       delete[] Av;
@@ -134,6 +142,8 @@ vpgcr::~vpgcr(){
       delete[] qvec;
       delete[] pvec;
       delete[] zvec;
+
+      delete[] beta_vec;
     }
   }else{
     delete[] rvec;
@@ -143,6 +153,8 @@ vpgcr::~vpgcr(){
     delete[] qvec;
     delete[] pvec;
     delete[] zvec;
+
+    delete[] beta_vec;
   }
   delete this->bs;
   delete this->in;
@@ -166,6 +178,7 @@ int vpgcr::solve(){
     //Ax
     if(isCUDA){
       if(isMultiGPU){
+      // bs->MtxVec_mult(xvec, Av);
         cu->MtxVec_mult_Multi(xvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
       }else{
         cu->MtxVec_mult(xvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
@@ -190,6 +203,7 @@ int vpgcr::solve(){
     //Ap
     if(isCUDA){
       if(isMultiGPU){
+      // bs->MtxVec_mult((double*)(pvec+(0*N)), (double*)(qvec+(0*N)));
         cu->MtxVec_mult_Multi((double*)(pvec+(0*N)), (double*)(qvec+(0*N)), this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2); 
       }else{
         cu->MtxVec_mult((double*)(pvec+(0*N)), (double*)(qvec+(0*N)), this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
@@ -256,6 +270,7 @@ int vpgcr::solve(){
       if(isCUDA){
         if(isMultiGPU){
           cu->MtxVec_mult_Multi(zvec, Av, this->coll->Cval1, this->coll->Ccol1, this->coll->Cptr1, this->coll->Cval2, this->coll->Ccol2, this->coll->Cptr2);
+        // bs->MtxVec_mult(zvec, Av);
         }else{
           cu->MtxVec_mult(zvec, Av, this->coll->Cval, this->coll->Ccol, this->coll->Cptr);
         }
@@ -269,19 +284,25 @@ int vpgcr::solve(){
         qvec[(kloop+1)*N+i] = 0.0;
       }
 
-      for(iloop=0; iloop<=kloop; iloop++){
-        //beta = -(Av, qvec) / (q, q)
-        if(isCUDA){
-          // dot_tmp = cu->dot(Av, qvec, iloop, N);
-          dot_tmp = bs->dot(Av, (double*)(qvec+(iloop*N)));
-        }else{
-          dot_tmp = bs->dot(Av, (double*)(qvec+(iloop*N)));
-        }
-        beta = -(dot_tmp) / qq[iloop];
+      // for(iloop=0; iloop<=kloop; iloop++){
+      //   //beta = -(Av, qvec) / (q, q)
+      //   if(isCUDA){
+      //     // dot_tmp = cu->dot(Av, qvec, iloop, N);
+      //     dot_tmp = bs->dot(Av, (double*)(qvec+(iloop*N)));
+      //   }else{
+      //     dot_tmp = bs->dot(Av, (double*)(qvec+(iloop*N)));
+      //   }
+      //   beta = -(dot_tmp) / qq[iloop];
+      //
+      //   //pvec[k+1] = beta * pvec[i] + pvec[k+1]
+      //   bs->Scalar_axy(beta, (double*)(pvec+(iloop*N)), (double*)(pvec+((kloop+1)*N)), (double*)(pvec+((kloop+1)*N)));
+      //   bs->Scalar_axy(beta, (double*)(qvec+(iloop*N)), (double*)(qvec+((kloop+1)*N)), (double*)(qvec+((kloop+1)*N)));
+      // }
 
-        //pvec[k+1] = beta * pvec[i] + pvec[k+1]
-        bs->Scalar_axy(beta, (double*)(pvec+(iloop*N)), (double*)(pvec+((kloop+1)*N)), (double*)(pvec+((kloop+1)*N)));
-        bs->Scalar_axy(beta, (double*)(qvec+(iloop*N)), (double*)(qvec+((kloop+1)*N)), (double*)(qvec+((kloop+1)*N)));
+      if(isCUDA){
+        bs->Gcr_sp_1(kloop, N, Av, qvec, pvec, qq, beta_vec);
+      }else{
+        bs->Gcr_sp_1(kloop, N, Av, qvec, pvec, qq, beta_vec);
       }
 
       //p[k+1] = r + p[k+1]

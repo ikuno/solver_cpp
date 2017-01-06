@@ -18,7 +18,7 @@ class vpgcr {
 
     long int loop, iloop, kloop;
     double *xvec, *bvec;
-    double *rvec, *zvec, *Av, *x_0, *qq;
+    double *rvec, *zvec, *Av, *x_0, *qq, *beta_vec;
     double *qvec, *pvec;
     double dot_tmp, error;
     double alpha, beta, bnorm, rnorm;

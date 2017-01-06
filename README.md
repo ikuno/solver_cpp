@@ -20,9 +20,16 @@ These codes are licensed under Apache License 2.0.
 ## MEMO
 MultiGPU 行列ベクトル積　実装
 
-普通　CG CR GCR VPCG
+普通　CG CR GCR VPCG VPGCR
 転置　BICG 
 Base　KSKIPCG KSKIPBICG
+
+!! GCR and VPGCR's Scalar_axy (in Gcr_sp )calling is slow
+!! As same as GCR, GMRES and VPGMRES 's Gmres_sp is slow
+
+
+## All Solver
+cg cr gcr bicg kskipcg kskipbicg gmres vpcg vpcr[BUG] vpgcr vpgmres
 
 ## 未実装
   KSKIPCR, VPBICG, VPCR

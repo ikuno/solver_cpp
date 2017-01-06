@@ -123,6 +123,8 @@ class cuda {
 
     void MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2);
     void Kskip_cg_bicg_base_Multi(double *Ar, double *Ap, double *rvec, double *pvec, const int kskip, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2);
+    void HostRegister(void *ptr, int size);
+    void HostUnregister(void *ptr);
 
 };
 #endif //CUDAFUNCTION_HPP_INCLUDED__

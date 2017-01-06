@@ -23,6 +23,9 @@ class times {
     double cpu_mv_time;
     double cpu_dot_time;
 
+    // double reg_time;
+    // double unreg_time;
+    double cp_time;
 
     std::chrono::system_clock::time_point c_start, c_end;
     double o_start, o_end;

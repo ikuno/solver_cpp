@@ -1887,6 +1887,21 @@ void cuda::ShowDevice(){
   }
 }
 
+void cuda::HostRegister(void *ptr, int size){
+
+  this->time->start();
+  checkCudaErrors( cudaHostRegister(ptr, size, cudaHostRegisterPortable) );
+  this->time->end();
+  /* this->time->reg_time += this->time->getTime(); */
+}
+
+void cuda::HostUnregister(void *ptr){
+  this->time->start();
+  checkCudaErrors( cudaHostUnregister(ptr) );
+  this->time->end();
+  /* this->time->unreg_time += this->time->getTime(); */
+}
+
 int cuda::GetDeviceNum(){
   int deviceCount;
   cudaGetDeviceCount(&deviceCount);
@@ -2054,6 +2069,8 @@ void cuda::Kskip_cg_bicg_base_Multi(double *Ar, double *Ap, double *rvec, double
   int ThreadPerBlock2=128;
   int BlockPerGrid2=(size2-1)/(ThreadPerBlock2/32)+1;
 
+  this->time->start();
+
   checkCudaErrors( cudaSetDevice(0) );
   checkCudaErrors( cudaStreamCreate(&GPU1_1) );
   checkCudaErrors( cudaStreamCreate(&GPU2_1) );
@@ -2198,5 +2215,8 @@ void cuda::Kskip_cg_bicg_base_Multi(double *Ar, double *Ap, double *rvec, double
   checkCudaErrors( cudaEventDestroy(E1_2) );
   checkCudaErrors( cudaEventDestroy(E2_2) );
   checkCudaErrors( cudaSetDevice(0) );
+
+  this->time->end();
+  this->time->mv_time += this->time->getTime();
 
 }

@@ -9,6 +9,10 @@ times::times(){
 
   cpu_mv_time = 0.0;
   cpu_dot_time = 0.0;
+
+  // reg_time = 0.0;
+  // unreg_time = 0.0;
+  cp_time = 0.0;
 }
 
 times::~times(){
@@ -58,4 +62,8 @@ void times::showTimeOnGPU(double total, double timeCPU){
   std::cout << "\t  D2H time       = " << std::setprecision(6) << d2h_time << ", " << std::setprecision(2) << d2h_time/total*100 << "%" << std::endl;
   std::cout << "\t  Memset time    = " << std::setprecision(6) << memset_time << ", " << std::setprecision(2) << memset_time/total*100 << "%" << std::endl;
   std::cout << "\tother time       = " << std::setprecision(6) << total-all-timeCPU <<  ", " << std::setprecision(2) << (total-all-timeCPU)/total*100 << "%" << std::endl;
+
+  // std::cout << "\t  Register time    = " << std::setprecision(6) << reg_time << ", " << std::setprecision(2) << reg_time/total*100 << "%" << std::endl;
+  // std::cout << "\t  Unregister time    = " << std::setprecision(6) << unreg_time << ", " << std::setprecision(2) << unreg_time/total*100 << "%" << std::endl;
+  std::cout << "\t  Copy time    = " << std::setprecision(6) << cp_time << ", " << std::setprecision(2) << cp_time/total*100 << "%" << std::endl;
 }

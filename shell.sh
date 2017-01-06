@@ -50,7 +50,7 @@ Onece()
 
   rm -f ./output/*
 
-  ./Solver -N $o_N -p $o_p -d $o_d -m $o_m -p $o_p -D $o_D -M $o_M -t $o_t -S $o_S -L $o_L -E $o_E -R $o_R -K $o_K -F $o_F $option > $O_DIR/$O_FILE-log.txt
+  ./Solver -N $o_N -p $o_p -d $o_d -m $o_m -p $o_p -D $o_D -M $o_M -t $o_t -S $o_S -L $o_L -E $o_E -R $o_R -K $o_K -F $o_F -s $o_s -l $o_l -e $o_e -r $o_r -k $o_k -f $o_f $option > $O_DIR/$O_FILE-log.txt
 
   # mv ./output/${o_S^^}_his.txt $O_DIR/$O_FILE-his.txt
 
@@ -60,13 +60,13 @@ Onece()
 o_N="Matrix"
 o_p="../"
 o_d="CRS"
-o_m="hokaido170"
+o_m="consph"
 o_P="../" #Dont use
 o_D="MM" #Dont use
 o_M="NONE" #Dont use
 o_t=8
 
-o_S="cg"
+o_S="vpgcr"
 o_L=20000
 o_E=1e-8
 o_R=1000
@@ -92,8 +92,8 @@ RESULTFILE="result"
 
 OUTPUTFILE="cpu"
 SUMFILE="sum_cpu"
-# LOOP=5
 LOOP=2
+# LOOP=2
 
 if [ ! -e $DIR ]; then
   mkdir -p $DIR
