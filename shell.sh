@@ -1,5 +1,7 @@
 #!bin/zsh
 
+. ./data2csv.sh --source-only
+
 #   -N, --L1_Dir_Name        Default Matrix files Name (string [=Matrix])
 #   -p, --CRS_Path           CRS format files path (string [=../])
 #   -d, --CRS_Dir_Name       Default CRS format files Name (string [=CRS])
@@ -28,23 +30,22 @@
 
 Avg()
 {
-  C_DIR=$1
-  C_FILE_1=$2
-  C_FILE_2=$3
-  cat $C_DIR/$C_FILE_1.txt | awk '{tmp+=$1} END{print tmp/NR;}' >> $C_DIR/$C_FILE_2.txt
+  A_DIR=$1
+  A_FILE_in=$2
+  A_FILE_out=$3
+  cat $A_DIR/$A_FILE_in.txt | awk '{tmp+=$1} END{print tmp/NR;}' >> $A_DIR/$A_FILE_out.txt
 }
 
-Count()
+PickUp()
 {
   C_DIR=$1
-  C_FILE_1=$2
-  C_FILE_2=$3
-  cat $C_DIR/$C_FILE_1-log.txt| grep "time" | head -1 | sed -e 's/.......\(.*\).*/\1/' >> $C_DIR/$C_FILE_2.txt
+  C_FILE_in=$2
+  C_FILE_out=$3
+  cat $C_DIR/$C_FILE_in-log.txt| grep "time" | head -1 | sed -e 's/[^0-9.]//g' >> $C_DIR/$C_FILE_out.txt
 }
 
 Onece()
 {
-
   O_DIR=$1
   O_FILE=$2
 
@@ -52,10 +53,48 @@ Onece()
 
   ./Solver -N $o_N -p $o_p -d $o_d -m $o_m -p $o_p -D $o_D -M $o_M -t $o_t -S $o_S -L $o_L -E $o_E -R $o_R -K $o_K -F $o_F -s $o_s -l $o_l -e $o_e -r $o_r -k $o_k -f $o_f $option > $O_DIR/$O_FILE-log.txt
 
-  # mv ./output/${o_S^^}_his.txt $O_DIR/$O_FILE-his.txt
+  mv ./output/${o_S^^}_his.txt $O_DIR/$O_FILE-his.txt
 
 }
 
+BeseOne()
+{
+  B_DIR=$1
+  B_FILE=$2
+  cat $B_DIR/$B_FILE.txt | awk '{if(m<$1){m=$1;l=NR}} END{print l}'
+}
+
+MakeDir()
+{
+  O_DIR=$1
+  if [ ! -e $O_DIR ]; then
+    mkdir -p $O_DIR
+    echo "mkdir $O_DIR"
+  fi
+}
+
+Loop()
+{
+  OUTPUTFILE=$1
+  SUMFILE=$2
+  option=$3
+  
+  echo "$OUTPUTFILE Start"
+  for i in `seq 1 $LOOP`
+  do
+    Onece $DIR $OUTPUTFILE-$i
+    if [ $LOOP -gt 1 ]; then
+      PickUp $DIR $OUTPUTFILE-$i $SUMFILE
+    fi
+    echo "$i times"
+  done
+  if [ $LOOP -gt 1 ]; then
+    Get_Best=`BeseOne $DIR $SUMFILE`
+    echo "Best => $Get_Best"
+  else
+    Get_Best=1
+  fi
+}
 #--------------------------------------------
 o_N="Matrix"
 o_p="../"
@@ -66,73 +105,589 @@ o_D="MM" #Dont use
 o_M="NONE" #Dont use
 o_t=8
 
-o_S="vpgcr"
+o_S="cg"
 o_L=20000
 o_E=1e-8
 o_R=1000
 o_K=2
 o_F=2
 
-o_s="kskipbicg"
+#o_s="kskipbicg"
+o_s=""
 o_l=50
-o_e=0.5
+o_e=1e-1
 o_r=50
 o_k=2
 o_f=2
 
-# o_v=
-# o_c=
-# o_x=
-# o_g=
 option=""
+
+RESULTFILE="result"
+CSV_ROOT="./CSV"
+MakeDir $CSV_ROOT
+
 
 #============================================
-DIR="./TEST"
-RESULTFILE="result"
+o_m="bcsstk17"
+ROOT_DIR="./$o_m-test-part1"
+MakeDir $ROOT_DIR
 
-OUTPUTFILE="cpu"
-SUMFILE="sum_cpu"
-LOOP=2
-# LOOP=2
 
-if [ ! -e $DIR ]; then
-  mkdir -p $DIR
-  echo "mkdir $DIR"
-fi
+#============================================
+LOOP=1
+#============================================
+#========CG========
+o_S="cg"
+o_s=""
 
-option=""
-echo "$OUTPUTFILE Start"
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
 
-for i in `seq 1 $LOOP`
-do
-  Onece $DIR $OUTPUTFILE
-  Count $DIR $OUTPUTFILE $SUMFILE
-  echo "$i times"
-done
-Avg $DIR $SUMFILE $RESULTFILE
+#===========
 
-option="-c -x"
-OUTPUTFILE="gpuX"
-SUMFILE="sum_gpuX"
-echo "$OUTPUTFILE Start"
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
 
-for i in `seq 1 $LOOP`
-do
-  Onece $DIR $OUTPUTFILE
-  Count $DIR $OUTPUTFILE $SUMFILE
-  echo "$i times"
-done
-Avg $DIR $SUMFILE $RESULTFILE
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
 
-option="-c -g -x"
-OUTPUTFILE="gpuGX"
-SUMFILE="sum_gpuGX"
-echo "$OUTPUTFILE Start"
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
 
-for i in `seq 1 $LOOP`
-do
-  Onece $DIR $OUTPUTFILE
-  Count $DIR $OUTPUTFILE $SUMFILE
-  echo "$i times"
-done
-Avg $DIR $SUMFILE $RESULTFILE
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========CG========
+
+#============================================
+LOOP=1
+#============================================
+#========CR========
+o_S="cr"
+o_s=""
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========CR========
+
+#============================================
+LOOP=1
+#============================================
+#========GCR========
+o_S="gcr"
+o_s=""
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========GCR========
+
+#============================================
+LOOP=1
+#============================================
+#========BICG========
+o_S="bicg"
+o_s=""
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========BICG========
+
+#============================================
+LOOP=1
+#============================================
+#========GMRES========
+o_S="gmres"
+o_s=""
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========GMRES========
+
+#============================================
+LOOP=1
+#============================================
+#========KSKIPCG========
+o_S="kskipcg"
+o_s=""
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========KSKIPCG========
+
+#============================================
+LOOP=1
+#============================================
+#========KSKIPBICG========
+o_S="kskipbicg"
+o_s=""
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========KSKIPBICG========
+
+
+#======================================================== vp gcr=================================================
+
+#============================================
+LOOP=3
+#============================================
+#========VPGCR_CG========
+o_S="vpgcr"
+o_s="cg"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGCR_CG========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGCR_CR========
+o_S="vpgcr"
+o_s="cr"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGCR_CR========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGCR_GCR========
+o_S="vpgcr"
+o_s="gcr"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGCR_GCR========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGCR_BICG========
+o_S="vpgcr"
+o_s="bicg"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGCR_BICG========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGCR_GMRES========
+o_S="vpgcr"
+o_s="gmres"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGCR_GMRES========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGCR_KSKIPCG========
+o_S="vpgcr"
+o_s="kskipcg"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGCR_KSKIPCG========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGCR_KSKIPBICG========
+o_S="vpgcr"
+o_s="kskipbicg"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGCR_KSKIPBICG========
+
+#======================================================== vp gmres=================================================
+
+#============================================
+LOOP=3
+#============================================
+#========VPGMRES_CG========
+o_S="vpgmres"
+o_s="cg"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGMRES_CG========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGMRES_CR========
+o_S="vpgmres"
+o_s="cr"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGMRES_CR========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGMRES_GCR========
+o_S="vpgmres"
+o_s="gcr"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGMRES_GCR========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGMRES_BICG========
+o_S="vpgmres"
+o_s="bicg"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGMRES_BICG========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGMRES_GMRES========
+o_S="vpgmres"
+o_s="gmres"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGMRES_GMRES========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGMRES_KSKIPCG========
+o_S="vpgmres"
+o_s="kskipcg"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGMRES_KSKIPCG========
+
+#============================================
+LOOP=3
+#============================================
+#========VPGMRES_KSKIPBICG========
+o_S="vpgmres"
+o_s="kskipbicg"
+
+DIR="./${o_S^^}_${o_s^^}_TEST"
+MakeDir $DIR
+CSV_FILE="$CSV_ROOT/$o_m-${o_S^^}-${o_s^^}.csv"
+
+#===========
+
+Loop cpu sum_cpu ""
+B_CPU=$Get_Best
+
+Loop gpu sum_gpu "-c -x"
+B_GPU=$Get_Best
+
+Loop gpux sum_gpux "-c -x -g"
+B_GPUX=$Get_Best
+
+CSV $DIR cpu $B_CPU gpu $B_GPU gpux $B_GPUX $CSV_FILE
+mv $DIR $ROOT_DIR/
+#========VPGMRES_KSKIPBICG========
+
+
+
+
+
+
+echo "Done"
+#Avg $DIR $SUMFILE $RESULTFILE

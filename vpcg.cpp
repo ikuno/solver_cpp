@@ -89,10 +89,10 @@ vpcg::vpcg(collection *coll, double *bvec, double *xvec, bool inner){
     name = "./output/" + name + "_inner.txt";
     std::ifstream in(name.c_str());
     if(in.good()){
-      std::cout << "Delete inner solver's loop file" << std::endl;
+      std::cout << "Delete inner solver's old file" << std::endl;
       std::remove(name.c_str());
     }else{
-      std::cout << "Has no inner solver's loop file yet" << std::endl;
+      std::cout << "Has no inner solver's file yet" << std::endl;
     }
   }
 

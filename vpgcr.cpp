@@ -113,10 +113,10 @@ vpgcr::vpgcr(collection *coll, double *bvec, double *xvec, bool inner){
     name = "./output/" + name + "_inner.txt";
     std::ifstream in(name.c_str());
     if(in.good()){
-      std::cout << "Delete inner solver's loop file" << std::endl;
+      std::cout << "Delete inner solver's old file" << std::endl;
       std::remove(name.c_str());
     }else{
-      std::cout << "Has no inner solver's loop file yet" << std::endl;
+      std::cout << "Has no inner solver's file yet" << std::endl;
     }
   }
 
@@ -324,10 +324,23 @@ int vpgcr::solve(){
     std::cout << "loop = " << loop << std::endl;
     std::cout << "time = " << std::setprecision(6) << time.getTime() << std::endl;
 
+    if(this->coll->isCUDA){
+      this->coll->time->showTimeOnGPU(time.getTime(), this->coll->time->showTimeOnCPU(time.getTime(), true));
+    }else{
+      this->coll->time->showTimeOnCPU(time.getTime());
+    }
+
     for(long int i=0; i<N; i++){
       f_x << i << " " << std::scientific << std::setprecision(12) << std::uppercase << xvec[i] << std::endl;
     }
   }else{
+    if(exit_flag==0){
+      std::cout << GREEN << "\t" <<  loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else if(exit_flag==2){
+      std::cout << RED << "\t" << loop << " = " << std::scientific << std::setprecision(12) << std::uppercase << error << RESET << std::endl;
+    }else{
+      std::cout << RED << " ERROR " << loop << RESET << std::endl;
+    }
   }
 
   return exit_flag;

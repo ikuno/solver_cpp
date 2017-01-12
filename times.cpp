@@ -13,6 +13,8 @@ times::times(){
   // reg_time = 0.0;
   // unreg_time = 0.0;
   cp_time = 0.0;
+  cons_time = 0.0;
+  dis_time = 0.0;
 }
 
 times::~times(){
@@ -44,6 +46,9 @@ double times::showTimeOnCPU(double total, bool hasGPU){
   std::cout << CYAN << "Execution time on CPU" << RESET << std::endl;
   std::cout << "\tDot process time = " << std::setprecision(6) << cpu_dot_time << ", " << std::setprecision(2) << cpu_dot_time/total*100 << "%" << std::endl;
   std::cout << "\tMV process time  = " << std::setprecision(6) << cpu_mv_time <<  ", " << std::setprecision(2) << cpu_mv_time/total*100 << "%" << std::endl;
+  std::cout << "\t  cons time    = " << std::setprecision(6) << cons_time << ", " << std::setprecision(2) << cons_time/total*100 << "%" << std::endl;
+  std::cout << "\t  dis time    = " << std::setprecision(6) << dis_time << ", " << std::setprecision(2) << dis_time/total*100 << "%" << std::endl;
+
   if(!hasGPU){
     std::cout << "\tother time     = " << std::setprecision(6) << total-all <<  ", " << std::setprecision(2) << (total-all)/total*100 << "%" << std::endl;
     return (-1.0);
@@ -56,8 +61,8 @@ void times::showTimeOnGPU(double total, double timeCPU){
   double all = mv_time + dot_time;
   // double inall = h2d_time + d2h_time + memset_time;
   std::cout << CYAN << "Execution time on GPU" << RESET << std::endl;
-  std::cout << "\tDot malloc time  = " << std::setprecision(6) << dot_time << ", " << std::setprecision(2) << dot_time/total*100 << "%" << std::endl;
-  std::cout << "\tMV malloc time   = " << std::setprecision(6) << mv_time << ", " << std::setprecision(2) << mv_time/total*100 << "%" << std::endl;
+  std::cout << "\tDot process time  = " << std::setprecision(6) << dot_time << ", " << std::setprecision(2) << dot_time/total*100 << "%" << std::endl;
+  std::cout << "\tMV process time   = " << std::setprecision(6) << mv_time << ", " << std::setprecision(2) << mv_time/total*100 << "%" << std::endl;
   std::cout << "\t  H2D time       = " << std::setprecision(6) << h2d_time << ", " << std::setprecision(2) << h2d_time/total*100 << "%" << std::endl;
   std::cout << "\t  D2H time       = " << std::setprecision(6) << d2h_time << ", " << std::setprecision(2) << d2h_time/total*100 << "%" << std::endl;
   std::cout << "\t  Memset time    = " << std::setprecision(6) << memset_time << ", " << std::setprecision(2) << memset_time/total*100 << "%" << std::endl;
@@ -66,4 +71,6 @@ void times::showTimeOnGPU(double total, double timeCPU){
   // std::cout << "\t  Register time    = " << std::setprecision(6) << reg_time << ", " << std::setprecision(2) << reg_time/total*100 << "%" << std::endl;
   // std::cout << "\t  Unregister time    = " << std::setprecision(6) << unreg_time << ", " << std::setprecision(2) << unreg_time/total*100 << "%" << std::endl;
   std::cout << "\t  Copy time    = " << std::setprecision(6) << cp_time << ", " << std::setprecision(2) << cp_time/total*100 << "%" << std::endl;
+  std::cout << "\t  cons time    = " << std::setprecision(6) << cons_time << ", " << std::setprecision(2) << cons_time/total*100 << "%" << std::endl;
+  std::cout << "\t  dis time    = " << std::setprecision(6) << dis_time << ", " << std::setprecision(2) << dis_time/total*100 << "%" << std::endl;
 }

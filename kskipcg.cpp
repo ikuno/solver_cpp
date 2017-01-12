@@ -174,8 +174,6 @@ int kskipcg::solve(){
     bs->MtxVec_mult(xvec, Av);
   }
 
-  std::cout << "XXX " << std::endl;
-
   //r = b - Ax
   bs->Vec_sub(bvec, Av, rvec);
 

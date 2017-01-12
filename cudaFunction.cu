@@ -1942,7 +1942,7 @@ void cuda::EnableP2P(){
 void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, int *ptr1, double *val2, int *col2, int *ptr2){
 
   cudaStream_t GPU1, GPU2;
-  cudaEvent_t eventA;
+  /* cudaEvent_t eventA; */
 
   this->time->start();
 

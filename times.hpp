@@ -26,6 +26,8 @@ class times {
     // double reg_time;
     // double unreg_time;
     double cp_time;
+    double cons_time;
+    double dis_time;
 
     std::chrono::system_clock::time_point c_start, c_end;
     double o_start, o_end;

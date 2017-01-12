@@ -6,6 +6,7 @@
 
 cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
   this->coll = coll;
+  this->coll->time->start();
   isInner = inner;
   isMultiGPU = this->coll->isMultiGPU;
 
@@ -85,10 +86,14 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
     }
   }
 
+  this->coll->time->end();
+  this->coll->time->cons_time += this->coll->time->getTime();
+
 }
 
 cg::~cg(){
 
+  this->coll->time->start();
   if(isCUDA){
     if(isPinned){
       delete[] rvec;
@@ -116,6 +121,9 @@ cg::~cg(){
   f_his.close();
   f_x.close();
   f_in.close();
+
+  this->coll->time->end();
+  this->coll->time->dis_time += this->coll->time->getTime();
 }
 
 int cg::solve(){
