@@ -5,8 +5,10 @@
 #include "color.hpp"
 #include "kskipbicg.hpp"
 
-kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+// kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs, double **list){
   this->coll = coll;
+  this->coll->time->start();
   isInner = inner;
   isMultiGPU = this->coll->isMultiGPU;
 
@@ -39,21 +41,49 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, c
   }
 
   N = this->coll->N;
-  if(isCUDA){
-    if(isPinned){
-      rvec = cu->d_MallocHost(N);
-      pvec = cu->d_MallocHost(N);
-      r_vec = cu->d_MallocHost(N);
-      p_vec = cu->d_MallocHost(N);
-      Av = cu->d_MallocHost(N);
-      phi = cu->d_MallocHost(2*kskip+2);
-      x_0 = new double [N];
-      theta = new double [2*kskip];
-      eta = new double [2*kskip+1];
-      rho = new double [2*kskip+1];
-      phi = new double [2*kskip+2];
-      Ar = cu->d_MallocHost((2*kskip+1)*N);
-      Ap = cu->d_MallocHost((2*kskip+2)*N);
+  if(isInner){
+    rvec = list[0];
+    pvec = list[1];
+    r_vec = list[2];
+    p_vec = list[3];
+    Av = list[4];
+    x_0 = list[5];
+    theta = list[6];
+    eta = list[7];
+    rho = list[8];
+    phi = list[9];
+    Ar = list[10];
+    Ap = list[11];
+  }else{
+    if(isCUDA){
+      if(isPinned){
+        rvec = cu->d_MallocHost(N);
+        pvec = cu->d_MallocHost(N);
+        r_vec = cu->d_MallocHost(N);
+        p_vec = cu->d_MallocHost(N);
+        Av = cu->d_MallocHost(N);
+        x_0 = new double [N];
+        theta = new double [2*kskip];
+        eta = new double [2*kskip+1];
+        rho = new double [2*kskip+1];
+        phi = new double [2*kskip+2];
+        Ar = cu->d_MallocHost((2*kskip+1)*N);
+        Ap = cu->d_MallocHost((2*kskip+2)*N);
+      }else{
+        rvec = new double [N];
+        pvec = new double [N];
+        r_vec = new double [N];
+        p_vec = new double [N];
+        Av = new double [N];
+        x_0 = new double [N];
+        theta = new double [2*kskip];
+        eta = new double [2*kskip+1];
+        rho = new double [2*kskip+1];
+        phi = new double [2*kskip+2];
+
+        Ar = new double [(2*kskip+1)*N];
+        Ap = new double [(2*kskip+2)*N];
+      }
     }else{
       rvec = new double [N];
       pvec = new double [N];
@@ -69,39 +99,25 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, c
       Ar = new double [(2*kskip+1)*N];
       Ap = new double [(2*kskip+2)*N];
     }
-  }else{
-    rvec = new double [N];
-    pvec = new double [N];
-    r_vec = new double [N];
-    p_vec = new double [N];
-    Av = new double [N];
-    x_0 = new double [N];
-    theta = new double [2*kskip];
-    eta = new double [2*kskip+1];
-    rho = new double [2*kskip+1];
-    phi = new double [2*kskip+2];
-
-    Ar = new double [(2*kskip+1)*N];
-    Ap = new double [(2*kskip+2)*N];
   }
 
   this->xvec = xvec;
   this->bvec = bvec;
 
-  std::memset(rvec, 0, sizeof(double)*N);
-  std::memset(pvec, 0, sizeof(double)*N);
-  std::memset(r_vec, 0, sizeof(double)*N);
-  std::memset(p_vec, 0, sizeof(double)*N);
-  std::memset(Av, 0, sizeof(double)*N);
+  // std::memset(rvec, 0, sizeof(double)*N);
+  // std::memset(pvec, 0, sizeof(double)*N);
+  // std::memset(r_vec, 0, sizeof(double)*N);
+  // std::memset(p_vec, 0, sizeof(double)*N);
+  // std::memset(Av, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
 
-  std::memset(theta, 0, sizeof(double)*(2*kskip));
-  std::memset(eta, 0, sizeof(double)*(2*kskip+1));
-  std::memset(rho, 0, sizeof(double)*(2*kskip+1));
-  std::memset(phi, 0, sizeof(double)*(2*kskip+2));
-
-  std::memset(Ar, 0, sizeof(double)*(2*kskip+1)*N);
-  std::memset(Ap, 0, sizeof(double)*(2*kskip+2)*N);
+  // std::memset(theta, 0, sizeof(double)*(2*kskip));
+  // std::memset(eta, 0, sizeof(double)*(2*kskip+1));
+  // std::memset(rho, 0, sizeof(double)*(2*kskip+1));
+  // std::memset(phi, 0, sizeof(double)*(2*kskip+2));
+  //
+  // std::memset(Ar, 0, sizeof(double)*(2*kskip+1)*N);
+  // std::memset(Ap, 0, sizeof(double)*(2*kskip+2)*N);
 
   if(!isInner){
     f_his.open("./output/KSKIPBICG_his.txt");
@@ -116,30 +132,51 @@ kskipBicg::kskipBicg(collection *coll, double *bvec, double *xvec, bool inner, c
       exit(-1);
     }
   }else{
-    f_in.open("./output/KSKIPBICG_inner.txt", std::ofstream::out | std::ofstream::app);
-    if(!f_in.is_open()){
-      std::cerr << "File open error inner" << std::endl;
-      std::exit(-1);
-    }
+    // f_in.open("./output/KSKIPBICG_inner.txt", std::ofstream::out | std::ofstream::app);
+    // if(!f_in.is_open()){
+    //   std::cerr << "File open error inner" << std::endl;
+    //   std::exit(-1);
+    // }
   }
+  this->coll->time->end();
+  this->coll->time->cons_time += this->coll->time->getTime();
 
 }
 
 kskipBicg::~kskipBicg(){
-  if(isCUDA){
-    if(isPinned){
-      cu->FreeHost(rvec);
-      cu->FreeHost(pvec);
-      cu->FreeHost(r_vec);
-      cu->FreeHost(p_vec);
-      cu->FreeHost(Av);
-      delete[] x_0;
-      delete[] theta;
-      delete[] eta;
-      delete[] rho;
-      delete[] phi;
-      cu->FreeHost(Ar);
-      cu->FreeHost(Ap);
+  this->coll->time->start();
+  if(isInner){
+
+  }else{
+
+    if(isCUDA){
+      if(isPinned){
+        cu->FreeHost(rvec);
+        cu->FreeHost(pvec);
+        cu->FreeHost(r_vec);
+        cu->FreeHost(p_vec);
+        cu->FreeHost(Av);
+        delete[] x_0;
+        delete[] theta;
+        delete[] eta;
+        delete[] rho;
+        delete[] phi;
+        cu->FreeHost(Ar);
+        cu->FreeHost(Ap);
+      }else{
+        delete[] rvec;
+        delete[] pvec;
+        delete[] r_vec;
+        delete[] p_vec;
+        delete[] Av;
+        delete[] x_0;
+        delete[] theta;
+        delete[] eta;
+        delete[] rho;
+        delete[] phi;
+        delete[] Ar;
+        delete[] Ap;
+      }
     }else{
       delete[] rvec;
       delete[] pvec;
@@ -154,26 +191,17 @@ kskipBicg::~kskipBicg(){
       delete[] Ar;
       delete[] Ap;
     }
-  }else{
-    delete[] rvec;
-    delete[] pvec;
-    delete[] r_vec;
-    delete[] p_vec;
-    delete[] Av;
-    delete[] x_0;
-    delete[] theta;
-    delete[] eta;
-    delete[] rho;
-    delete[] phi;
-    delete[] Ar;
-    delete[] Ap;
   }
+
   if(!isInner){
     delete this->bs;
     delete cu;
+    f_his.close();
+    f_x.close();
   }
-  f_his.close();
-  f_x.close();
+  this->coll->time->end();
+  this->coll->time->dis_time += this->coll->time->getTime();
+
 }
 
 int kskipBicg::solve(){
@@ -350,7 +378,7 @@ int kskipBicg::solve(){
         std::cout << RED << " ERROR " << nloop+1 << RESET << std::endl;
       }
     }
-    f_in << nloop+1 << std::endl;
+    // f_in << nloop+1 << std::endl;
   }
 
   return exit_flag;

@@ -4,7 +4,7 @@
 #include "color.hpp"
 #include "cg.hpp"
 
-cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs, double **list){
   this->coll = coll;
   this->coll->time->start();
   isInner = inner;
@@ -30,23 +30,35 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
   
 
   N = this->coll->N;
-  if(isCUDA){
-    if(isPinned){
-      rvec = new double [N];
-      pvec = cu->d_MallocHost(N);
-      mv = cu->d_MallocHost(N);
-      x_0 = new double [N];
+
+  if(isInner){
+
+    rvec = list[0];
+    pvec = list[1];
+    mv = list[2];
+    x_0 = list[3];
+
+  }else{
+
+    if(isCUDA){
+      if(isPinned){
+        rvec = new double [N];
+        pvec = cu->d_MallocHost(N);
+        mv = cu->d_MallocHost(N);
+        x_0 = new double [N];
+      }else{
+        rvec = new double [N];
+        pvec = new double [N];
+        mv = new double [N];
+        x_0 = new double [N];
+      }
     }else{
       rvec = new double [N];
       pvec = new double [N];
       mv = new double [N];
       x_0 = new double [N];
     }
-  }else{
-    rvec = new double [N];
-    pvec = new double [N];
-    mv = new double [N];
-    x_0 = new double [N];
+
   }
 
   this->xvec = xvec;
@@ -61,9 +73,9 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
     eps = this->coll->outerEps;
   }
 
-  std::memset(rvec, 0, sizeof(double)*N);
-  std::memset(pvec, 0, sizeof(double)*N);
-  std::memset(mv, 0, sizeof(double)*N);
+  // std::memset(rvec, 0, sizeof(double)*N);
+  // std::memset(pvec, 0, sizeof(double)*N);
+  // std::memset(mv, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
 
   if(!isInner){
@@ -79,11 +91,11 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
       std::exit(-1);
     }
   }else{
-    f_in.open("./output/CG_inner.txt", std::ofstream::out | std::ofstream::app);
-    if(!f_in.is_open()){
-      std::cerr << "File open error inner" << std::endl;
-      std::exit(-1);
-    }
+    // f_in.open("./output/CG_inner.txt", std::ofstream::out | std::ofstream::app);
+    // if(!f_in.is_open()){
+    //   std::cerr << "File open error inner" << std::endl;
+    //   std::exit(-1);
+    // }
   }
 
   this->coll->time->end();
@@ -94,12 +106,23 @@ cg::cg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
 cg::~cg(){
 
   this->coll->time->start();
-  if(isCUDA){
-    if(isPinned){
-      delete[] rvec;
-      cu->FreeHost(pvec);
-      cu->FreeHost(mv);
-      delete[] x_0;
+  if(isInner){
+
+  }else{
+
+    if(isCUDA){
+      if(isPinned){
+        delete[] rvec;
+        cu->FreeHost(pvec);
+        cu->FreeHost(mv);
+        delete[] x_0;
+      }else{
+        delete[] rvec;
+        delete[] pvec;
+        delete[] mv;
+        delete[] x_0;
+      }
+
     }else{
       delete[] rvec;
       delete[] pvec;
@@ -107,20 +130,16 @@ cg::~cg(){
       delete[] x_0;
     }
 
-  }else{
-    delete[] rvec;
-    delete[] pvec;
-    delete[] mv;
-    delete[] x_0;
   }
 
   if(!isInner){
     delete this->bs;
     delete this->cu;
+    f_his.close();
+    f_x.close();
   }
-  f_his.close();
-  f_x.close();
-  f_in.close();
+
+  // f_in.close();
 
   this->coll->time->end();
   this->coll->time->dis_time += this->coll->time->getTime();
@@ -246,7 +265,7 @@ int cg::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
-    f_in << loop << std::endl;
+    // f_in << loop << std::endl;
   }
 
   return exit_flag;

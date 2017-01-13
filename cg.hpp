@@ -35,7 +35,7 @@ class cg {
     std::ofstream f_in;
 
   public:
-    cg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL);
+    cg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL, double **list = NULL);
     ~cg();
     int solve();
 };

@@ -4,8 +4,10 @@
 #include "color.hpp"
 #include "gcr.hpp"
 
-gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+// gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs, double **list){
   this->coll = coll;
+  this->coll->time->start();
   isInner = inner;
   isMultiGPU = this->coll->isMultiGPU;
   if(isInner){
@@ -43,16 +45,38 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, b
   this->xvec = xvec;
   this->bvec = bvec;
 
-  if(isCUDA){
-    if(isPinned){
-      rvec = cu->d_MallocHost(N);
-      Av = cu->d_MallocHost(N);
-      x_0 = new double [N];
-      qq = new double [restart];
-      qvec = cu->d_MallocHost(restart * N);
-      pvec = cu->d_MallocHost(restart * N);
+  if(isInner){
 
-      beta_vec = cu->d_MallocHost(restart);
+    rvec = list[0];
+    Av = list[1];
+    x_0 = list[2];
+    qq = list[3];
+    qvec = list[4];
+    pvec = list[5];
+    beta_vec = list[6];
+
+  }else{
+
+    if(isCUDA){
+      if(isPinned){
+        rvec = cu->d_MallocHost(N);
+        Av = cu->d_MallocHost(N);
+        x_0 = new double [N];
+        qq = new double [restart];
+        qvec = cu->d_MallocHost(restart * N);
+        pvec = cu->d_MallocHost(restart * N);
+
+        beta_vec = cu->d_MallocHost(restart);
+      }else{
+        rvec = new double [N];
+        Av = new double [N];
+        x_0 = new double [N];
+        qq = new double [restart];
+        qvec = new double [restart * N];
+        pvec = new double [restart * N];
+
+        beta_vec = new double [restart];
+      }
     }else{
       rvec = new double [N];
       Av = new double [N];
@@ -63,27 +87,19 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, b
 
       beta_vec = new double [restart];
     }
-  }else{
-    rvec = new double [N];
-    Av = new double [N];
-    x_0 = new double [N];
-    qq = new double [restart];
-    qvec = new double [restart * N];
-    pvec = new double [restart * N];
 
-    beta_vec = new double [restart];
   }
 
   
-  std::memset(rvec, 0, sizeof(double)*N);
-  std::memset(Av, 0, sizeof(double)*N);
+  // std::memset(rvec, 0, sizeof(double)*N);
+  // std::memset(Av, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
-  std::memset(qq, 0, sizeof(double)*restart);
-
-  std::memset(qvec, 0, sizeof(double)*(restart * N));
-  std::memset(pvec, 0, sizeof(double)*(restart * N));
-
-  std::memset(qq, 0, sizeof(double)*restart);
+  // std::memset(qq, 0, sizeof(double)*restart);
+  //
+  // std::memset(qvec, 0, sizeof(double)*(restart * N));
+  // std::memset(pvec, 0, sizeof(double)*(restart * N));
+  //
+  // std::memset(qq, 0, sizeof(double)*restart);
 
   if(!isInner){
     f_his.open("./output/GCR_his.txt");
@@ -98,27 +114,44 @@ gcr::gcr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, b
       exit(-1);
     }
   }else{
-    f_in.open("./output/GCR_inner.txt", std::ofstream::out | std::ofstream::app);
-    if(!f_in.is_open()){
-      std::cerr << "File open error inner" << std::endl;
-      std::exit(-1);
-    }
+    // f_in.open("./output/GCR_inner.txt", std::ofstream::out | std::ofstream::app);
+    // if(!f_in.is_open()){
+    //   std::cerr << "File open error inner" << std::endl;
+    //   std::exit(-1);
+    // }
   }
+  this->coll->time->end();
+  this->coll->time->cons_time += this->coll->time->getTime();
 
   out_flag = false;
 }
 
 gcr::~gcr(){
-  if(isCUDA){
-    if(isPinned){
-      cu->FreeHost(rvec);
-      cu->FreeHost(Av);
-      delete[] qq;
-      delete[] x_0;
-      cu->FreeHost(qvec);
-      cu->FreeHost(pvec);
+  this->coll->time->start();
+  if(isInner){
 
-      cu->FreeHost(beta_vec);
+  }else{
+
+    if(isCUDA){
+      if(isPinned){
+        cu->FreeHost(rvec);
+        cu->FreeHost(Av);
+        delete[] qq;
+        delete[] x_0;
+        cu->FreeHost(qvec);
+        cu->FreeHost(pvec);
+
+        cu->FreeHost(beta_vec);
+      }else{
+        delete[] rvec;
+        delete[] Av;
+        delete[] qq;
+        delete[] x_0;
+        delete[] qvec;
+        delete[] pvec;
+
+        delete[] beta_vec;
+      }
     }else{
       delete[] rvec;
       delete[] Av;
@@ -129,22 +162,17 @@ gcr::~gcr(){
 
       delete[] beta_vec;
     }
-  }else{
-    delete[] rvec;
-    delete[] Av;
-    delete[] qq;
-    delete[] x_0;
-    delete[] qvec;
-    delete[] pvec;
-
-    delete[] beta_vec;
   }
   if(!isInner){
     delete this->bs;
     delete cu;
+    f_his.close();
+    f_x.close();
   }
-  f_his.close();
-  f_x.close();
+
+  this->coll->time->end();
+  this->coll->time->dis_time += this->coll->time->getTime();
+
 }
 
 int gcr::solve(){
@@ -312,7 +340,7 @@ int gcr::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
-    f_in << loop << std::endl;
+    // f_in << loop << std::endl;
   }
 
   return exit_flag;

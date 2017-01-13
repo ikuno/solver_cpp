@@ -10,8 +10,7 @@ class innerMethods {
     collection *Ccoll;
     innerMethods(collection *coll, cuda *cu, blas *bs);
     void innerSelect(collection *innercoll, SOLVERS_NAME solver, cuda *cu, blas *bs, double *ibvec, double *ixvec);
-    // innerMethods(collection *coll);
-    // void innerSelect(collection *innercoll, SOLVERS_NAME solver, double *ibvec, double *ixvec);
+    void innerSelect(collection *innercoll, SOLVERS_NAME solver, cuda *cu, blas *bs, double *ibvec, double *ixvec, double **list);
 
 };
 

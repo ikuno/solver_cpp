@@ -35,7 +35,8 @@ class kskipBicg {
     std::ofstream f_in;
 
   public:
-    kskipBicg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL);
+    // kskipBicg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL);
+    kskipBicg(collection *coll, double *bvec, double *xvec, bool inner = false, cuda *a_cu = NULL, blas *a_bs = NULL, double **list = NULL);
     ~kskipBicg();
     int solve();
 };

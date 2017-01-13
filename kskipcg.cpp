@@ -5,8 +5,10 @@
 #include "color.hpp"
 #include "kskipcg.hpp"
 
-kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+// kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs, double **list){
   this->coll = coll;
+  this->coll->time->start();
   isInner = inner;
   isMultiGPU = this->coll->isMultiGPU;
 
@@ -41,17 +43,43 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda 
 
   N = this->coll->N;
 
-  if(isCUDA){
-    if(isPinned){
-      rvec = cu->d_MallocHost(N);
-      pvec = cu->d_MallocHost(N);
-      Av = cu->d_MallocHost(N);
-      x_0 = new double [N];
-      delta = new double [2*kskip];
-      eta = new double [2*kskip+1];
-      zeta = new double [2*kskip+2];
-      Ar = cu->d_MallocHost((2*kskip+1)*N);
-      Ap = cu->d_MallocHost((2*kskip+2)*N);
+  if(isInner){
+
+    rvec = list[0];
+    pvec = list[1];
+    Av = list[2];
+    x_0 = list[3];
+    delta = list[4];
+    eta = list[5];
+    zeta = list[6];
+    Ar = list[7];
+    Ap = list[8];
+
+  }else{
+
+
+    if(isCUDA){
+      if(isPinned){
+        rvec = cu->d_MallocHost(N);
+        pvec = cu->d_MallocHost(N);
+        Av = cu->d_MallocHost(N);
+        x_0 = new double [N];
+        delta = new double [2*kskip];
+        eta = new double [2*kskip+1];
+        zeta = new double [2*kskip+2];
+        Ar = cu->d_MallocHost((2*kskip+1)*N);
+        Ap = cu->d_MallocHost((2*kskip+2)*N);
+      }else{
+        rvec = new double [N];
+        pvec = new double [N];
+        Av = new double [N];
+        x_0 = new double [N];
+        delta = new double [2*kskip];
+        eta = new double [2*kskip+1];
+        zeta = new double [2*kskip+2];
+        Ar = new double [(2*kskip+1)*N];
+        Ap = new double [(2*kskip+2)*N];
+      }
     }else{
       rvec = new double [N];
       pvec = new double [N];
@@ -63,32 +91,22 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda 
       Ar = new double [(2*kskip+1)*N];
       Ap = new double [(2*kskip+2)*N];
     }
-  }else{
-    rvec = new double [N];
-    pvec = new double [N];
-    Av = new double [N];
-    x_0 = new double [N];
-    delta = new double [2*kskip];
-    eta = new double [2*kskip+1];
-    zeta = new double [2*kskip+2];
-    Ar = new double [(2*kskip+1)*N];
-    Ap = new double [(2*kskip+2)*N];
-  }
 
+  }
   this->xvec = xvec;
   this->bvec = bvec;
 
   exit_flag = 2;
 
-  std::memset(rvec, 0, sizeof(double)*N);
-  std::memset(pvec, 0, sizeof(double)*N);
-  std::memset(Av, 0, sizeof(double)*N);
+  // std::memset(rvec, 0, sizeof(double)*N);
+  // std::memset(pvec, 0, sizeof(double)*N);
+  // std::memset(Av, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
-  std::memset(delta, 0, sizeof(double)*(2*kskip));
-  std::memset(eta, 0, sizeof(double)*(2*kskip+1));
-  std::memset(zeta, 0, sizeof(double)*(2*kskip+2));
-  std::memset(Ar, 0, sizeof(double)*(2*kskip+1)*N);
-  std::memset(Ap, 0, sizeof(double)*(2*kskip+2)*N);
+  // std::memset(delta, 0, sizeof(double)*(2*kskip));
+  // std::memset(eta, 0, sizeof(double)*(2*kskip+1));
+  // std::memset(zeta, 0, sizeof(double)*(2*kskip+2));
+  // std::memset(Ar, 0, sizeof(double)*(2*kskip+1)*N);
+  // std::memset(Ap, 0, sizeof(double)*(2*kskip+2)*N);
 
   if(!isInner){
     f_his.open("./output/KSKIPCG_his.txt");
@@ -103,28 +121,46 @@ kskipcg::kskipcg(collection *coll, double *bvec, double *xvec, bool inner, cuda 
       exit(-1);
     }
   }else{
-    f_in.open("./output/KSKIPCG_inner.txt", std::ofstream::out | std::ofstream::app);
-    if(!f_in.is_open()){
-      std::cerr << "File open error inner" << std::endl;
-      std::exit(-1);
-    }
+    // f_in.open("./output/KSKIPCG_inner.txt", std::ofstream::out | std::ofstream::app);
+    // if(!f_in.is_open()){
+    //   std::cerr << "File open error inner" << std::endl;
+    //   std::exit(-1);
+    // }
   }
+  this->coll->time->end();
+  this->coll->time->cons_time += this->coll->time->getTime();
 
 }
 
 kskipcg::~kskipcg(){
-  if(isCUDA){
-    if(isPinned){
-      cu->FreeHost(rvec);
-      cu->FreeHost(pvec);
-      cu->FreeHost(Av);
-      delete[] x_0;
-      delete[] delta;
-      delete[] eta;
-      delete[] zeta;
+  this->coll->time->start();
+  if(isInner){
 
-      cu->FreeHost(Ar);
-      cu->FreeHost(Ap);
+  }else{
+
+    if(isCUDA){
+      if(isPinned){
+        cu->FreeHost(rvec);
+        cu->FreeHost(pvec);
+        cu->FreeHost(Av);
+        delete[] x_0;
+        delete[] delta;
+        delete[] eta;
+        delete[] zeta;
+
+        cu->FreeHost(Ar);
+        cu->FreeHost(Ap);
+      }else{
+        delete[] rvec;
+        delete[] pvec;
+        delete[] Av;
+        delete[] x_0;
+        delete[] delta;
+        delete[] eta;
+        delete[] zeta;
+        delete[] Ar;
+        delete[] Ap;
+      }
     }else{
       delete[] rvec;
       delete[] pvec;
@@ -136,24 +172,16 @@ kskipcg::~kskipcg(){
       delete[] Ar;
       delete[] Ap;
     }
-  }else{
-    delete[] rvec;
-    delete[] pvec;
-    delete[] Av;
-    delete[] x_0;
-    delete[] delta;
-    delete[] eta;
-    delete[] zeta;
-    delete[] Ar;
-    delete[] Ap;
   }
 
   if(!isInner){
     delete this->bs;
     delete cu;
+    f_his.close();
+    f_x.close();
   }
-  f_his.close();
-  f_x.close();
+  this->coll->time->end();
+  this->coll->time->dis_time += this->coll->time->getTime();
 }
 
 int kskipcg::solve(){
@@ -308,7 +336,7 @@ int kskipcg::solve(){
         std::cout << RED << " ERROR " << nloop-kskip+1 << RESET << std::endl;
       }
     }
-    f_in << nloop-kskip+1 << std::endl;
+    // f_in << nloop-kskip+1 << std::endl;
   }
 
   return exit_flag;

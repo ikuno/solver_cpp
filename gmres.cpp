@@ -5,8 +5,10 @@
 #include "color.hpp"
 #include "gmres.hpp"
 
-gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+// gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs, double **list){
   this->coll = coll;
+  this->coll->time->start();
   isInner = inner;
   isMultiGPU = this->coll->isMultiGPU;
 
@@ -40,25 +42,59 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
   }
 
   N = this->coll->N;
-  if(isCUDA){
-    if(isPinned){
-      // vmtx = cu->d_MallocHost(N*(restart+1));
-      testvec2 = cu->d_MallocHost(N);
-      wvec = cu->d_MallocHost(N);
-      Av = cu->d_MallocHost(N);
-      rvec = new double [N];
-      evec = new double [restart];
-      vvec = new double [N];
-      vmtx = new double [N*(restart+1)];
-      hmtx = new double [N*(restart+1)];
-      yvec = new double [restart];
-      cvec = new double [restart];
-      svec = new double [restart];
-      x0vec = new double [N];
-      tmpvec = new double [N];
-      x_0 = new double [N];
-      testvec = new double [N];
 
+  if(isInner){
+    Av = list[0];
+    rvec = list[1];
+    evec = list[2];
+    vvec = list[3];
+    vmtx = list[4];
+    hmtx = list[5];
+    yvec = list[6];
+    wvec = list[7];
+    cvec = list[8];
+    svec = list[9];
+    x0vec = list[10];
+    tmpvec = list[11];
+    x_0 = list[12];
+    testvec = list[13];
+    testvec2 = list[14];
+  }else{
+    if(isCUDA){
+      if(isPinned){
+        Av = cu->d_MallocHost(N);
+        rvec = new double [N];
+        evec = new double [restart];
+        vvec = new double [N];
+        vmtx = new double [N*(restart+1)];
+        hmtx = new double [N*(restart+1)];
+        yvec = new double [restart];
+        wvec = cu->d_MallocHost(N);
+        cvec = new double [restart];
+        svec = new double [restart];
+        x0vec = new double [N];
+        tmpvec = new double [N];
+        x_0 = new double [N];
+        testvec = new double [N];
+        testvec2 = cu->d_MallocHost(N);
+
+      }else{
+        Av = new double [N];
+        rvec = new double [N];
+        evec = new double [restart];
+        vvec = new double [N];
+        vmtx = new double [N*(restart+1)];
+        hmtx = new double [N*(restart+1)];
+        yvec = new double [restart];
+        wvec = new double [N];
+        cvec = new double [restart];
+        svec = new double [restart];
+        x0vec = new double [N];
+        tmpvec = new double [N];
+        x_0 = new double [N];
+        testvec = new double [N];
+        testvec2 = new double [N];
+      }
     }else{
       Av = new double [N];
       rvec = new double [N];
@@ -76,42 +112,26 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
       testvec = new double [N];
       testvec2 = new double [N];
     }
-  }else{
-    Av = new double [N];
-    rvec = new double [N];
-    evec = new double [restart];
-    vvec = new double [N];
-    vmtx = new double [N*(restart+1)];
-    hmtx = new double [N*(restart+1)];
-    yvec = new double [restart];
-    wvec = new double [N];
-    cvec = new double [restart];
-    svec = new double [restart];
-    x0vec = new double [N];
-    tmpvec = new double [N];
-    x_0 = new double [N];
-    testvec = new double [N];
-    testvec2 = new double [N];
-  }
 
+  }
   this->xvec = xvec;
   this->bvec = bvec;
 
-  std::memset(rvec, 0, sizeof(double)*N);
-  std::memset(evec, 0, sizeof(double)*restart);
-  std::memset(vvec, 0, sizeof(double)*N);
-  std::memset(vmtx, 0, sizeof(double)*(N*(restart+1)));
-  std::memset(hmtx, 0, sizeof(double)*(N*(restart+1)));
-  std::memset(yvec, 0, sizeof(double)*restart);
-  std::memset(wvec, 0, sizeof(double)*N);
-  std::memset(cvec, 0, sizeof(double)*restart);
-  std::memset(svec, 0, sizeof(double)*restart);
+  // std::memset(rvec, 0, sizeof(double)*N);
+  // std::memset(evec, 0, sizeof(double)*restart);
+  // std::memset(vvec, 0, sizeof(double)*N);
+  // std::memset(vmtx, 0, sizeof(double)*(N*(restart+1)));
+  // std::memset(hmtx, 0, sizeof(double)*(N*(restart+1)));
+  // std::memset(yvec, 0, sizeof(double)*restart);
+  // std::memset(wvec, 0, sizeof(double)*N);
+  // std::memset(cvec, 0, sizeof(double)*restart);
+  // std::memset(svec, 0, sizeof(double)*restart);
   std::memset(x0vec, 0, sizeof(double)*N);
-  std::memset(tmpvec, 0, sizeof(double)*N);
-  std::memset(Av, 0, sizeof(double)*N);
+  // std::memset(tmpvec, 0, sizeof(double)*N);
+  // std::memset(Av, 0, sizeof(double)*N);
   std::memset(xvec, 0, sizeof(double)*N);
-  std::memset(testvec, 0, sizeof(double)*N);
-  std::memset(testvec2, 0, sizeof(double)*N);
+  // std::memset(testvec, 0, sizeof(double)*N);
+  // std::memset(testvec2, 0, sizeof(double)*N);
 
   if(!isInner){
     f_his.open("./output/GMRES_his.txt");
@@ -126,35 +146,58 @@ gmres::gmres(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_c
       exit(-1);
     }
   }else{
-    f_in.open("./output/GMRES_inner.txt", std::ofstream::out | std::ofstream::app);
-    if(!f_in.is_open()){
-      std::cerr << "File open error inner" << std::endl;
-      std::exit(-1);
-    }
+    // f_in.open("./output/GMRES_inner.txt", std::ofstream::out | std::ofstream::app);
+    // if(!f_in.is_open()){
+    //   std::cerr << "File open error inner" << std::endl;
+    //   std::exit(-1);
+    // }
   }
+  this->coll->time->end();
+  this->coll->time->cons_time += this->coll->time->getTime();
 
 }
 
 gmres::~gmres(){
-  if(isCUDA){
-    if(isPinned){
-      // cu->FreeHost(vmtx);
-      cu->FreeHost(testvec2);
-      cu->FreeHost(wvec);
-      cu->FreeHost(Av);
+  this->coll->time->start();
+  if(isInner){
 
-      delete[] rvec;
-      delete[] evec;
-      delete[] vvec;
-      delete[] vmtx;
-      delete[] hmtx;
-      delete[] yvec;
-      delete[] cvec;
-      delete[] svec;
-      delete[] x0vec;
-      delete[] x_0;
-      delete[] tmpvec;
-      delete[] testvec;
+  }else{
+    if(isCUDA){
+      if(isPinned){
+        cu->FreeHost(testvec2);
+        cu->FreeHost(wvec);
+        cu->FreeHost(Av);
+
+        delete[] rvec;
+        delete[] evec;
+        delete[] vvec;
+        delete[] vmtx;
+        delete[] hmtx;
+        delete[] yvec;
+        delete[] cvec;
+        delete[] svec;
+        delete[] x0vec;
+        delete[] x_0;
+        delete[] tmpvec;
+        delete[] testvec;
+      }else{
+        delete[] rvec;
+        delete[] evec;
+        delete[] vvec;
+        delete[] vmtx;
+        delete[] hmtx;
+        delete[] yvec;
+        delete[] wvec;
+        delete[] cvec;
+        delete[] svec;
+        delete[] x0vec;
+        delete[] Av;
+        delete[] tmpvec;
+        delete[] x_0;
+        delete[] testvec;
+        delete[] testvec2;
+      }
+
     }else{
       delete[] rvec;
       delete[] evec;
@@ -172,31 +215,17 @@ gmres::~gmres(){
       delete[] testvec;
       delete[] testvec2;
     }
-
-  }else{
-    delete[] rvec;
-    delete[] evec;
-    delete[] vvec;
-    delete[] vmtx;
-    delete[] hmtx;
-    delete[] yvec;
-    delete[] wvec;
-    delete[] cvec;
-    delete[] svec;
-    delete[] x0vec;
-    delete[] Av;
-    delete[] tmpvec;
-    delete[] x_0;
-    delete[] testvec;
-    delete[] testvec2;
   }
 
   if(!isInner){
     delete this->bs;
     delete cu;
+    f_his.close();
+    f_x.close();
   }
-  f_his.close();
-  f_x.close();
+  this->coll->time->end();
+  this->coll->time->dis_time += this->coll->time->getTime();
+
 }
 // delete axvec -> tmpvec
 // deleta avvec -> wvec
@@ -421,7 +450,7 @@ int gmres::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
-    f_in << count+1 << std::endl;
+    // f_in << count+1 << std::endl;
   }
 
   return exit_flag;

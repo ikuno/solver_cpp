@@ -4,8 +4,10 @@
 #include "color.hpp"
 #include "cr.hpp"
 
-cr::cr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+// cr::cr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs){
+cr::cr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, blas *a_bs, double **list){
   this->coll = coll;
+  this->coll->time->start();
   isInner = inner;
   isMultiGPU = this->coll->isMultiGPU;
   if(isInner){
@@ -27,13 +29,31 @@ cr::cr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
   isPinned = this->coll->isPinned;
 
   N = this->coll->N;
-  if(isCUDA){
-    if(isPinned){
-    rvec = cu->d_MallocHost(N);
-    pvec = cu->d_MallocHost(N);
-    qvec = cu->d_MallocHost(N);
-    svec = cu->d_MallocHost(N);
-    x_0 = new double [N];
+
+  if(isInner){
+
+    rvec = list[0];
+    pvec = list[1];
+    qvec = list[2];
+    svec = list[3];
+    x_0 = list[4];
+
+  }else{
+
+    if(isCUDA){
+      if(isPinned){
+        rvec = cu->d_MallocHost(N);
+        pvec = cu->d_MallocHost(N);
+        qvec = cu->d_MallocHost(N);
+        svec = cu->d_MallocHost(N);
+        x_0 = new double [N];
+      }else{
+        rvec = new double [N];
+        pvec = new double [N];
+        qvec = new double [N];
+        svec = new double [N];
+        x_0 = new double [N];
+      }
     }else{
       rvec = new double [N];
       pvec = new double [N];
@@ -41,12 +61,7 @@ cr::cr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
       svec = new double [N];
       x_0 = new double [N];
     }
-  }else{
-    rvec = new double [N];
-    pvec = new double [N];
-    qvec = new double [N];
-    svec = new double [N];
-    x_0 = new double [N];
+
   }
 
   this->xvec = xvec;
@@ -80,24 +95,39 @@ cr::cr(collection *coll, double *bvec, double *xvec, bool inner, cuda *a_cu, bla
       std::exit(-1);
     }
   }else{
-    f_in.open("./output/CR_inner.txt", std::ofstream::out | std::ofstream::app);
-    if(!f_in.is_open()){
-      std::cerr << "File open error inner" << std::endl;
-      std::exit(-1);
-    }
+    // f_in.open("./output/CR_inner.txt", std::ofstream::out | std::ofstream::app);
+    // if(!f_in.is_open()){
+    //   std::cerr << "File open error inner" << std::endl;
+    //   std::exit(-1);
+    // }
   }
 
+  this->coll->time->end();
+  this->coll->time->cons_time += this->coll->time->getTime();
 
 }
 
 cr::~cr(){
-  if(isCUDA){
-    if(isPinned){
-      cu->FreeHost(rvec);
-      cu->FreeHost(pvec);
-      cu->FreeHost(qvec);
-      cu->FreeHost(svec);
-      delete[] x_0;
+
+  this->coll->time->start();
+  if(isInner){
+
+  }else{
+
+    if(isCUDA){
+      if(isPinned){
+        cu->FreeHost(rvec);
+        cu->FreeHost(pvec);
+        cu->FreeHost(qvec);
+        cu->FreeHost(svec);
+        delete[] x_0;
+      }else{
+        delete[] rvec;
+        delete[] pvec;
+        delete[] qvec;
+        delete[] svec;
+        delete[] x_0;
+      }
     }else{
       delete[] rvec;
       delete[] pvec;
@@ -105,20 +135,18 @@ cr::~cr(){
       delete[] svec;
       delete[] x_0;
     }
-  }else{
-    delete[] rvec;
-    delete[] pvec;
-    delete[] qvec;
-    delete[] svec;
-    delete[] x_0;
+
   }
 
   if(!isInner){
     delete this->bs;
     delete cu;
+    f_his.close();
+    f_x.close();
   }
-  f_his.close();
-  f_x.close();
+  this->coll->time->end();
+  this->coll->time->dis_time += this->coll->time->getTime();
+
 }
 
 int cr::solve(){
@@ -260,7 +288,7 @@ int cr::solve(){
         std::cout << RED << " ERROR " << loop << RESET << std::endl;
       }
     }
-    f_in << loop << std::endl;
+    // f_in << loop << std::endl;
   }
 
   return exit_flag;
