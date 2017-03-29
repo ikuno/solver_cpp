@@ -1964,7 +1964,9 @@ void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, i
   checkCudaErrors (cudaMemsetAsync(cu_d2_1, 0, size1, GPU1) );
   checkCudaErrors (cudaMemcpyAsync(cu_d1_1, in, size*sizeof(double), cudaMemcpyHostToDevice, GPU1));
   /* checkCudaErrors (cudaEventRecord(eventA, GPU1)); */
+
   kernel_MtxVec_mult<<<BlockPerGrid1, ThreadPerBlock1, 0, GPU1>>>(this->size1, val1, col1, ptr1, cu_d1_1, cu_d2_1);
+
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaMemcpyAsync(out, cu_d2_1, size1*sizeof(double), cudaMemcpyDeviceToHost, GPU1) );
 
@@ -1974,7 +1976,9 @@ void cuda::MtxVec_mult_Multi(double *in, double *out, double *val1, int *col1, i
   checkCudaErrors (cudaMemcpyAsync(cu_d1_2, in, size*sizeof(double), cudaMemcpyHostToDevice, GPU2) );
   /* checkCudaErrors (cudaEventSynchronize(eventA)); */
   /* cudaMemcpyPeerAsync(cu_d1_2, 1, cu_d1_1, 0, size*sizeof(double), GPU2); */
+
   kernel_MtxVec_mult<<<BlockPerGrid2, ThreadPerBlock2, 0, GPU2>>>(this->size2, val2, col2, ptr2, cu_d1_2, cu_d2_2);
+
   checkCudaErrors( cudaPeekAtLastError() );
   checkCudaErrors( cudaMemcpyAsync((double*)(out+size1), cu_d2_2, size2*sizeof(double), cudaMemcpyDeviceToHost, GPU2) );
 

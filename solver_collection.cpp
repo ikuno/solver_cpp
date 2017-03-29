@@ -732,58 +732,94 @@ void collection::readMatrix(){
     bx_path = this->fullPath+"/bx.txt";
 
 
-    unsigned long int dammy;
-    unsigned long int counter[3]={0,0,0};
+    // unsigned long int dammy;
+    // unsigned long int counter[3]={0,0,0};
+    int skip1, skip2, skip3;
 
-    std::ifstream valcol_file(valcol_path.c_str());
-    if (valcol_file.fail())
-    {
-      std::cerr << "[X] Read valcol fail" << std::endl;
-      exit(-1);
+    // std::ifstream valcol_file(valcol_path.c_str());
+    // if (valcol_file.fail())
+    // {
+    //   std::cerr << "[X] Read valcol fail" << std::endl;
+    //   exit(-1);
+    // }
+    // valcol_file >> dammy;
+    // valcol_file >> dammy;
+    // valcol_file >> dammy;
+    //
+    // while(!valcol_file.eof()){
+    //   valcol_file >> this->col[counter[0]];
+    //   valcol_file >> this->val[counter[0]];
+    //   counter[0]++;
+    //   std::cout << counter[0] << std::endl;
+    // }
+    // valcol_file.close();
+    std::FILE* valcol_f = std::fopen(valcol_path.c_str(), "r");
+    setvbuf(valcol_f,NULL,_IOFBF,512*1024);
+    fscanf(valcol_f, "%d %d %d\n", &skip1, &skip2, &skip3);
+    for(unsigned long int z=0; z<this->NNZ; z++){
+      int fuga1;
+      double fuga2;
+      fscanf(valcol_f, "%d %le\n", &fuga1, &fuga2);
+      this->col[z] = fuga1;
+      this->val[z] = fuga2;
     }
-    valcol_file >> dammy;
-    valcol_file >> dammy;
-    valcol_file >> dammy;
-    while(!valcol_file.eof()){
-      valcol_file >> this->col[counter[0]];
-      valcol_file >> this->val[counter[0]];
-      counter[0]++;
-    }
-    valcol_file.close();
+    std::fclose(valcol_f);
 
     std::cout << "\n\tvalcol .........."<< GREEN << "[○] Done" << RESET << std::endl;
 
-    std::ifstream ptr_file(ptr_path.c_str());
-    if (ptr_file.fail())
-    {
-      std::cerr << "[X] Read ptr fail" << std::endl;
-      exit(-1);
+    // std::ifstream ptr_file(ptr_path.c_str());
+    // if (ptr_file.fail())
+    // {
+    //   std::cerr << "[X] Read ptr fail" << std::endl;
+    //   exit(-1);
+    // }
+    // ptr_file >> dammy;
+    // ptr_file >> dammy;
+    // ptr_file >> dammy;
+    // while(!ptr_file.eof()){
+    //   ptr_file >> this->ptr[counter[1]];
+    //   counter[1]++;
+    // }
+    // ptr_file.close();
+    std::FILE* ptr_f = std::fopen(ptr_path.c_str(), "r");
+    setvbuf(ptr_f,NULL,_IOFBF,512*1024);
+    fscanf(ptr_f, "%d %d %d\n", &skip1, &skip2, &skip3);
+    for(unsigned long int z=0; z<this->N+1; z++){
+      int fuga1;
+      fscanf(ptr_f, "%d\n", &fuga1);
+      this->ptr[z] = fuga1;
     }
-    ptr_file >> dammy;
-    ptr_file >> dammy;
-    ptr_file >> dammy;
-    while(!ptr_file.eof()){
-      ptr_file >> this->ptr[counter[1]];
-      counter[1]++;
-    }
-    ptr_file.close();
+    std::fclose(ptr_f);
+
     std::cout << "\tptr .........."<< GREEN << "[○] Done" << RESET << std::endl;
 
-    std::ifstream bx_file(bx_path.c_str());
-    if (bx_file.fail())
-    {
-      std::cerr << "[X] Read bx fail" << std::endl;
-      exit(-1);
+    // std::ifstream bx_file(bx_path.c_str());
+    // if (bx_file.fail())
+    // {
+    //   std::cerr << "[X] Read bx fail" << std::endl;
+    //   exit(-1);
+    // }
+    // bx_file >> dammy;
+    // bx_file >> dammy;
+    // bx_file >> dammy;
+    // while(!bx_file.eof()){
+    //   bx_file >> this->bvec[counter[2]];
+    //   bx_file >> this->xvec[counter[2]];
+    //   counter[2]++;
+    // }
+    // bx_file.close();
+    std::FILE* bx_f = std::fopen(bx_path.c_str(), "r");
+    setvbuf(bx_f,NULL,_IOFBF,512*1024);
+    fscanf(bx_f, "%d %d %d\n", &skip1, &skip2, &skip3);
+    for(unsigned long int z=0; z<this->N; z++){
+      double fuga1;
+      double fuga2;
+      fscanf(bx_f, "%le %le\n", &fuga1, &fuga2);
+      this->bvec[z] = fuga1;
+      this->xvec[z] = fuga2;
     }
-    bx_file >> dammy;
-    bx_file >> dammy;
-    bx_file >> dammy;
-    while(!bx_file.eof()){
-      bx_file >> this->bvec[counter[2]];
-      bx_file >> this->xvec[counter[2]];
-      counter[2]++;
-    }
-    bx_file.close();
+    std::fclose(bx_f);
+
     std::cout << "\tbx .........."<< GREEN << "[○] Done" << RESET << std::endl;
 
     std::cout << "        ................." << GREEN << "[○] Done" << RESET << std::endl;
